@@ -1,10 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BookCard } from '../../components/BookCard';
+import { EmptyState, LoadingState, RetryState } from '../../components/States';
+import { books as demoBooks } from '../../data/books';
+import { getBooks } from '../../services/books';
+import { Book } from '../../types';
 
 const genres = ['Tiên hiệp', 'Ngôn tình', 'Đô thị', 'Xuyên không', 'Hệ thống', 'Trinh thám', 'Kinh dị', 'Fantasy'];
 
 export default function DiscoverScreen() {
+  const [query, setQuery] = useState(''); const [books, setBooks] = useState<Book[]>(demoBooks); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [reload, setReload] = useState(0);
+  useEffect(() => { let active = true; setLoading(true); setError(''); getBooks().then((result) => { if (active) setBooks(result.data); }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Không thể tải truyện.')).finally(() => active && setLoading(false)); return () => { active = false; }; }, [reload]);
+  const results = useMemo(() => { const value = query.trim().toLowerCase(); return !value ? books : books.filter((book) => `${book.title} ${book.author} ${book.genre} ${book.tags.join(' ')}`.toLowerCase().includes(value)); }, [books, query]);
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.page}>
@@ -12,6 +21,8 @@ export default function DiscoverScreen() {
         <View style={styles.search}>
           <Ionicons name="search" size={19} color="#756B6F" />
           <TextInput
+            value={query}
+            onChangeText={setQuery}
             placeholder="Tìm truyện, tác giả, thể loại..."
             placeholderTextColor="#9B9195"
             style={styles.input}
@@ -22,6 +33,7 @@ export default function DiscoverScreen() {
           {genres.map((genre) => <Text style={styles.chip} key={genre}>{genre}</Text>)}
         </View>
         <Text style={styles.heading}>Đang nổi bật</Text>
+        {loading ? <LoadingState label="Đang tải truyện…" /> : error ? <RetryState title="Không tải được dữ liệu" detail={error} onRetry={() => setReload((value) => value + 1)} /> : results.length === 0 ? <EmptyState title="Không tìm thấy truyện" detail="Thử tên truyện, tác giả hoặc thể loại khác." /> : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bookRow}>{results.slice(0, 12).map((book) => <BookCard key={book.id} book={book} />)}</ScrollView>}
         <View style={styles.feature}>
           <Text style={styles.kicker}>BXH HÔM NAY</Text>
           <Text style={styles.featureTitle}>Những câu chuyện được đọc nhiều nhất</Text>
@@ -45,4 +57,5 @@ const styles = StyleSheet.create({
   kicker: { color: '#8F1D3F', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   featureTitle: { color: '#221A1D', fontSize: 21, lineHeight: 27, fontWeight: '900', marginTop: 7 },
   body: { color: '#756B6F', fontSize: 13, lineHeight: 20, marginTop: 8 }
+  ,bookRow: { paddingBottom: 16 }
 });

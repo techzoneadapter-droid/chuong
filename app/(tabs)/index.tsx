@@ -1,13 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookCard } from '../../components/BookCard';
-import { books } from '../../data/books';
+import { EmptyState } from '../../components/States';
+import { books as demoBooks } from '../../data/books';
+import { useAuth } from '../../contexts/AuthContext';
+import { getBooks } from '../../services/books';
+import { getReadingProgress } from '../../services/library';
+import { Book, ReadingProgress } from '../../types';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [books, setBooks] = useState<Book[]>(demoBooks);
+  const [savedProgress, setSavedProgress] = useState<ReadingProgress | null>(null);
+  const [loadError, setLoadError] = useState('');
+  useEffect(() => {
+    let active = true;
+    getBooks().then(async (result) => {
+      if (!active) return; setBooks(result.data);
+      if (result.data.length === 0) return;
+      const progress = await getReadingProgress(result.data[0].id, user?.id); if (active) setSavedProgress(progress);
+    }).catch((cause) => setLoadError(cause instanceof Error ? cause.message : 'Không thể tải truyện.'));
+    return () => { active = false; };
+  }, [user?.id]);
   const currentBook = books[0];
+  if (!currentBook) return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.emptyHome}><Text style={styles.brand}>CHƯƠNG</Text><EmptyState title="Chưa có truyện công khai" detail={loadError || 'Nội dung sẽ xuất hiện sau khi tác giả xuất bản truyện.'} /></View></SafeAreaView>;
+  const currentPercent = savedProgress?.progressPercent ?? currentBook.progress;
+  const currentChapter = savedProgress?.chapterNumber ?? Math.max(1, Math.floor(currentBook.totalChapters * currentBook.progress / 100));
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.page}>
@@ -29,14 +51,14 @@ export default function HomeScreen() {
         <Pressable style={({ pressed }) => [styles.hero, pressed && styles.pressed]} onPress={() => router.push({ pathname: '/book/[id]', params: { id: currentBook.id } })}>
           <View style={styles.heroTop}>
             <Text style={styles.heroEyebrow}>ĐANG ĐỌC</Text>
-            <Text style={styles.heroPercent}>{Math.round(currentBook.progress)}%</Text>
+            <Text style={styles.heroPercent}>{Math.round(currentPercent)}%</Text>
           </View>
-          <Text style={styles.heroTitle}>Kiếm Yên Vân</Text>
-          <Text style={styles.heroSub}>{currentBook.author} · Chương 186 / {currentBook.totalChapters}</Text>
+          <Text style={styles.heroTitle}>{currentBook.title}</Text>
+          <Text style={styles.heroSub}>{currentBook.author} · Chương {currentChapter} / {currentBook.totalChapters}</Text>
           <View style={styles.track}>
-            <View style={[styles.fill, { width: `${currentBook.progress}%` }]} />
+            <View style={[styles.fill, { width: `${currentPercent}%` }]} />
           </View>
-          <Pressable style={styles.continueButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: currentBook.id, chapter: 186 } })}>
+          <Pressable style={styles.continueButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: currentBook.id, chapter: currentChapter } })}>
             <Ionicons name="book-outline" size={18} color="#FFFFFF" />
             <Text style={styles.continueText}>Đọc tiếp</Text>
           </Pressable>
@@ -182,4 +204,5 @@ const styles = StyleSheet.create({
     borderRadius: 12
   },
   authorButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 }
+  ,emptyHome: { flex: 1, padding: 20 }
 });
