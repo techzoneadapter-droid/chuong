@@ -12,3 +12,7 @@ web-build/
 
 expo-env.d.ts
 # @end expo-cli
+# Local verification artifacts
+.cache/
+test-results/
+playwright-report/

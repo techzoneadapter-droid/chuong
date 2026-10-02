@@ -47,6 +47,8 @@ export interface Book {
   tags: string[];
   totalChapters: number;
   latestChapter: number;
+  publishedChapters?: number;
+  draftChapters?: number;
   isVip: boolean;
   price: number;
   progress: number;
@@ -160,4 +162,16 @@ export interface ServiceResult<T> {
 
 export interface ServiceError extends Error {
   code?: string;
+}
+
+export interface DiscussionComment {
+  id: string;
+  userId: string;
+  parentId: string | null;
+  name: string;
+  avatarUrl: string | null;
+  content: string;
+  createdAt: string;
+  likes: number;
+  liked: boolean;
 }

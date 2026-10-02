@@ -26,7 +26,7 @@ export default function ChapterListScreen() {
   useEffect(() => {
     let active = true; setLoading(true); setError('');
     getBookById(id).then(async (bookResult) => {
-      if (!bookResult.data) return;
+      if (!bookResult.data) throw new Error('Không tìm thấy truyện công khai.');
       const chaptersResult = await getChaptersByBook(bookResult.data.id);
       if (!active) return; setBook({ ...bookResult.data, chapters: chaptersResult.data }); setSourceChapters(chaptersResult.data);
     }).catch((cause: unknown) => active && setError(cause instanceof Error ? cause.message : 'Không thể tải chương.')).finally(() => active && setLoading(false));

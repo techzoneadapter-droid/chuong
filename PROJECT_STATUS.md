@@ -1,40 +1,88 @@
 # CHƯƠNG — PROJECT STATUS
 
-Updated: 2026-10-02 (Phase 2 core reading experience)
+Updated: 2026-10-02
+
+## Current phase
+
+Phase 3A backend foundation audited, completed in the working tree, and stabilized with local database/browser tests. Live Supabase setup and device QA remain required before declaring deployment complete. Approved Phase 2 UI, Reader, AI demo and Audio demo are preserved.
 
 ## Completed
 
-- Preserved the existing warm-paper Home, burgundy brand identity, Home structure, and 5-tab navigation.
-- Added a typed reusable data model with 12 fictional Vietnamese novels and realistic generated chapter metadata.
-- Made Home book cards and major Home actions navigable.
-- Added premium Book Detail at `/book/[id]` with reading CTA, metadata, author follow, library state, download demo, chapter preview, ratings, comments, and similar books.
-- Added searchable/sortable/filterable full chapter list at `/book/[id]/chapters`.
-- Added the core Reader at `/reader/[bookId]?chapter=N` with long Vietnamese reading content, constrained web width, tap-to-toggle controls, chapter navigation, chapter picker, community preview, and locally persisted bookmarks.
-- Added locally persisted Reader Settings: font size/family, line spacing, white/paper/night/AMOLED themes, page padding, vertical scroll, and clearly marked page-mode preview.
-- Added functional demo Audio/TTS sheet with playback, seek, progress, speed, voice, chapter controls, and sleep timer choices. A provider interface is ready for later cloud TTS integration.
-- Added deterministic AI tool menu and screens: Convert (`/ai/convert`), spoiler-safe recap (`/ai/recap`), and story chat (`/ai/chat`). No API key is required; AI logic is isolated in `services/ai.ts` for a future gateway.
-- Added shared `BookCard`, `ChapterRow`, `SectionHeader`, `BottomSheet`, `ReaderToolbar`, `EmptyState`, and `LoadingState` components.
-- Added local/demo comment likes, replies/report feedback, library/follow/download state, and share actions.
-- Validation passed: `npm run typecheck`, `npm run build`, and `git diff --check`.
-- Existing Expo web preview remained running on port 3000; Home and all requested route URLs returned HTTP 200.
+- Audited existing services, routes, types and original migration; initial findings are in `docs/PHASE3A_AUDIT.md`.
+- Added the missing book/chapter repository methods while retaining existing service exports for route compatibility.
+- Public chapter lists load metadata in pages; Reader fetches the selected chapter content and navigates actual published chapter numbers, including gaps.
+- Book Detail, Home and Reader show loading/retry/not-found states instead of substituting fictional books after backend errors.
+- Cloud/local library statuses, remove/add, progress, bookmarks and optimistic follow actions remain functional. Added library continue-reading and opt-in local library import that preserves existing remote rows and skips demo IDs.
+- Reader progress writes are serialized, throttled to dirty snapshots every four seconds, and flushed on chapter change, navigation blur, backgrounding and unmount. Book Detail resumes the saved chapter; library progress uses published chapter order.
+- Added real book/chapter comments with posting, one-level replies, derived likes, own deletion, login gates and a clearly unsent report placeholder.
+- Author onboarding is retry-safe; the database atomically promotes the account role. Studio clears stale account state, retries errors, and derives draft/published/completed/chapter/follower metrics from actual rows.
+- Create Book requires explicit copyright confirmation and always creates a private draft. Publication/lifecycle controls live in the existing chapter management screen.
+- Chapter editor serializes autosave and explicit saves, prevents duplicate inserts and empty publication, updates publication state only after success, flushes drafts on leaving, and deletes drafts only.
+- Cover uploads validate MIME/size, use owned user/book folders and unique filenames, and support preview, replacement and old-cover cleanup. Avatar architecture is retained.
+- Added `SUPABASE_SETUP.md` with simple Vietnamese setup and verification instructions.
+- No paid AI, billing, ads, scraping, moderation panel or push notifications were implemented.
 
-## Pending
+## Supabase architecture
 
-- Interactive visual/device QA in Vibaocode Pixel, a small Android viewport, and a modern iPhone viewport (the sandbox exposed the running preview but no browser automation binary).
-- Commit and push the intended product changes to `origin/main` from an environment authorized to perform Git writes/remotes.
-- Future backend phases: real account sync, CHƯƠNG content/download backend, community backend, AI Gateway, and cloud TTS.
+`lib/supabase.ts` reads only `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Missing/invalid URL configuration yields Demo Mode. Web uses Supabase's browser persistence; Android/iOS use AsyncStorage, URL polyfills and lifecycle token refresh. Network requests have a 15-second timeout. Services use typed database contracts and Vietnamese error adapters; raw SQL/provider errors are not displayed.
 
-## Known issues
+## Auth and profiles
 
-- Page-turn reading mode is intentionally labeled as a preview and currently retains vertical scrolling.
-- AI, audio playback, downloads, comments, replies, and reports are deterministic/local demos as required for Phase 2.
-- The current working tree also contains pre-existing Vibaocode runtime/control files plus pre-existing `.gitignore`, `expo-env.d.ts`, and untracked `package-lock.json` changes; these were preserved and not treated as product edits.
-- Changes are not committed or pushed because this Codex environment explicitly prohibits commit/push operations.
+Email/password registration, login, logout, session restore, forgot-password request and web password reset at `/auth/reset` are implemented. Signup triggers create profiles; authenticated recovery safely inserts a missing reader profile without overwriting an existing role. Profile editing saves display name, username, bio and uploaded avatar. Profile requests are protected against account-switch races. Google/Apple provider contracts remain disabled for a later phase.
 
-## Current SHA
+## Database and RLS
 
-`5fb76956edc2def32cd8533c008847269ff4598e` (local `HEAD` equals `origin/main`; Phase 2 changes are present in the working tree and are not yet committed).
+The original `202610020001_phase3a_foundation.sql` is unchanged. New additive migration `202610020002_phase3a_stabilization.sql` fixes publication validation/timestamps, onboarding role promotion/backfill, insert metric spoofing, atomic chapter/follow counters with one-time reconciliation, invalid publication repair, comment/reference integrity, draft-only deletion and cover ownership. All 13 application tables retain RLS. Public readers cannot read drafts/private books. Account data is owner-scoped, authors can only mutate their own works, and comments/likes enforce identity and visible targets. Admin role escalation is restricted; no admin panel is included.
+
+The database test applies both migrations to an embedded PostgreSQL engine with Supabase auth/storage fixtures. This validates SQL and RLS locally; it does not apply migrations to a hosted project or reproduce its full GoTrue/Storage runtime.
+
+## Reader sync
+
+Anonymous library/progress/bookmarks persist through AsyncStorage (browser local storage on web). Authenticated data uses Supabase. Chapter exit/navigation flush and restored progress are browser-tested using mocked REST. Cloud writes on abrupt browser/process termination remain best-effort; normal Reader navigation flushes are awaited by the write queue. Import is explicit and currently covers library entries only; remote progress/bookmarks are never automatically overwritten.
+
+## Author flow and storage
+
+Onboarding → private book draft → debounced chapter draft → explicit chapter publication → explicit book visibility/status works through the current Author Studio/routes. Direct author editor access verifies ownership. Studio metrics are schema-derived, not fabricated analytics. New cover paths are `userId/bookId/unique-file.ext`; cover objects are immutable uploads and replaced by new files. Existing legacy author-folder covers still display; unused legacy files require administrative cleanup. Storage buckets and policies are created by the migrations.
+
+## Demo mode
+
+With credentials absent: Home, Discover, book/chapter lists, Reader, AI and Audio demos render; anonymous library/progress/bookmarks persist. Auth screens explain setup instead of crashing. Author onboarding/create/editor forms are inspectable but do not pretend to save server data or authenticate a fictional account.
+
+## Validation
+
+- `npm install`: passed; lockfile updated for test tools and native URL polyfill.
+- `npx expo install --check`: dependencies compatible; `--fix` unnecessary.
+- `npm run typecheck`: passed.
+- `npm run build`: web export passed without Supabase credentials.
+- `npm run web -- --port 3001`: Demo Mode preview started successfully.
+- `npm run test:db`: migration/RLS/signup/role/publication/counter/reference/comment/storage tests passed.
+- Playwright Demo Mode: three tests passed, covering all 17 requested route URLs, 390px mobile layout, no JS runtime errors/overflow, library/bookmark/progress persistence and Reader settings/audio.
+- Playwright configured mode with mocked Supabase REST: four tests passed for real-content rendering, sparse chapter navigation, missing-book errors, restored account/profile, exit progress writes, logout/login and autosave/publication rollback.
+- Android Metro export passed; this verifies bundling, not Android device interaction.
+- `git diff --check`: passed.
+
+Browser dependencies/fonts were downloaded into ignored `.cache/` inside the repository. No credentials or environment files were read. Test artifacts, bundles, node_modules and Vibaocode runtime files are excluded from intended source changes.
+
+## Manual Supabase setup required
+
+1. Follow `SUPABASE_SETUP.md`: create/select the project, set the two public environment values, apply pending migrations in order.
+2. Verify the three storage buckets/policies and Email auth/confirmation/redirect/SMTP configuration.
+3. Register two real accounts; test confirmation, password recovery, author publishing, private drafts, cross-account denial and cross-device library/progress/bookmark sync.
+4. Verify avatar/cover picking, session persistence and Reader backgrounding on physical Android/iOS devices.
+
+## Known issues / deliberate limits
+
+- Hosted Supabase, email delivery, actual Storage upload and physical devices were not tested; no live credentials were used.
+- Comments currently display at most the first 100 comments/replies per discussion. Advanced pagination/moderation/report submission are later work.
+- Web password recovery is implemented; native recovery deep links need a later release/device test.
+- Reader page mode, AI, Audio and downloads retain their approved demo behavior; no paid APIs or downloads backend is claimed.
+- `npm audit` reports 18 dependency advisories (12 moderate, 6 high) in the existing Expo dependency tree. Suggested automated fixes change/downgrade SDK versions; no forced SDK migration was performed in this backend task.
+- No commit or push was performed: the user's sandbox instruction explicitly prohibits both. Product changes, including new files, remain ready for review. Pre-existing untracked `.vibaocode-*` control files are preserved.
+
+## Current origin/main SHA
+
+Local `HEAD` and local `origin/main` ref both remain `9f6724f08c98eed6e69d7ea3cb7c5ca3d9ec1a3b`. Remote was not fetched or changed during this session.
 
 ## Exact next task
 
-Open the running app in Vibaocode Pixel and interactively verify Home → Book Detail → Chapter List → Reader → Reader Settings → AI → Audio at mobile widths. If the visual pass is clean, stage only the intended app/source/status files (excluding Vibaocode control files), commit with `feat: build core CHUONG reading experience`, push to `origin/main`, fetch, and verify local `HEAD` equals `origin/main`.
+Review the working tree, then perform the live two-account Supabase/device verification above. Begin with the pending additive migration and environment/auth settings in `SUPABASE_SETUP.md`. After successful review and from an environment authorized to publish, include the new app/components/hooks/services/docs/tests/migration files, commit intended source only, push main and verify the remote SHA. Do not include `.vibaocode-*`, `.env*`, `.cache`, node_modules, dist or test artifacts. Dependency advisory remediation should be a separate Expo compatibility change.

@@ -1,8 +1,7 @@
 import { requireSupabase, supabase } from '../lib/supabase';
-import { Author, AuthorBookInput, Book, Chapter, ChapterInput } from '../types';
+import { Author, Chapter, ChapterInput } from '../types';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
-import { mapBook } from './books';
 
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
 
@@ -22,10 +21,10 @@ export async function becomeAuthor(userId: string, input: { penName: string; bio
   if (!input.agreed) throw new Error('Bạn cần xác nhận cam kết bản quyền trước khi tiếp tục.');
   const client = requireSupabase();
   try {
+    const existing = await getAuthorForUser(userId);
+    if (existing) return existing;
     const { data, error } = await client.from('authors').insert({ user_id: userId, pen_name: input.penName.trim(), bio: input.bio.trim() || null, avatar_url: input.avatarUrl }).select('*').single();
     if (error) throw error;
-    const { error: profileError } = await client.from('profiles').update({ role: 'author', updated_at: new Date().toISOString() }).eq('id', userId);
-    if (profileError) throw profileError;
     return mapAuthor(data);
   } catch (error) { throw toServiceError(error, 'Không thể tạo hồ sơ tác giả.'); }
 }
@@ -36,37 +35,7 @@ export async function updateAuthorAvatar(authorId: string, avatarUrl: string) {
   return mapAuthor(data);
 }
 
-export async function getMyBooks(authorId: string): Promise<Book[]> {
-  const client = requireSupabase();
-  try {
-    const { data, error } = await client.from('books').select('*').eq('author_id', authorId).order('updated_at', { ascending: false });
-    if (error) throw error;
-    const { data: author } = await client.from('authors').select('*').eq('id', authorId).single();
-    const ids = (data ?? []).map((book) => book.id);
-    const { data: genres } = ids.length ? await client.from('book_genres').select('*').in('book_id', ids) : { data: [] };
-    return (data ?? []).map((book) => mapBook(book, author ?? undefined, genres?.filter((item) => item.book_id === book.id).map((item) => item.genre) ?? []));
-  } catch (error) { throw toServiceError(error, 'Không thể tải truyện của bạn.'); }
-}
-
-const slugify = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-export async function createBook(authorId: string, input: AuthorBookInput): Promise<Book> {
-  const client = requireSupabase();
-  try {
-    const slug = `${slugify(input.title)}-${Date.now().toString(36)}`;
-    const { data, error } = await client.from('books').insert({
-      author_id: authorId, title: input.title.trim(), slug, description: input.description.trim(), cover_url: input.coverUrl,
-      language: input.language, source_type: input.sourceType, status: input.status, visibility: input.status === 'draft' ? 'private' : 'public', tags: input.tags
-    }).select('*').single();
-    if (error) throw error;
-    if (input.genre.trim()) {
-      const { error: genreError } = await client.from('book_genres').insert({ book_id: data.id, genre: input.genre.trim() });
-      if (genreError) throw genreError;
-    }
-    const author = await client.from('authors').select('*').eq('id', authorId).single();
-    return mapBook(data, author.data ?? undefined, [input.genre.trim()]);
-  } catch (error) { throw toServiceError(error, 'Không thể tạo truyện.'); }
-}
+export { createBook, getMyBooks } from './books';
 
 export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
   const client = requireSupabase();
@@ -83,7 +52,8 @@ export async function getAuthorChapter(bookId: string, chapterId: string): Promi
 
 export async function saveChapter(input: ChapterInput): Promise<string> {
   const client = requireSupabase();
-  const payload = { book_id: input.bookId, chapter_number: input.chapterNumber, title: input.title.trim(), content: input.content, status: input.status, is_vip: input.isVip, price_coins: input.priceCoins, published_at: input.status === 'published' ? new Date().toISOString() : null, updated_at: new Date().toISOString() };
+  if (input.status === 'published' && (input.title.trim().length < 2 || input.content.trim().length < 50)) throw new Error('Chương cần có tiêu đề và ít nhất 50 ký tự trước khi xuất bản.');
+  const payload = { book_id: input.bookId, chapter_number: input.chapterNumber, title: input.title.trim(), content: input.content, status: input.status, is_vip: input.isVip, price_coins: input.priceCoins, updated_at: new Date().toISOString() };
   try {
     if (input.id) {
       const { data, error } = await client.from('chapters').update(payload).eq('id', input.id).select('id').single();

@@ -10,9 +10,9 @@ import { messageForError } from '../../services/errors';
 import { uploadAuthorAvatar } from '../../services/storage';
 
 export default function AuthorOnboardingScreen() {
-  const router = useRouter(); const { user, refreshProfile } = useAuth();
+  const router = useRouter(); const { user, refreshProfile, configured } = useAuth();
   const [penName, setPenName] = useState(''); const [bio, setBio] = useState(''); const [avatar, setAvatar] = useState<{ uri: string; mimeType?: string } | null>(null); const [agreed, setAgreed] = useState(false); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
-  const pickAvatar = async () => { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: .85 }); if (!result.canceled) setAvatar({ uri: result.assets[0].uri, mimeType: result.assets[0].mimeType }); };
+  const pickAvatar = async () => { try { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: .85 }); if (!result.canceled) setAvatar({ uri: result.assets[0].uri, mimeType: result.assets[0].mimeType }); } catch { setError('Không thể mở trình chọn ảnh. Vui lòng thử lại.'); } };
   const submit = async () => {
     if (!user) return router.replace('/auth/login');
     if (penName.trim().length < 2) return setError('Bút danh cần có ít nhất 2 ký tự.');
@@ -26,6 +26,7 @@ export default function AuthorOnboardingScreen() {
     finally { setLoading(false); }
   };
   return <FormScreen title="Trở thành tác giả" subtitle="Xây dựng trang tác giả và bắt đầu đăng nội dung bạn có quyền sử dụng.">
+    {!user ? <FormMessage>{configured ? 'Đăng nhập để trở thành tác giả.' : 'Demo · Biểu mẫu có thể xem trước. Cần Supabase để đăng ký tác giả.'}</FormMessage> : null}
     {error ? <FormMessage error>{error}</FormMessage> : null}
     <Pressable style={styles.avatarPicker} onPress={pickAvatar}>{avatar ? <Image source={{ uri: avatar.uri }} style={styles.avatar} /> : <View style={styles.avatarEmpty}><Ionicons name="camera-outline" size={24} color="#8F1D3F" /></View>}<Text style={styles.avatarText}>{avatar ? 'Đổi avatar' : 'Chọn avatar'}</Text></Pressable>
     <FormField label="Bút danh" value={penName} onChangeText={setPenName} placeholder="Tên hiển thị với độc giả" maxLength={80} />

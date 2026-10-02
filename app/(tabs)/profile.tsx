@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState } from '../../components/States';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,10 +13,11 @@ const menu = [
 ] as const;
 
 export default function ProfileScreen() {
-  const router = useRouter(); const { user, profile, loading, configured, logout } = useAuth();
+  const router = useRouter(); const { user, profile, loading, configured, logout, error, refreshProfile } = useAuth();
   if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang khôi phục phiên đăng nhập…" /></SafeAreaView>;
   return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Tôi</Text>
+    {error ? <Pressable onPress={refreshProfile}><Text style={styles.demo}>{error} · Thử lại</Text></Pressable> : null}
     {!user ? <View style={styles.guest}>
       <View style={styles.guestIcon}><Ionicons name="person-outline" size={29} color="#8F1D3F" /></View>
       <Text style={styles.guestTitle}>Đọc tự do, đăng nhập khi cần đồng bộ</Text>
@@ -33,7 +34,7 @@ export default function ProfileScreen() {
       <View style={styles.stats}><View><Text style={styles.statValue}>—</Text><Text style={styles.statLabel}>Theo dõi</Text></View><View><Text style={styles.statValue}>—</Text><Text style={styles.statLabel}>Chương tuần</Text></View><View><Text style={styles.statValue}>{profile?.role === 'author' ? 'Tác giả' : 'Độc giả'}</Text><Text style={styles.statLabel}>Vai trò</Text></View></View>
     </>}
     <View style={styles.menu}>{menu.map(([icon, label, value]) => <View style={styles.row} key={label}><Ionicons name={icon} size={21} color="#8F1D3F" /><Text style={styles.rowLabel}>{label}</Text>{value ? <Text style={styles.rowValue}>{value}</Text> : null}<Ionicons name="chevron-forward" size={17} color="#B2A6AB" /></View>)}</View>
-    {user ? <Pressable style={styles.logout} onPress={() => logout().catch(() => undefined)}><Ionicons name="log-out-outline" size={18} color="#8F1D3F" /><Text style={styles.logoutText}>Đăng xuất</Text></Pressable> : null}
+    {user ? <Pressable style={styles.logout} onPress={() => logout().catch((cause) => Alert.alert('Không thể đăng xuất', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'))}><Ionicons name="log-out-outline" size={18} color="#8F1D3F" /><Text style={styles.logoutText}>Đăng xuất</Text></Pressable> : null}
   </ScrollView></SafeAreaView>;
 }
 

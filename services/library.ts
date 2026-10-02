@@ -97,11 +97,39 @@ export async function setFollowState(kind: FollowKind, targetId: string, followi
   if (!supabase || !userId) { const all = await readJson<Record<string, boolean>>(followKey, {}); await writeJson(followKey, { ...all, [`${kind}:${targetId}`]: following }); return; }
   const result = kind === 'author'
     ? following
-      ? await supabase.from('author_follows').insert({ user_id: userId, author_id: targetId })
+      ? await supabase.from('author_follows').upsert({ user_id: userId, author_id: targetId }, { onConflict: 'user_id,author_id', ignoreDuplicates: true })
       : await supabase.from('author_follows').delete().eq('user_id', userId).eq('author_id', targetId)
     : following
-      ? await supabase.from('book_follows').insert({ user_id: userId, book_id: targetId })
+      ? await supabase.from('book_follows').upsert({ user_id: userId, book_id: targetId }, { onConflict: 'user_id,book_id', ignoreDuplicates: true })
       : await supabase.from('book_follows').delete().eq('user_id', userId).eq('book_id', targetId);
   const { error } = result;
   if (error) throw toServiceError(error, 'Không thể cập nhật theo dõi.');
+}
+
+export const addToLibrary = setLibraryStatus;
+
+export async function addBookmark(bookmark: Omit<Bookmark, 'id' | 'createdAt'>, userId?: string) {
+  const existing = (await getBookmarks(bookmark.bookId, userId)).find((item) => item.chapterNumber === bookmark.chapterNumber);
+  if (!existing) await toggleBookmark(bookmark, userId);
+}
+export async function removeBookmark(id: string, userId?: string) {
+  if (!supabase || !userId) {
+    await writeJson(bookmarkKey, (await readJson<Bookmark[]>(bookmarkKey, [])).filter((item) => item.id !== id));
+    return;
+  }
+  const { error } = await supabase.from('bookmarks').delete().eq('id', id).eq('user_id', userId);
+  if (error) throw toServiceError(error, 'Không thể xóa dấu trang.');
+}
+
+// Opt-in import: preserve every existing remote row and retain local data for retry.
+// Demo identifiers are intentionally skipped because they are not backend foreign keys.
+export async function mergeLocalLibrary(userId: string) {
+  if (!supabase) return;
+  const local = await getLibrary();
+  const entries = local.filter((entry) => /^[0-9a-f-]{36}$/i.test(entry.bookId));
+  if (!entries.length) return;
+  const { error } = await supabase.from('library').upsert(entries.map((entry) => ({
+    user_id: userId, book_id: entry.bookId, status: entry.status, added_at: entry.addedAt
+  })), { onConflict: 'user_id,book_id', ignoreDuplicates: true });
+  if (error) throw toServiceError(error, 'Không thể nhập tủ sách cục bộ.');
 }

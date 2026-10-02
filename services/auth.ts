@@ -54,7 +54,7 @@ export async function signUp(email: string, password: string, displayName: strin
 
 export async function sendPasswordReset(email: string) {
   try {
-    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/login` : undefined;
+    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/reset` : undefined;
     const { error } = await requireSupabase().auth.resetPasswordForEmail(email.trim(), { redirectTo });
     if (error) throw error;
   } catch (error) { throw toServiceError(error, 'Không thể gửi email đặt lại mật khẩu.'); }
@@ -67,13 +67,25 @@ export async function signOut() {
   } catch (error) { throw toServiceError(error, 'Không thể đăng xuất.'); }
 }
 
-// Kept behind the service boundary so Google/Apple can be enabled later without UI query changes.
-export async function signInWithOAuth(provider: FutureOAuthProvider, redirectTo?: string) {
-  try {
-    const { data, error } = await requireSupabase().auth.signInWithOAuth({ provider, options: { redirectTo } });
-    if (error) throw error;
-    return data;
-  } catch (error) { throw toServiceError(error, `Chưa thể đăng nhập bằng ${provider}.`); }
+// Reserved provider contract; OAuth is intentionally disabled until a later phase.
+export async function signInWithOAuth(_provider: FutureOAuthProvider, _redirectTo?: string): Promise<never> {
+  throw new Error('Đăng nhập Google/Apple sẽ được hỗ trợ trong giai đoạn sau.');
+}
+
+export async function ensureProfile(user: User): Promise<Profile> {
+  const existing = await getProfile(user.id);
+  if (existing) return existing;
+  const name = typeof user.user_metadata.display_name === 'string' ? user.user_metadata.display_name.slice(0, 80) : null;
+  const { error } = await requireSupabase().from('profiles').upsert({ id: user.id, display_name: name, role: 'reader' }, { onConflict: 'id', ignoreDuplicates: true });
+  if (error) throw toServiceError(error, 'Không thể tạo hồ sơ.');
+  const profile = await getProfile(user.id);
+  if (!profile) throw new Error('Không thể tải hồ sơ. Vui lòng thử lại.');
+  return profile;
+}
+
+export async function resetPassword(password: string) {
+  const { error } = await requireSupabase().auth.updateUser({ password });
+  if (error) throw toServiceError(error, 'Không thể đặt lại mật khẩu.');
 }
 
 export async function updateProfile(userId: string, updates: Pick<Profile, 'username' | 'displayName' | 'avatarUrl' | 'bio'>) {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookCard } from '../../components/BookCard';
-import { EmptyState } from '../../components/States';
+import { EmptyState, LoadingState, RetryState } from '../../components/States';
 import { books as demoBooks } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBooks } from '../../services/books';
@@ -16,16 +16,20 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [books, setBooks] = useState<Book[]>(demoBooks);
   const [savedProgress, setSavedProgress] = useState<ReadingProgress | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reload, setReload] = useState(0);
   const [loadError, setLoadError] = useState('');
   useEffect(() => {
-    let active = true;
+    let active = true; setLoading(true); setLoadError('');
     getBooks().then(async (result) => {
       if (!active) return; setBooks(result.data);
       if (result.data.length === 0) return;
       const progress = await getReadingProgress(result.data[0].id, user?.id); if (active) setSavedProgress(progress);
-    }).catch((cause) => setLoadError(cause instanceof Error ? cause.message : 'Không thể tải truyện.'));
+    }).catch((cause) => { if (active) setLoadError(cause instanceof Error ? cause.message : 'Không thể tải truyện.'); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [user?.id]);
+  }, [user?.id, reload]);
+  if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải truyện…" /></SafeAreaView>;
+  if (loadError) return <SafeAreaView style={styles.safe}><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;
   const currentBook = books[0];
   if (!currentBook) return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.emptyHome}><Text style={styles.brand}>CHƯƠNG</Text><EmptyState title="Chưa có truyện công khai" detail={loadError || 'Nội dung sẽ xuất hiện sau khi tác giả xuất bản truyện.'} /></View></SafeAreaView>;
   const currentPercent = savedProgress?.progressPercent ?? currentBook.progress;

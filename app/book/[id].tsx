@@ -3,13 +3,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Comments } from '../../components/Comments';
 import { BookCard } from '../../components/BookCard';
+import { LoadingState, RetryState } from '../../components/States';
+import { isSupabaseConfigured } from '../../lib/supabase';
 import { BottomSheet } from '../../components/BottomSheet';
 import { ChapterRow } from '../../components/ChapterRow';
 import { SectionHeader } from '../../components/SectionHeader';
-import { books, comments, getBook as getDemoBook } from '../../data/books';
+import { getBook as getDemoBook } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBookById } from '../../services/books';
+import { getBookById, getBooks } from '../../services/books';
 import { getChaptersByBook } from '../../services/chapters';
 import { getFollowState, getLibrary, getReadingProgress, removeFromLibrary, setFollowState, setLibraryStatus } from '../../services/library';
 import { Book, ReadingProgress } from '../../types';
@@ -21,7 +24,9 @@ export default function BookDetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [book, setBook] = useState<Book>(() => getDemoBook(id));
+  const [catalog, setCatalog] = useState<Book[]>([]);
   const [progress, setProgress] = useState<ReadingProgress | null>(null);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [reload, setReload] = useState(0);
   const currentChapter = progress?.chapterNumber ?? Math.max(1, Math.floor(book.totalChapters * book.progress / 100));
@@ -32,33 +37,33 @@ export default function BookDetailScreen() {
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloaded, setDownloaded] = useState<Record<string, boolean>>({});
   const [downloading, setDownloading] = useState<string | null>(null);
-  const [likes, setLikes] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let active = true;
     const load = async () => {
-      setLoadError('');
+      setLoadError(''); setLoading(true);
       try {
         const result = await getBookById(id);
-        if (!result.data || !active) return;
+        if (!active) return; if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
         const chapters = await getChaptersByBook(result.data.id);
         if (!active) return;
         const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length || result.data.totalChapters, latestChapter: chapters.data.at(-1)?.number ?? result.data.latestChapter };
         setBook(hydrated);
-        const [library, savedProgress, authorFollow, bookFollow] = await Promise.all([
+        const [library, savedProgress, authorFollow, bookFollow, catalogResult] = await Promise.all([
           getLibrary(user?.id), getReadingProgress(hydrated.id, user?.id),
-          hydrated.authorId ? getFollowState('author', hydrated.authorId, user?.id) : false,
-          getFollowState('book', hydrated.id, user?.id)
+          hydrated.authorId || result.mode === 'demo' ? getFollowState('author', hydrated.authorId ?? hydrated.author, user?.id) : false,
+          getFollowState('book', hydrated.id, user?.id), getBooks()
         ]);
         if (!active) return;
-        setInLibrary(library.some((entry) => entry.bookId === hydrated.id)); setProgress(savedProgress); setFollowing(authorFollow); setFollowingBook(bookFollow);
+        setInLibrary(library.some((entry) => entry.bookId === hydrated.id)); setProgress(savedProgress); setFollowing(authorFollow); setFollowingBook(bookFollow); setCatalog(catalogResult.data);
       } catch (error) { if (active) setLoadError(error instanceof Error ? error.message : 'Không thể tải dữ liệu mới.'); }
+      finally { if (active) setLoading(false); }
     };
     load(); return () => { active = false; };
   }, [id, user?.id, reload]);
 
   const newest = useMemo(() => [...book.chapters].reverse().slice(0, 5), [book.chapters]);
-  const similar = books.filter((item) => item.id !== book.id && (item.genre === book.genre || item.isVip === book.isVip)).slice(0, 5);
+  const similar = catalog.filter((item) => item.id !== book.id && (item.genre === book.genre || item.isVip === book.isVip)).slice(0, 5);
 
   const openReader = (chapter = currentChapter || 1) => book.totalChapters > 0 ? router.push({ pathname: '/reader/[bookId]', params: { bookId: book.id, chapter } }) : Alert.alert('Chưa có chương', 'Tác giả chưa xuất bản chương nào cho truyện này.');
   const shareBook = () => Share.share({ message: `${book.title} — ${book.author}\nĐọc trên CHƯƠNG: Mỗi chương, một thế giới.` });
@@ -75,13 +80,15 @@ export default function BookDetailScreen() {
     catch (error) { setInLibrary(!next); Alert.alert('Không thể cập nhật', error instanceof Error ? error.message : 'Vui lòng thử lại.'); }
   };
   const toggleFollow = async (kind: 'author' | 'book') => {
-    const targetId = kind === 'author' ? book.authorId : book.id;
+    const targetId = kind === 'author' ? book.authorId ?? (!isSupabaseConfigured ? book.author : undefined) : book.id;
     if (!targetId) return;
     const current = kind === 'author' ? following : followingBook; const setter = kind === 'author' ? setFollowing : setFollowingBook;
     setter(!current);
     try { await setFollowState(kind, targetId, !current, user?.id); } catch (error) { setter(current); Alert.alert('Không thể cập nhật', error instanceof Error ? error.message : 'Vui lòng thử lại.'); }
   };
 
+  if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải truyện…" /></SafeAreaView>;
+  if (loadError) return <SafeAreaView style={styles.safe}><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.topbar}>
@@ -143,19 +150,9 @@ export default function BookDetailScreen() {
         </Pressable>
 
         <SectionHeader title="Đánh giá" action={`${book.rating} / 5`} />
-        <View style={styles.ratingLine}><Text style={styles.ratingValue}>{book.rating}</Text><View><Text style={styles.stars}>★★★★★</Text><Text style={styles.ratingMeta}>Từ 8.436 độc giả</Text></View></View>
+        <View style={styles.ratingLine}><Text style={styles.ratingValue}>{book.rating}</Text><View><Text style={styles.stars}>★★★★★</Text><Text style={styles.ratingMeta}>{isSupabaseConfigured ? 'Chưa có thống kê đánh giá' : 'Từ 8.436 độc giả'}</Text></View></View>
 
-        <SectionHeader title="Bình luận" action={`${comments.length} thảo luận`} />
-        {comments.map((comment) => (
-          <View style={styles.comment} key={comment.id}>
-            <View style={styles.commentAvatar}><Text style={styles.commentAvatarText}>{comment.avatar}</Text></View>
-            <View style={styles.commentBody}>
-              <View style={styles.commentTop}><Text style={styles.commentName}>{comment.name}</Text><Pressable onPress={() => Alert.alert('Báo cáo bình luận', 'Đã ghi nhận lựa chọn. Bạn có thể gửi báo cáo khi hệ thống cộng đồng được kết nối.')}><Ionicons name="ellipsis-horizontal" size={18} color="#8A7C82" /></Pressable></View>
-              <Text style={styles.commentText}>{comment.body}</Text><Text style={styles.commentTime}>{comment.time}</Text>
-              <View style={styles.commentActions}><Pressable onPress={() => setLikes((value) => ({ ...value, [comment.id]: !value[comment.id] }))}><Text style={[styles.commentAction, likes[comment.id] && styles.liked]}>♥ {comment.likes + (likes[comment.id] ? 1 : 0)}</Text></Pressable><Pressable onPress={() => Alert.alert('Trả lời', `Đang trả lời ${comment.name}`)}><Text style={styles.commentAction}>Trả lời</Text></Pressable></View>
-            </View>
-          </View>
-        ))}
+        <Comments bookId={book.id} />
 
         <SectionHeader title="Truyện tương tự" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.similar}>

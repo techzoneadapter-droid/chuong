@@ -4,16 +4,20 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LoadingState, EmptyState, RetryState } from '../../components/States';
+import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
+import { messageForError } from '../../services/errors';
+import { Comments } from '../../components/Comments';
 import { BottomSheet } from '../../components/BottomSheet';
 import { ChapterRow } from '../../components/ChapterRow';
 import { ReaderToolbar, ReaderTool } from '../../components/ReaderToolbar';
-import { comments, getBook as getDemoBook } from '../../data/books';
+import { getBook as getDemoBook } from '../../data/books';
 import { getChapterContent } from '../../data/readerContent';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { defaultReaderSettings } from '../../services/storage';
 import { getBookById } from '../../services/books';
-import { getChaptersByBook } from '../../services/chapters';
-import { getBookmarks, getReadingProgress, saveReadingProgress, toggleBookmark as persistBookmark } from '../../services/library';
+import { getChapter, getChaptersByBook } from '../../services/chapters';
+import { getBookmarks, getReadingProgress, toggleBookmark as persistBookmark } from '../../services/library';
 import { useAuth } from '../../contexts/AuthContext';
 import { SLEEP_TIMERS, SleepTimer, TTS_SPEEDS, TTS_VOICES, TtsVoice } from '../../services/tts';
 import { Book, Chapter, ReaderFont, ReaderMode, ReaderSettings, ReaderSpacing, ReaderTheme } from '../../types';
@@ -41,13 +45,21 @@ export default function ReaderScreen() {
   const [settings, setSettings] = usePersistentState<ReaderSettings>('reader:settings', defaultReaderSettings);
   const [bookmarked, setBookmarked] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reload, setReload] = useState(0);
   const [progressReady, setProgressReady] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
   const [aiResult, setAiResult] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const scrollPosition = useRef(0);
 
-  const chapter = book.chapters.find((item) => item.number === chapterNumber) ?? book.chapters[chapterNumber - 1] ?? getDemoBook(params.bookId).chapters[0];
+  const selectedChapter = book.chapters.find((item) => item.number === chapterNumber);
+  const chapter = selectedChapter ?? { number: chapterNumber, title: '', content: '', id: undefined };
+  const chapterIndex = book.chapters.findIndex((item) => item.number === chapterNumber);
+  const previousNumber = book.chapters[chapterIndex - 1]?.number;
+  const nextNumber = book.chapters[chapterIndex + 1]?.number;
+  const sync = useReadingProgressSync({ bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress, scrollPosition: scrollPosition.current }, user?.id, progressReady && Boolean(selectedChapter));
   const content = useMemo(() => chapter.content ? chapter.content.split(/\n\s*\n/).filter(Boolean) : getChapterContent(chapterNumber), [chapter.content, chapterNumber]);
   const bookmark: Bookmark | null = bookmarked ? { chapter: chapterNumber, progress: readingProgress, updatedAt: new Date().toISOString() } : null;
   const palette = themes[settings.theme];
@@ -61,35 +73,36 @@ export default function ReaderScreen() {
   }, [book.chapters, book.totalChapters, chapterNumber, chapterSearch]);
 
   useEffect(() => {
-    let active = true; setProgressReady(false);
+    let active = true; setProgressReady(false); setLoading(true); setLoadError('');
     const load = async () => {
       try {
-        const result = await getBookById(params.bookId); if (!result.data || !active) return;
+        const result = await getBookById(params.bookId); if (!active) return; if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
         const chapters = await getChaptersByBook(result.data.id); if (!active) return;
-        const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length || result.data.totalChapters }; setBook(hydrated);
+        const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length };
         const saved = await getReadingProgress(hydrated.id, user?.id);
-        const targetChapter = Number(params.chapter) || saved?.chapterNumber || 1;
-        setChapterNumber(Math.min(hydrated.totalChapters || 1, Math.max(1, targetChapter)));
+        const requested = Number(params.chapter) || saved?.chapterNumber;
+        const targetChapter = requested && chapters.data.some((item) => item.number === requested) ? requested : chapters.data[0]?.number ?? 1;
+        const selected = chapters.data.length ? await getChapter(hydrated.id, targetChapter) : null;
+        if (!active) return;
+        if (chapters.data.length && !selected?.data) throw new Error('Chương này chưa được xuất bản hoặc không còn khả dụng.');
+        setBook({ ...hydrated, chapters: hydrated.chapters.map((item) => item.number === targetChapter && selected?.data ? selected.data : item) });
+        setChapterNumber(targetChapter);
         setReadingProgress(saved?.chapterNumber === targetChapter ? saved.progressPercent : 0);
         scrollPosition.current = saved?.chapterNumber === targetChapter ? saved.scrollPosition : 0;
         const marks = await getBookmarks(hydrated.id, user?.id); if (!active) return;
         setBookmarked(marks.some((item) => item.chapterNumber === targetChapter)); setProgressReady(true);
         if (scrollPosition.current > 0) setTimeout(() => scrollRef.current?.scrollTo({ y: scrollPosition.current, animated: false }), 80);
-      } catch { if (active) setProgressReady(true); }
+      } catch (cause) { if (active) setLoadError(messageForError(cause, 'Không thể tải nội dung.')); }
+      finally { if (active) setLoading(false); }
     };
     load(); return () => { active = false; };
-  }, [params.bookId, params.chapter, user?.id]);
-
-  useEffect(() => {
-    if (!progressReady) return;
-    const timer = setTimeout(() => {
-      saveReadingProgress({ bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress, scrollPosition: scrollPosition.current }, user?.id).catch(() => undefined);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [book.id, chapter.id, chapterNumber, progressReady, readingProgress, user?.id]);
+  }, [params.bookId, params.chapter, user?.id, reload]);
 
   const goChapter = (number: number) => {
-    const next = Math.min(book.totalChapters, Math.max(1, number));
+    if (!book.chapters.some((item) => item.number === number)) return;
+    void sync.flush();
+    setProgressReady(false);
+    const next = number;
     setChapterNumber(next);
     setSheet(null);
     setChapterSearch('');
@@ -110,7 +123,7 @@ export default function ReaderScreen() {
   const toggleBookmark = async () => {
     const previous = bookmarked; setBookmarked(!previous);
     try { const next = await persistBookmark({ bookId: book.id, chapterId: chapter.id, chapterNumber, position: readingProgress, note: null }, user?.id); setBookmarked(next); }
-    catch { setBookmarked(previous); }
+    catch (cause) { setBookmarked(previous); setLoadError(messageForError(cause, 'Không thể lưu dấu trang.')); }
   };
 
   const chooseTool = (tool: ReaderTool) => {
@@ -118,8 +131,13 @@ export default function ReaderScreen() {
     setControlsVisible(true);
   };
 
+  if (loading) return <View style={styles.root}><LoadingState label="Đang tải chương…" /></View>;
+  if (loadError) return <View style={styles.root}><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></View>;
+  if (!selectedChapter) return <View style={styles.root}><EmptyState title="Chưa có chương xuất bản" /><Pressable onPress={() => router.back()}><Text style={{ textAlign: 'center', color: '#8F1D3F' }}>Quay lại</Text></Pressable></View>;
+
   return (
     <View style={[styles.root, { backgroundColor: palette.bg }]}>
+      {sync.error ? <Text style={{ color: '#A12B48', padding: 8 }}>{sync.error}</Text> : null}
       <StatusBar style={dark ? 'light' : 'dark'} />
       <ScrollView
         ref={scrollRef}
@@ -142,14 +160,11 @@ export default function ReaderScreen() {
         </Pressable>
 
         <View style={[styles.chapterNav, { borderColor: dark ? '#4C494B' : '#D9CCC4' }]}>
-          <Pressable disabled={chapterNumber === 1} onPress={() => goChapter(chapterNumber - 1)} style={[styles.navButton, chapterNumber === 1 && styles.disabled]}><Ionicons name="chevron-back" size={16} color={palette.text} /><Text style={[styles.navText, { color: palette.text }]}>Chương trước</Text></Pressable>
+          <Pressable disabled={previousNumber === undefined} onPress={() => goChapter(previousNumber ?? chapterNumber)} style={[styles.navButton, previousNumber === undefined && styles.disabled]}><Ionicons name="chevron-back" size={16} color={palette.text} /><Text style={[styles.navText, { color: palette.text }]}>Chương trước</Text></Pressable>
           <Pressable onPress={() => setSheet('chapters')} style={styles.navCenter}><Ionicons name="list" size={19} color="#9C3153" /><Text style={styles.navCenterText}>Danh sách</Text></Pressable>
-          <Pressable disabled={chapterNumber === book.totalChapters} onPress={() => goChapter(chapterNumber + 1)} style={[styles.navButton, styles.navRight, chapterNumber === book.totalChapters && styles.disabled]}><Text style={[styles.navText, { color: palette.text }]}>Chương sau</Text><Ionicons name="chevron-forward" size={16} color={palette.text} /></Pressable>
+          <Pressable disabled={nextNumber === undefined} onPress={() => goChapter(nextNumber ?? chapterNumber)} style={[styles.navButton, styles.navRight, nextNumber === undefined && styles.disabled]}><Text style={[styles.navText, { color: palette.text }]}>Chương sau</Text><Ionicons name="chevron-forward" size={16} color={palette.text} /></Pressable>
         </View>
-        <View style={styles.discussion}>
-          <View style={styles.discussionTitle}><Text style={[styles.discussionHeading, { color: palette.text }]}>Thảo luận chương</Text><Text style={{ color: palette.muted, fontSize: 11 }}>{comments.length} bình luận</Text></View>
-          {comments.slice(0, 2).map((item) => <View key={item.id} style={styles.miniComment}><View style={styles.miniAvatar}><Text style={styles.miniAvatarText}>{item.avatar}</Text></View><View style={{ flex: 1 }}><Text style={[styles.miniName, { color: palette.text }]}>{item.name}</Text><Text style={[styles.miniBody, { color: palette.muted }]}>{item.body}</Text></View></View>)}
-        </View>
+        <View style={styles.discussion}><Comments bookId={book.id} chapterId={chapter.id} /></View>
       </ScrollView>
 
       {controlsVisible ? (
@@ -165,7 +180,7 @@ export default function ReaderScreen() {
 
       <ChapterSheet visible={sheet === 'chapters'} onClose={() => setSheet(null)} chapters={filteredChapters} query={chapterSearch} onQuery={setChapterSearch} onSelect={goChapter} current={chapterNumber} />
       <SettingsSheet visible={sheet === 'settings'} onClose={() => setSheet(null)} settings={settings} onChange={setSettings} />
-      <AudioSheet visible={sheet === 'audio'} onClose={() => setSheet(null)} chapterTitle={`Chương ${chapterNumber} · ${chapter.title}`} onPrevious={() => goChapter(chapterNumber - 1)} onNext={() => goChapter(chapterNumber + 1)} canPrevious={chapterNumber > 1} canNext={chapterNumber < book.totalChapters} />
+      <AudioSheet visible={sheet === 'audio'} onClose={() => setSheet(null)} chapterTitle={`Chương ${chapterNumber} · ${chapter.title}`} onPrevious={() => goChapter(previousNumber ?? chapterNumber)} onNext={() => goChapter(nextNumber ?? chapterNumber)} canPrevious={previousNumber !== undefined} canNext={nextNumber !== undefined} />
       <AiSheet visible={sheet === 'ai'} onClose={() => setSheet(null)} onOpen={(path) => router.push({ pathname: path, params: { bookId: book.id, chapter: chapterNumber } })} result={aiResult} onResult={setAiResult} />
       <MoreSheet visible={sheet === 'more'} onClose={() => setSheet(null)} bookmark={bookmark} chapter={chapterNumber} onBookmark={toggleBookmark} onComments={() => { setSheet(null); requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })); }} />
     </View>

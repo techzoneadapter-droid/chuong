@@ -9,7 +9,7 @@ import { messageForError } from '../../services/errors';
 import { uploadProfileAvatar } from '../../services/storage';
 
 export default function EditProfileScreen() {
-  const router = useRouter(); const { user, profile, refreshProfile } = useAuth();
+  const router = useRouter(); const { user, profile, refreshProfile, configured } = useAuth();
   const [displayName, setDisplayName] = useState(''); const [username, setUsername] = useState(''); const [avatarUrl, setAvatarUrl] = useState(''); const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState<{ uri: string; mimeType?: string } | null>(null);
   const [loading, setLoading] = useState(false); const [error, setError] = useState('');
@@ -24,9 +24,10 @@ export default function EditProfileScreen() {
     finally { setLoading(false); }
   };
   return <FormScreen title="Chỉnh sửa hồ sơ" subtitle="Thông tin này được hiển thị trên CHƯƠNG.">
+    {!user ? <FormMessage>{configured ? 'Đăng nhập để chỉnh sửa hồ sơ.' : 'Demo · Đăng nhập với Supabase để lưu hồ sơ.'}</FormMessage> : null}
     {error ? <FormMessage error>{error}</FormMessage> : null}
-    <Pressable style={styles.avatarPicker} onPress={async () => { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: .85 }); if (!result.canceled) setAvatar({ uri: result.assets[0].uri, mimeType: result.assets[0].mimeType }); }}><View>{avatar?.uri || avatarUrl ? <Image source={{ uri: avatar?.uri || avatarUrl }} style={styles.avatar} /> : <View style={styles.avatarEmpty}><Text style={styles.avatarLetter}>{(displayName || 'C')[0].toUpperCase()}</Text></View>}</View><Text style={styles.avatarLink}>Chọn ảnh đại diện</Text></Pressable>
-    <FormField label="Tên hiển thị" value={displayName} onChangeText={setDisplayName} placeholder="Tên của bạn" />
+    <Pressable style={styles.avatarPicker} onPress={async () => { try { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: .85 }); if (!result.canceled) setAvatar({ uri: result.assets[0].uri, mimeType: result.assets[0].mimeType }); } catch { setError('Không thể mở trình chọn ảnh. Vui lòng thử lại.'); } }}><View>{avatar?.uri || avatarUrl ? <Image source={{ uri: avatar?.uri || avatarUrl }} style={styles.avatar} /> : <View style={styles.avatarEmpty}><Text style={styles.avatarLetter}>{(displayName || 'C')[0].toUpperCase()}</Text></View>}</View><Text style={styles.avatarLink}>Chọn ảnh đại diện</Text></Pressable>
+    <FormField label="Tên hiển thị" value={displayName} onChangeText={setDisplayName} placeholder="Tên của bạn" maxLength={80} />
     <FormField label="Username" value={username} onChangeText={setUsername} placeholder="chuong_reader" autoCapitalize="none" />
     <FormField label="Giới thiệu" value={bio} onChangeText={setBio} placeholder="Vài dòng về bạn…" multiline maxLength={500} />
     <PrimaryButton label="Lưu hồ sơ" onPress={submit} loading={loading} />

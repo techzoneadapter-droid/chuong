@@ -5,8 +5,9 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState } from '../../components/States';
 import { useAuth } from '../../contexts/AuthContext';
+import { getChaptersByBook } from '../../services/chapters';
 import { getBooks } from '../../services/books';
-import { getLibrary, getReadingProgress, removeFromLibrary, setLibraryStatus } from '../../services/library';
+import { getLibrary, getReadingProgress, removeFromLibrary, setLibraryStatus, mergeLocalLibrary } from '../../services/library';
 import { Book, LibraryEntry, LibraryStatus, ReadingProgress } from '../../types';
 
 const tabs: { value: LibraryStatus; label: string }[] = [{ value: 'reading', label: 'Đang đọc' }, { value: 'favorite', label: 'Yêu thích' }, { value: 'completed', label: 'Đã hoàn thành' }];
@@ -18,7 +19,9 @@ export default function LibraryScreen() {
     setLoading(true); setError('');
     try {
       const [library, booksResult] = await Promise.all([getLibrary(user?.id), getBooks()]);
-      const map = Object.fromEntries(booksResult.data.map((book) => [book.id, book])); setEntries(library); setBookMap(map);
+      const map = Object.fromEntries(booksResult.data.map((book) => [book.id, book]));
+      await Promise.all(library.map(async (entry) => { const book = map[entry.bookId]; if (book) { const chapters = await getChaptersByBook(book.id); map[book.id] = { ...book, chapters: chapters.data, totalChapters: chapters.data.length }; } }));
+      setEntries(library); setBookMap(map);
       const progress = await Promise.all(library.map(async (entry) => [entry.bookId, await getReadingProgress(entry.bookId, user?.id)] as const)); setProgressMap(Object.fromEntries(progress));
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể tải tủ sách.'); }
     finally { setLoading(false); }
@@ -29,12 +32,13 @@ export default function LibraryScreen() {
   const visible = entries.filter((entry) => entry.status === active);
   return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.page}>
     <View style={styles.titleRow}><Text style={styles.title}>Tủ sách</Text>{!user ? <Pressable onPress={() => router.push('/auth/login')}><Text style={styles.sync}>Đăng nhập để đồng bộ</Text></Pressable> : null}</View>
+    {user ? <Pressable onPress={async () => { try { await mergeLocalLibrary(user.id); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể nhập tủ sách.'); } }}><Text style={styles.sync}>Nhập tủ sách trên thiết bị · giữ nguyên dữ liệu đám mây</Text></Pressable> : null}
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>{tabs.map((tab) => <Pressable key={tab.value} onPress={() => setActive(tab.value)}><Text style={[styles.tab, active === tab.value && styles.active]}>{tab.label}</Text></Pressable>)}</ScrollView>
     {loading ? <LoadingState label="Đang tải tủ sách…" /> : error ? <View><EmptyState title="Không tải được tủ sách" detail={error} /><Pressable onPress={load}><Text style={styles.retry}>Thử lại</Text></Pressable></View> : visible.length === 0 ? <EmptyState title="Chưa có truyện" detail="Thêm truyện từ trang chi tiết để đọc tiếp ở đây." /> : visible.map((entry) => {
-      const book = bookMap[entry.bookId]; if (!book) return null; const progress = progressMap[entry.bookId];
+      const book = bookMap[entry.bookId]; if (!book) return <View key={entry.bookId} style={styles.row}><Text style={styles.chapter}>Truyện không còn công khai.</Text><Pressable onPress={() => remove(entry.bookId)}><Text style={styles.sync}>Xóa khỏi tủ sách</Text></Pressable></View>; const progress = progressMap[entry.bookId];
       return <Pressable onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })} style={styles.row} key={entry.bookId}>
         {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.cover} /> : <View style={[styles.cover, { backgroundColor: book.cover }]}><Text style={styles.coverText}>{book.title[0]}</Text></View>}
-        <View style={styles.meta}><View style={styles.bookTop}><Text numberOfLines={1} style={styles.bookTitle}>{book.title}</Text><Pressable hitSlop={10} onPress={() => remove(book.id)}><Ionicons name="close" size={18} color="#9A8E93" /></Pressable></View><Text style={styles.chapter}>{progress ? `Chương ${progress.chapterNumber} · ${Math.round(progress.progressPercent)}% chương` : `${book.totalChapters} chương`}</Text><View style={styles.track}><View style={[styles.fill, { width: `${progress?.progressPercent ?? 0}%` }]} /></View><View style={styles.statuses}>{tabs.map((tab) => <Pressable key={tab.value} onPress={() => update(book.id, tab.value)}><Text style={[styles.status, entry.status === tab.value && styles.statusActive]}>{tab.label}</Text></Pressable>)}</View></View>
+        <View style={styles.meta}><View style={styles.bookTop}><Text numberOfLines={1} style={styles.bookTitle}>{book.title}</Text><Pressable hitSlop={10} onPress={() => remove(book.id)}><Ionicons name="close" size={18} color="#9A8E93" /></Pressable></View><Text style={styles.chapter}>{progress ? `Chương ${progress.chapterNumber} · ${Math.round(progress.progressPercent)}% chương` : `${book.totalChapters} chương`}</Text><View style={styles.track}><View style={[styles.fill, { width: `${progress ? Math.min(100, ((Math.max(0, book.chapters.findIndex((chapter) => chapter.number === progress.chapterNumber))) + progress.progressPercent / 100) / Math.max(1, book.totalChapters) * 100) : 0}%` }]} /></View><Pressable onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: book.id, chapter: progress?.chapterNumber ?? 1 } })}><Text style={styles.sync}>Đọc tiếp</Text></Pressable><View style={styles.statuses}>{tabs.map((tab) => <Pressable key={tab.value} onPress={() => update(book.id, tab.value)}><Text style={[styles.status, entry.status === tab.value && styles.statusActive]}>{tab.label}</Text></Pressable>)}</View></View>
       </Pressable>;
     })}
   </ScrollView></SafeAreaView>;
