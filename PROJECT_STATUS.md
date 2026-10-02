@@ -2,6 +2,17 @@
 
 Updated: 2026-10-02
 
+## Live Supabase production backend
+
+- Production Supabase project created: `chuong` (`lwchpifeahyuoajeidsa`) in `ap-southeast-1` (Singapore).
+- Project URL: `https://lwchpifeahyuoajeidsa.supabase.co`.
+- Applied migrations: `phase3a_foundation`, `phase3a_stabilization`, and `scale_hardening`.
+- All 13 application tables have RLS enabled.
+- Storage buckets verified: `book-covers`, `author-avatars`, `profile-avatars`.
+- Supabase security advisor currently reports no security lints.
+- Scale hardening wraps `auth.uid()` in init plans, adds covering foreign-key indexes, removes the duplicate permissive genre SELECT policy, and pins function search paths.
+- Performance advisor now only reports unused-index informational notices, which are expected on a brand-new empty database before production traffic.
+
 ## Current phase
 
 Phase 3A backend foundation audited, completed in the working tree, and stabilized with local database/browser tests. Live Supabase setup and device QA remain required before declaring deployment complete. Approved Phase 2 UI, Reader, AI demo and Audio demo are preserved.
