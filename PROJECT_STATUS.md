@@ -97,3 +97,18 @@ Local `HEAD` and local `origin/main` ref both remain `9f6724f08c98eed6e69d7ea3cb
 ## Exact next task
 
 Review the working tree, then perform the live two-account Supabase/device verification above. Begin with the pending additive migration and environment/auth settings in `SUPABASE_SETUP.md`. After successful review and from an environment authorized to publish, include the new app/components/hooks/services/docs/tests/migration files, commit intended source only, push main and verify the remote SHA. Do not include `.vibaocode-*`, `.env*`, `.cache`, node_modules, dist or test artifacts. Dependency advisory remediation should be a separate Expo compatibility change.
+
+
+## Live backend connection verification
+
+- The app client now defaults to the production Supabase project `lwchpifeahyuoajeidsa` using the project URL and Supabase publishable client key; environment variables can still override it for staging/key rotation.
+- Set `EXPO_PUBLIC_SUPABASE_MODE=demo` to force Demo Mode explicitly.
+- Database TypeScript definitions were regenerated from the live Supabase schema.
+- Live RLS integration test passed with two temporary accounts:
+  - author onboarding promoted `reader -> author`
+  - public book/chapter visible to another reader
+  - library, reading progress, bookmark and comment writes succeeded
+  - book/author follow counters updated atomically
+  - non-owner book update was blocked by RLS
+  - published chapter counter updated correctly
+- All temporary test users/content were deleted after verification; production database remains clean.
