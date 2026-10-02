@@ -1,15 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const books = [
-  { title: 'Kiếm Yên Vân', author: 'Mộc Phong', genre: 'Tiên hiệp', tone: '#294C60', badge: 'HOT' },
-  { title: 'Thành Phố Sau Mưa', author: 'An Nhiên', genre: 'Đô thị', tone: '#6D2E46', badge: 'VIP' },
-  { title: 'Người Giữ Ký Ức', author: 'Hạ Lam', genre: 'Fantasy', tone: '#4E426D', badge: 'MỚI' },
-  { title: 'Hệ Thống Tiệm Nhỏ', author: 'Lâm Khê', genre: 'Hệ thống', tone: '#2D6A62', badge: 'HOT' }
-];
+import { BookCard } from '../../components/BookCard';
+import { books } from '../../data/books';
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const currentBook = books[0];
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.page}>
@@ -19,53 +17,43 @@ export default function HomeScreen() {
             <Text style={styles.tagline}>Mỗi chương, một thế giới.</Text>
           </View>
           <View style={styles.headerActions}>
-            <Pressable style={styles.iconButton}>
+            <Pressable style={styles.iconButton} onPress={() => router.push('/discover')}>
               <Ionicons name="search" size={21} color="#221A1D" />
             </Pressable>
-            <Pressable style={styles.iconButton}>
+            <Pressable style={styles.iconButton} onPress={() => router.push('/profile')}>
               <Ionicons name="notifications-outline" size={21} color="#221A1D" />
             </Pressable>
           </View>
         </View>
 
-        <View style={styles.hero}>
+        <Pressable style={({ pressed }) => [styles.hero, pressed && styles.pressed]} onPress={() => router.push({ pathname: '/book/[id]', params: { id: currentBook.id } })}>
           <View style={styles.heroTop}>
             <Text style={styles.heroEyebrow}>ĐANG ĐỌC</Text>
-            <Text style={styles.heroPercent}>15%</Text>
+            <Text style={styles.heroPercent}>{Math.round(currentBook.progress)}%</Text>
           </View>
           <Text style={styles.heroTitle}>Kiếm Yên Vân</Text>
-          <Text style={styles.heroSub}>Mộc Phong · Chương 186 / 1250</Text>
+          <Text style={styles.heroSub}>{currentBook.author} · Chương 186 / {currentBook.totalChapters}</Text>
           <View style={styles.track}>
-            <View style={styles.fill} />
+            <View style={[styles.fill, { width: `${currentBook.progress}%` }]} />
           </View>
-          <Pressable style={styles.continueButton}>
+          <Pressable style={styles.continueButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: currentBook.id, chapter: 186 } })}>
             <Ionicons name="book-outline" size={18} color="#FFFFFF" />
             <Text style={styles.continueText}>Đọc tiếp</Text>
           </Pressable>
-        </View>
+        </Pressable>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>🔥 Hot hôm nay</Text>
-          <Text style={styles.seeAll}>Xem tất cả</Text>
+          <Text style={styles.seeAll} onPress={() => router.push('/discover')}>Xem tất cả</Text>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-          {books.map((book) => (
-            <View style={styles.card} key={book.title}>
-              <View style={[styles.cover, { backgroundColor: book.tone }]}>
-                <Text style={styles.coverBrand}>CHƯƠNG</Text>
-                <Text style={styles.coverTitle}>{book.title}</Text>
-                <Text style={styles.badge}>{book.badge}</Text>
-              </View>
-              <Text numberOfLines={2} style={styles.cardTitle}>{book.title}</Text>
-              <Text style={styles.cardMeta}>{book.author} · {book.genre}</Text>
-            </View>
-          ))}
+          {books.slice(0, 6).map((book) => <BookCard book={book} key={book.id} />)}
         </ScrollView>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Dành cho bạn</Text>
-          <Text style={styles.seeAll}>Khám phá</Text>
+          <Text style={styles.seeAll} onPress={() => router.push('/discover')}>Khám phá</Text>
         </View>
 
         <View style={styles.recommend}>
@@ -81,13 +69,13 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Tác giả Việt</Text>
-          <Text style={styles.seeAll}>Xem thêm</Text>
+          <Text style={styles.seeAll} onPress={() => router.push('/write')}>Xem thêm</Text>
         </View>
 
         <View style={styles.authorBox}>
           <Text style={styles.authorTitle}>Viết câu chuyện của riêng bạn</Text>
           <Text style={styles.authorBody}>Đăng truyện, theo dõi độc giả và xây dựng cộng đồng người đọc.</Text>
-          <Pressable style={styles.authorButton}>
+          <Pressable style={styles.authorButton} onPress={() => router.push('/write')}>
             <Text style={styles.authorButtonText}>Bắt đầu viết</Text>
             <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
           </Pressable>
@@ -128,13 +116,14 @@ const styles = StyleSheet.create({
     padding: 20,
     minHeight: 196
   },
+  pressed: { opacity: 0.9 },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between' },
   heroEyebrow: { color: '#E9C6D1', fontSize: 11, fontWeight: '900', letterSpacing: 1.1 },
   heroPercent: { color: '#E9C6D1', fontSize: 12, fontWeight: '800' },
   heroTitle: { color: '#FFFFFF', fontSize: 27, fontWeight: '900', marginTop: 22 },
   heroSub: { color: '#E9C6D1', fontSize: 13, marginTop: 5 },
   track: { height: 5, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 20 },
-  fill: { width: '15%', height: 5, borderRadius: 99, backgroundColor: '#FFFFFF' },
+  fill: { height: 5, borderRadius: 99, backgroundColor: '#FFFFFF' },
   continueButton: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -158,22 +147,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#221A1D', fontSize: 20, fontWeight: '900' },
   seeAll: { color: '#8F1D3F', fontSize: 12, fontWeight: '800' },
   row: { paddingLeft: 16, paddingRight: 4 },
-  card: { width: 140, marginRight: 14 },
-  cover: { height: 190, borderRadius: 16, padding: 14, justifyContent: 'space-between' },
-  coverBrand: { color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
-  coverTitle: { color: '#FFFFFF', fontSize: 18, lineHeight: 22, fontWeight: '900' },
-  badge: {
-    alignSelf: 'flex-start',
-    color: '#FFFFFF',
-    backgroundColor: 'rgba(0,0,0,0.22)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    fontSize: 10,
-    fontWeight: '900'
-  },
-  cardTitle: { color: '#221A1D', fontSize: 14, lineHeight: 19, fontWeight: '800', marginTop: 9 },
-  cardMeta: { color: '#756B6F', fontSize: 11, marginTop: 3 },
   recommend: {
     marginHorizontal: 16,
     backgroundColor: '#F0E1E5',

@@ -23,7 +23,7 @@ export default function LibraryScreen() {
             <View style={styles.meta}>
               <Text style={styles.bookTitle}>{title}</Text>
               <Text style={styles.chapter}>{chapter}</Text>
-              <View style={styles.track}><View style={[styles.fill, { width: String(progress) + '%' }]} /></View>
+              <View style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]} /></View>
               <Text style={styles.progress}>{progress}% đã đọc</Text>
             </View>
           </View>
