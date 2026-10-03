@@ -1023,6 +1023,109 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          author_earnings: boolean
+          comments: boolean
+          created_at: string
+          in_app_enabled: boolean
+          moderation: boolean
+          payouts: boolean
+          purchases: boolean
+          push_enabled: boolean
+          system: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author_earnings?: boolean
+          comments?: boolean
+          created_at?: string
+          in_app_enabled?: boolean
+          moderation?: boolean
+          payouts?: boolean
+          purchases?: boolean
+          push_enabled?: boolean
+          system?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author_earnings?: boolean
+          comments?: boolean
+          created_at?: string
+          in_app_enabled?: boolean
+          moderation?: boolean
+          payouts?: boolean
+          purchases?: boolean
+          push_enabled?: boolean
+          system?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          action_route: string | null
+          body: string
+          category: string
+          created_at: string
+          dedupe_key: string | null
+          event_type: string
+          expires_at: string | null
+          id: string
+          metadata: Json
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          action_route?: string | null
+          body: string
+          category: string
+          created_at?: string
+          dedupe_key?: string | null
+          event_type: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          action_route?: string | null
+          body?: string
+          category?: string
+          created_at?: string
+          dedupe_key?: string | null
+          event_type?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1857,6 +1960,31 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_unread_notification_count: { Args: never; Returns: number }
+      mark_all_notifications_read: { Args: never; Returns: number }
+      mark_notification_read: {
+        Args: { p_notification_id: string }
+        Returns: {
+          action_route: string | null
+          body: string
+          category: string
+          created_at: string
+          dedupe_key: string | null
+          event_type: string
+          expires_at: string | null
+          id: string
+          metadata: Json
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "notifications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       restore_revoked_store_purchase: {
         Args: {
           p_external_transaction_id: string
@@ -1940,6 +2068,37 @@ export type Database = {
           price_paid_coins: number
           unlocked: boolean
         }[]
+      }
+      update_notification_preferences: {
+        Args: {
+          p_author_earnings: boolean
+          p_comments: boolean
+          p_in_app_enabled: boolean
+          p_moderation: boolean
+          p_payouts: boolean
+          p_purchases: boolean
+          p_push_enabled: boolean
+          p_system: boolean
+        }
+        Returns: {
+          author_earnings: boolean
+          comments: boolean
+          created_at: string
+          in_app_enabled: boolean
+          moderation: boolean
+          payouts: boolean
+          purchases: boolean
+          push_enabled: boolean
+          system: boolean
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "notification_preferences"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
