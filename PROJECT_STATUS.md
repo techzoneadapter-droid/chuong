@@ -354,3 +354,70 @@ Next product step:
   - call service-role credit RPC only after verification succeeds
   - finish/consume/acknowledge only through the native purchase flow
   - test Google/Apple sandbox accounts before enabling production money flow
+
+
+## Currency branding — Linh Thạch
+
+User-facing virtual currency has been renamed from **Xu** to **Linh Thạch**.
+
+Completed:
+- Wallet, store, VIP paywall, chapter list, Author Studio, author revenue, admin monetization and service error copy now show Linh Thạch.
+- Store product IDs were renamed before production sales:
+  - `chuong.linhthach.100`
+  - `chuong.linhthach.550`
+  - `chuong.linhthach.1200`
+  - `chuong.linhthach.2600`
+- Internal database field names such as `coins`, `price_coins` and `balance_coins` are intentionally retained as stable implementation details. They are not user-facing branding.
+- Existing production revenue policy remains unchanged.
+
+Migration:
+- `202610030015_linh_thach_naming.sql`
+
+## Phase 4D-B — native Google Play / Apple IAP bridge
+
+Status: code and server verifier implemented; production purchasing remains safely blocked until real store products and credentials are configured and sandbox tests pass.
+
+Completed:
+- Added `expo-iap@5.8.2` and its Expo config plugin.
+- Added platform-safe IAP hook:
+  - web falls back to read-only catalog
+  - Android/iOS uses native IAP
+- Mobile purchase requests bind the store purchase to the signed-in Supabase UUID:
+  - Google: `obfuscatedAccountId`
+  - Apple: `appAccountToken`
+- Store screen loads localized store prices when running natively.
+- Buy button remains disabled unless both native store connection and server-side provider verification are ready.
+- Purchase completion order is fail-safe:
+  1. store purchase callback
+  2. server verification
+  3. idempotent Linh Thạch wallet credit
+  4. finish/consume native transaction
+- `iap-verify` Edge Function upgraded to version 2.
+- Google server verification implementation added using Android Publisher ProductPurchaseV2.
+- Apple server verification implementation added using App Store Server API transaction information.
+- Exact product ID, account binding, quantity and purchase/revocation state checks are enforced before wallet credit.
+- Raw Google purchase tokens are not persisted; a SHA-256 hash is stored.
+- Wallet credit RPC remains service-role-only.
+- Store credentials are deliberately not embedded in source code.
+- Setup guide added at `docs/IAP_SETUP.md`.
+
+Required external setup before native sandbox purchase can be enabled:
+- create the four consumable/one-time products in Google Play Console and App Store Connect
+- configure Google Play service-account credentials in Supabase Edge Function secrets
+- configure Apple App Store Connect issuer/key/private-key credentials in Supabase Edge Function secrets
+- run Android and iOS store sandbox tests
+
+App IDs:
+- Android: `vn.chuong.app`
+- iOS: `vn.chuong.app`
+
+Current safety state:
+- Vibaocode/web remains catalog-only.
+- If provider verification is not configured, native purchase buttons stay blocked before starting a transaction.
+- No real-money purchase is intentionally enabled yet.
+
+Next:
+- Configure store-console products and provider secrets.
+- Build native Android/iOS test versions.
+- Complete sandbox purchase validation.
+- Phase 4D-C: Google RTDN / Apple Server Notifications for automatic post-purchase refund and revocation reconciliation.
