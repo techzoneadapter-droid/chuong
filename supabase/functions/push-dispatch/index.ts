@@ -36,6 +36,29 @@ function reply(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 }
 
+async function hashText(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return new Uint8Array(digest);
+}
+
+async function secureEqual(a: string, b: string) {
+  const [left, right] = await Promise.all([hashText(a), hashText(b)]);
+  if (left.length !== right.length) return false;
+  let diff = 0;
+  for (let i = 0; i < left.length; i += 1) diff |= left[i] ^ right[i];
+  return diff === 0;
+}
+
+async function workerAuthorized(req: Request) {
+  const provided = req.headers.get("x-chuong-push-worker")?.trim() || "";
+  if (!provided) return false;
+
+  const { data, error } = await supabase.rpc("get_push_worker_secret");
+  if (error || !data || typeof data !== "string") return false;
+  return secureEqual(provided, data);
+}
+
 function retryDelayMinutes(attempts: number) {
   if (attempts <= 1) return 1;
   if (attempts === 2) return 2;
@@ -288,6 +311,7 @@ async function checkReceipts() {
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return reply(405, { error: "method_not_allowed" });
+  if (!(await workerAuthorized(req))) return reply(401, { error: "unauthorized_worker" });
 
   try {
     const [receipts, send] = await Promise.all([
