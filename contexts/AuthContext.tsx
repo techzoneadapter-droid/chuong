@@ -68,7 +68,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { subscription.remove(); supabase?.auth.stopAutoRefresh(); };
   }, []);
 
-  const logout = useCallback(async () => { await signOutService(); setSession(null); setProfile(null); }, []);
+  const logout = useCallback(async () => {
+    if (Platform.OS !== 'web') {
+      try {
+        const { unregisterCurrentPushDevice } = await import('../services/pushNotifications');
+        await unregisterCurrentPushDevice();
+      } catch {
+        // Push cleanup is best-effort; logout must still succeed.
+      }
+    }
+    await signOutService();
+    setSession(null);
+    setProfile(null);
+  }, []);
   const value = useMemo(() => ({ session, user, profile, loading, error, configured: isSupabaseConfigured, refreshProfile, logout }), [session, user, profile, loading, error, refreshProfile, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
