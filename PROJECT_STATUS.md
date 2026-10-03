@@ -86,7 +86,7 @@ Browser dependencies/fonts were downloaded into ignored `.cache/` inside the rep
 - Hosted Supabase, email delivery, actual Storage upload and physical devices were not tested; no live credentials were used.
 - Comments currently display at most the first 100 comments/replies per discussion. Advanced pagination/moderation/report submission are later work.
 - Web password recovery is implemented; native recovery deep links need a later release/device test.
-- Reader page mode, AI, Audio and downloads retain their approved demo behavior; no paid APIs or downloads backend is claimed.
+- Reader page mode, AI and Audio retain their approved demo behavior. Downloads are now implemented as device-local offline reading in Phase 4H; no paid AI API is claimed.
 - `npm audit` reports 18 dependency advisories (12 moderate, 6 high) in the existing Expo dependency tree. Suggested automated fixes change/downgrade SDK versions; no forced SDK migration was performed in this backend task.
 - No commit or push was performed: the user's sandbox instruction explicitly prohibits both. Product changes, including new files, remain ready for review. Pre-existing untracked `.vibaocode-*` control files are preserved.
 
@@ -865,3 +865,90 @@ Next:
   - download integrity checks
   - offline reader states
   - release-scale cache/performance review
+
+
+## Phase 4H — offline downloads and resilient reading
+
+Status: implemented in source; production progress-sync RPC is live. Physical Android/iOS offline QA is still required before store release.
+
+Completed:
+- Replaced fake download timers with real entitlement-aware chapter downloads.
+- Added SDK 54 compatible:
+  - `expo-file-system ~19.0.24`
+  - `expo-network ~8.0.8`
+- Android/iOS chapter bodies are stored in the private app document directory.
+- Web/Vibaocode keeps a functional AsyncStorage preview fallback.
+- Download choices:
+  - current chapter
+  - next 20 chapters
+  - entire currently published book
+- Download requests are bounded to four chapter fetches at a time.
+- Locked VIP chapters are never cached.
+- VIP offline copies have a seven-day verification window.
+- When online entitlement checks later return locked/revoked, old VIP cache is deleted.
+- Added manifest metadata and checksum integrity validation.
+- Corrupt local payloads are deleted instead of silently displayed.
+- Added local storage quota management:
+  - default 250 MB
+  - 100 MB / 250 MB / 500 MB / 1 GB choices
+  - least-recently-used cleanup when quota is exceeded
+- Added `/downloads`:
+  - online/offline state
+  - storage usage
+  - downloaded books/chapter count
+  - per-book size
+  - expired VIP warning/cleanup
+  - remove one book
+  - clear all downloads
+  - pending/stalled sync state
+- Profile -> Tải xuống now opens the real manager.
+- Chapter lists mark chapters that are already downloaded.
+- Reader can fall back to downloaded book metadata, chapter list and chapter body when the network/catalog is unavailable.
+- Offline Reader:
+  - shows an Offline marker
+  - hides network comments behind an offline notice
+  - returns to Downloads when opened as a local-only session
+- Book/catalog services can fall back to downloaded snapshots when the public API is unreachable.
+- Signed-in local caches are account-scoped for:
+  - library
+  - reading progress
+  - bookmarks
+- Added durable offline sync queue:
+  - coalesces newer writes for the same logical item
+  - flushes on reconnect, foreground and every 30 seconds
+  - exponential backoff
+  - max eight automatic attempts before an operation is parked
+  - a newer action for the same item replaces the parked operation and retries from zero
+- Added `sync_reading_progress()` on production Supabase so an old offline write cannot overwrite newer reading progress from another device.
+
+Production verification:
+- newer reading progress at 80% / scroll 1800 was written
+- older offline-style update at 20% / scroll 300 was replayed afterward
+- server kept the newer 80% / 1800 state
+- temporary test account/data were removed
+
+Migration:
+- `202610030031_phase4h_progress_sync.sql`
+
+Docs:
+- `docs/OFFLINE_READING.md`
+
+Release QA still required on physical devices:
+- Android/iOS airplane-mode launch
+- interrupted/large downloads
+- app restart persistence
+- low-storage behavior
+- VIP expiry and reconnect
+- refund/revocation cache invalidation
+- account switching with pending sync
+- uninstall/reinstall behavior
+
+Next:
+- Phase 4I: real ratings/reviews and reader engagement quality:
+  - one rating per reader/book
+  - aggregate rating maintenance
+  - review text with moderation/report integration
+  - spoiler flag
+  - useful sorting
+  - author-facing review summary
+  - anti-spam/rate-limit foundation
