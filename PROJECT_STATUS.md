@@ -634,3 +634,96 @@ Next:
   - per-device logout cleanup
   - sandbox device testing
 - Then Phase 4G: search, ranking and discovery improvements.
+
+
+## Phase 4F-B — native Android/iOS push delivery
+
+Status: native client integration, server delivery queue, automated worker and admin monitoring are implemented. Real FCM/APNs delivery still requires an EAS-linked build and store push credentials.
+
+Completed:
+- Installed SDK 54 compatible native packages:
+  - `expo-notifications ~0.32.17`
+  - `expo-device ~8.0.10`
+  - `expo-constants ~18.0.14`
+- Added `expo-notifications` config plugin.
+- Added `eas.json` preview and production profiles.
+- Added native push registration service:
+  - Android notification channel `chuong-default`
+  - OS permission request
+  - EAS project ID resolution
+  - Expo Push Token acquisition
+  - stable per-installation device key
+  - authenticated server registration
+  - token refresh / foreground best-effort re-sync
+  - current-device cleanup before logout
+- Added native push lifecycle bridge:
+  - foreground display handler
+  - push tap deep links through Expo Router
+  - cold-start push route handling
+- Notification Settings now enables/disables real device push on supported Android/iOS builds.
+- Web/Vibaocode clearly reports that remote push requires an Android/iOS build instead of pretending push is available.
+
+Backend:
+- Added `push_devices` owner-scoped device registry.
+- Added `push_deliveries` durable per-notification/per-device delivery ledger.
+- Notification insert trigger queues delivery jobs only when push is enabled for that category.
+- Added owner-safe push device registration/unregistration RPCs.
+- Added atomic service-role claim function using `FOR UPDATE SKIP LOCKED`.
+- Added stale processing-lock recovery.
+- Added exponential retry schedule with a six-attempt ceiling.
+- Added `push-dispatch` Edge Function:
+  - batches up to 100 Expo Push messages
+  - stores Expo ticket IDs
+  - checks Expo push receipts
+  - retries transient/rate-limit errors
+  - automatically disables DeviceNotRegistered tokens
+- Enabled `pg_cron` + `pg_net`.
+- Secure worker secret is generated inside Postgres, stored in Supabase Vault and never committed to git.
+- Cron invokes `push-dispatch` every minute using that internal secret.
+- Edge Function uses custom worker-secret authentication; gateway JWT verification is intentionally disabled for this worker because the request is authenticated by the generated secret.
+- Added Admin Center -> `Hệ thống Push`:
+  - worker/cron status
+  - active/invalid devices
+  - pending/processing/ticketed/delivered/error counts
+  - recent devices
+  - recent failed/invalid-token deliveries
+
+Production verification:
+- temporary authenticated user registered a fake Expo push device through the real RPC
+- enabling push created a delivery row for a new notification
+- scheduled worker claimed the row
+- Expo Push Service returned DeviceNotRegistered for the fake token
+- delivery became `invalid_token`
+- the device was disabled automatically
+- cron job `chuong-push-dispatch` is active on a one-minute schedule
+- temporary user/device/notification/delivery data was deleted afterward
+
+Migrations:
+- `202610030020_phase4fb_push_delivery.sql`
+- `202610030021_phase4fb_push_cron_extensions.sql`
+- `202610030022_phase4fb_push_worker_schedule.sql`
+- `202610030023_phase4fb_push_token_validation_fix.sql`
+- `202610030024_phase4fb_push_admin_monitoring.sql`
+
+Edge Function:
+- `push-dispatch` version 2
+
+Docs:
+- `docs/PUSH_NOTIFICATIONS.md`
+
+Still required for real device delivery:
+- link the app to an Expo/EAS project
+- configure Android FCM v1 credentials
+- configure Apple APNs credentials
+- install a real Android/iOS preview or production build
+- enable Push notification inside CHƯƠNG
+- perform real-device push + deep-link QA
+
+Next:
+- Phase 4G: search and discovery upgrade:
+  - full-text book/author search
+  - accent-insensitive Vietnamese search
+  - filters/sorting
+  - search history
+  - trending/hot ranking from real signals
+  - personalized discovery groundwork
