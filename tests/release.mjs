@@ -52,7 +52,7 @@ const requiredFiles = [
   'services/offlineDownloads.ts',
   'services/offlineSync.ts',
   'services/pushNotifications.ts',
-  'services/storeBilling.ts',
+  'services/store.ts',
   'services/analytics.ts',
   'docs/IAP_SETUP.md',
   'docs/PUSH_NOTIFICATIONS.md',
