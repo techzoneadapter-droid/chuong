@@ -189,6 +189,7 @@ export async function importAdminCatalogChapters(
         title: chapter.title.trim(),
         content: chapter.content.trim(),
         status: publish ? 'published' : 'draft',
+        published_at: publish ? new Date().toISOString() : null,
         is_vip: false,
         price_coins: 0,
       })),
