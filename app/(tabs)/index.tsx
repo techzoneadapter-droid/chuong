@@ -124,7 +124,7 @@ export default function HomeScreen() {
                 : 'Đề xuất nổi bật. Đọc và theo dõi thêm để CHƯƠNG hiểu gu của bạn.'}
             </Text>
           </View>
-          <Text style={styles.seeAll} onPress={() => router.push('/discover')}>Khám phá</Text>
+          <Text style={styles.seeAll} onPress={() => router.push('/recommendations')}>Xem tất cả</Text>
         </View>
 
         {recommendError ? <View style={styles.recommendError}>
