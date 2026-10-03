@@ -79,6 +79,19 @@ export async function hideRecommendation(bookId: string) {
   }
 }
 
+export async function resetHiddenRecommendations() {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase
+      .from('recommendation_feedback')
+      .delete()
+      .eq('action', 'not_interested');
+    if (error) throw error;
+  } catch (error) {
+    throw toServiceError(error, 'Không thể đặt lại các đề xuất đã ẩn.');
+  }
+}
+
 export function recommendationReasonText(item: PersonalizedRecommendation) {
   if (!item.personalized) return 'Đang nổi bật trên CHƯƠNG';
   if (item.reasonType === 'followed_author') return 'Tác giả bạn đang theo dõi · ' + item.reasonLabel;
