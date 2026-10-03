@@ -92,6 +92,23 @@ export async function getBookById(id?: string): Promise<ServiceResult<Book | nul
   } catch (error) { throw toServiceError(error, 'Không thể tải truyện.'); }
 }
 
+export async function getBooksByIds(ids: string[]): Promise<Book[]> {
+  if (!ids.length) return [];
+  if (!supabase) {
+    const order = new Map(ids.map((id, index) => [id, index]));
+    return demoBooks.filter((book) => order.has(book.id)).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  }
+  try {
+    const { data, error } = await supabase.from('books').select('*').in('id', ids);
+    if (error) throw error;
+    const hydrated = await hydrateBooks(data ?? []);
+    const order = new Map(ids.map((id, index) => [id, index]));
+    return hydrated.sort((a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+  } catch (error) {
+    throw toServiceError(error, 'Không thể tải kết quả tìm kiếm.');
+  }
+}
+
 export const getHomeBooks = getBooks;
 export async function getMyBooks(authorId: string): Promise<Book[]> {
   if (!supabase) return demoBooks.filter((book) => book.authorId === authorId || book.author === authorId);
