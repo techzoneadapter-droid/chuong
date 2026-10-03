@@ -146,3 +146,19 @@ Manual next step:
 
 Exact next product phase:
 - Phase 4 monetization design and implementation: CHƯƠNG Xu + compliant Google Play Billing / Apple IAP + author revenue ledger. Do not bypass platform billing.
+
+
+## Production starter content
+
+To avoid an empty live app while the real catalog is still being built, production Supabase now contains an internal system author `CHƯƠNG Studio` with 4 original demo books and 8 original demo chapters:
+
+- Kiếm Yên Vân — Tiên hiệp
+- Thành Phố Sau Mưa — Đô thị
+- Người Giữ Ký Ức — Fantasy
+- Đêm Thứ Mười Ba — Kinh dị
+
+All content is original demo material created for CHƯƠNG product testing, not scraped or imported copyrighted fiction.
+
+Anonymous/public RLS verification passed:
+- 4 public books visible
+- 8 published chapters visible
