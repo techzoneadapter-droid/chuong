@@ -132,7 +132,7 @@ export default function BookDetailScreen() {
           <Action icon={inLibrary ? 'checkmark' : 'add'} label={inLibrary ? 'Đã lưu' : 'Tủ sách'} onPress={toggleLibrary} active={inLibrary} />
           <Action icon={followingBook ? 'heart' : 'heart-outline'} label={followingBook ? 'Đang theo dõi' : 'Theo dõi truyện'} onPress={() => toggleFollow('book')} active={followingBook} />
           <Action icon="download-outline" label="Tải truyện" onPress={() => setDownloadOpen(true)} />
-          <Action icon="share-outline" label="Chia sẻ" onPress={shareBook} />
+          <Action icon="flag-outline" label="Báo cáo" onPress={() => user ? router.push({ pathname: '/report', params: { bookId: book.id, label: book.title } }) : router.push('/auth/login')} />
         </View>
 
         <View style={styles.authorSection}>
