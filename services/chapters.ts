@@ -5,6 +5,7 @@ import { Chapter, ChapterInput, ServiceResult } from '../types';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
 import {
+  getOfflineBookSnapshot,
   getOfflineChapter,
   OfflineLicenseExpiredError,
   refreshOfflineChapterIfDownloaded,
@@ -69,6 +70,8 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
     }
     return { data: chapters, mode: 'supabase' };
   } catch (error) {
+    const offline = await getOfflineBookSnapshot(bookId).catch(() => null);
+    if (offline) return { data: offline.chapters, mode: 'offline' };
     throw toServiceError(error, 'Không thể tải danh sách chương.');
   }
 }
