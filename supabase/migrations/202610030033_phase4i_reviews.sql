@@ -352,9 +352,16 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $$
-  with visible as (
-    select r.rating
+as $
+  with agg as (
+    select
+      coalesce(round(avg(r.rating)::numeric,2),0) as average_rating,
+      count(*)::bigint as rating_count,
+      count(*) filter (where r.rating=5)::bigint as star_5,
+      count(*) filter (where r.rating=4)::bigint as star_4,
+      count(*) filter (where r.rating=3)::bigint as star_3,
+      count(*) filter (where r.rating=2)::bigint as star_2,
+      count(*) filter (where r.rating=1)::bigint as star_1
     from public.book_reviews r
     where r.book_id=p_book_id and r.moderation_state='approved'
   ),
@@ -365,20 +372,20 @@ as $$
     limit 1
   )
   select
-    coalesce(round(avg(v.rating)::numeric,2),0),
-    count(v.rating),
-    count(v.rating) filter (where v.rating=5),
-    count(v.rating) filter (where v.rating=4),
-    count(v.rating) filter (where v.rating=3),
-    count(v.rating) filter (where v.rating=2),
-    count(v.rating) filter (where v.rating=1),
-    max(m.id),
-    max(m.rating),
-    max(m.review_text),
-    bool_or(m.spoiler)
-  from visible v
-  full join mine m on true;
-$$;
+    a.average_rating,
+    a.rating_count,
+    a.star_5,
+    a.star_4,
+    a.star_3,
+    a.star_2,
+    a.star_1,
+    m.id,
+    m.rating,
+    m.review_text,
+    m.spoiler
+  from agg a
+  left join mine m on true;
+$;
 
 revoke execute on function public.get_book_review_summary(uuid) from public;
 grant execute on function public.get_book_review_summary(uuid) to anon, authenticated;
