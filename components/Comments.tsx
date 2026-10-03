@@ -55,7 +55,11 @@ export function Comments({ bookId, chapterId }: { bookId: string; chapterId?: st
       <View style={styles.actions}><Pressable onPress={() => like(item)}><Text style={styles.action}>{item.liked ? '♥' : '♡'} {item.likes}</Text></Pressable>
         {!nested ? <Pressable onPress={() => { if (!user && isSupabaseConfigured) router.push('/auth/login'); else setReply(item); }}><Text style={styles.action}>Trả lời</Text></Pressable> : null}
         {user?.id === item.userId ? <Pressable onPress={() => remove(item.id)}><Text style={styles.action}>Xóa</Text></Pressable> : null}
-        <Pressable onPress={() => setNotice('Báo cáo sẽ được hỗ trợ khi hệ thống kiểm duyệt hoạt động.')}><Text style={styles.action}>Báo cáo</Text></Pressable></View>
+        <Pressable onPress={() => {
+          if (!isSupabaseConfigured) return setNotice('Demo · Báo cáo cần backend thật.');
+          if (!user) return router.push('/auth/login');
+          router.push({ pathname: '/report', params: { commentId: item.id, label: `Bình luận của ${item.name}` } });
+        }}><Text style={styles.action}>Báo cáo</Text></Pressable></View>
     </View>
   </View>;
   return <View>
