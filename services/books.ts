@@ -4,6 +4,7 @@ import { AuthorBookInput, Book, ServiceResult } from '../types';
 import { Database } from '../types/database';
 import { deleteOwnBookCover } from './storage';
 import { toServiceError } from './errors';
+import { getOfflineBookSnapshot, listOfflineBooks } from './offlineDownloads';
 
 type BookRow = Database['public']['Tables']['books']['Row'];
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
@@ -75,7 +76,14 @@ export async function getBooks(): Promise<ServiceResult<Book[]>> {
       if (!data || data.length < 500) break;
     }
     return { data: books, mode: 'supabase' };
-  } catch (error) { throw toServiceError(error, 'Không thể tải danh sách truyện.'); }
+  } catch (error) {
+    const summaries = await listOfflineBooks().catch(() => []);
+    if (summaries.length) {
+      const snapshots = await Promise.all(summaries.map((item) => getOfflineBookSnapshot(item.bookId)));
+      return { data: snapshots.filter((book): book is Book => Boolean(book)), mode: 'offline' };
+    }
+    throw toServiceError(error, 'Không thể tải danh sách truyện.');
+  }
 }
 
 export async function getBookById(id?: string): Promise<ServiceResult<Book | null>> {
@@ -89,7 +97,11 @@ export async function getBookById(id?: string): Promise<ServiceResult<Book | nul
     if (error) throw error;
     if (!data) return { data: null, mode: 'supabase' };
     return { data: (await hydrateBooks([data]))[0] ?? null, mode: 'supabase' };
-  } catch (error) { throw toServiceError(error, 'Không thể tải truyện.'); }
+  } catch (error) {
+    const offline = id ? await getOfflineBookSnapshot(id).catch(() => null) : null;
+    if (offline) return { data: offline, mode: 'offline' };
+    throw toServiceError(error, 'Không thể tải truyện.');
+  }
 }
 
 export async function getBooksByIds(ids: string[]): Promise<Book[]> {
@@ -105,6 +117,12 @@ export async function getBooksByIds(ids: string[]): Promise<Book[]> {
     const order = new Map(ids.map((id, index) => [id, index]));
     return hydrated.sort((a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER));
   } catch (error) {
+    const offline = (await Promise.all(ids.map((id) => getOfflineBookSnapshot(id).catch(() => null))))
+      .filter((book): book is Book => Boolean(book));
+    if (offline.length) {
+      const order = new Map(ids.map((id, index) => [id, index]));
+      return offline.sort((a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+    }
     throw toServiceError(error, 'Không thể tải kết quả tìm kiếm.');
   }
 }
