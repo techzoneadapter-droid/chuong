@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../components/States';
+import { useAuth } from '../contexts/AuthContext';
 import { getConnectivityState } from '../services/connectivity';
 import {
   clearOfflineDownloads,
@@ -17,6 +18,7 @@ import {
   removeOfflineBook,
   setOfflineQuotaBytes,
 } from '../services/offlineDownloads';
+import { flushOfflineSyncQueue, getPendingOfflineSyncCount } from '../services/offlineSync';
 
 const quotaOptions = [
   { label: '100 MB', bytes: 100 * 1024 * 1024 },
@@ -27,9 +29,11 @@ const quotaOptions = [
 
 export default function DownloadsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [books, setBooks] = useState<OfflineBookSummary[]>([]);
   const [stats, setStats] = useState<OfflineStorageStats | null>(null);
   const [online, setOnline] = useState(true);
+  const [pendingSync, setPendingSync] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -38,21 +42,23 @@ export default function DownloadsScreen() {
     refresh ? setRefreshing(true) : setLoading(true);
     setError('');
     try {
-      const [items, storage, connectivity] = await Promise.all([
+      const [items, storage, connectivity, pending] = await Promise.all([
         listOfflineBooks(),
         getOfflineStorageStats(),
         getConnectivityState(),
+        getPendingOfflineSyncCount(user?.id),
       ]);
       setBooks(items);
       setStats(storage);
       setOnline(connectivity.reachable);
+      setPendingSync(pending);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể tải danh sách offline.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -155,6 +161,17 @@ export default function DownloadsScreen() {
         </View>
       </View>
 
+      {pendingSync > 0 ? <View style={styles.syncCard}>
+        <Ionicons name="sync-outline" size={21} color="#8F1D3F" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.syncTitle}>{pendingSync} thay đổi đang chờ đồng bộ</Text>
+          <Text style={styles.syncBody}>{online ? 'Có mạng. Bạn có thể đồng bộ ngay.' : 'CHƯƠNG sẽ tự đồng bộ tiến độ, tủ sách và dấu trang khi có mạng.'}</Text>
+        </View>
+        {online ? <Pressable onPress={() => {
+          void flushOfflineSyncQueue(user?.id).then(() => load());
+        }}><Text style={styles.syncAction}>Đồng bộ</Text></Pressable> : null}
+      </View> : null}
+
       {(stats?.expiredVipCount ?? 0) > 0 ? <View style={styles.warning}>
         <Ionicons name="shield-outline" size={21} color="#A12B48" />
         <View style={{ flex: 1 }}>
@@ -230,6 +247,10 @@ const styles = StyleSheet.create({
   quotaChipActive: { backgroundColor: '#8F1D3F', borderColor: '#8F1D3F' },
   quotaText: { color: '#756B6F', fontSize: 8, fontWeight: '800' },
   quotaTextActive: { color: '#FFF' },
+  syncCard: { marginTop: 12, borderRadius: 15, backgroundColor: '#F0E1E5', borderWidth: 1, borderColor: '#E2CCD3', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  syncTitle: { color: '#713049', fontSize: 10, fontWeight: '900' },
+  syncBody: { color: '#806E74', fontSize: 8, lineHeight: 13, marginTop: 2 },
+  syncAction: { color: '#8F1D3F', fontSize: 9, fontWeight: '900' },
   warning: { marginTop: 12, borderRadius: 15, backgroundColor: '#F8E7EC', borderWidth: 1, borderColor: '#E8CBD3', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
   warningTitle: { color: '#7D233F', fontSize: 10, fontWeight: '900' },
   warningBody: { color: '#806E74', fontSize: 8, lineHeight: 13, marginTop: 2 },
