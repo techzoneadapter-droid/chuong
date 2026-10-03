@@ -1300,6 +1300,56 @@ export type Database = {
           },
         ]
       }
+      store_webhook_events: {
+        Row: {
+          error_code: string | null
+          event_type: string
+          external_event_id: string
+          id: string
+          metadata: Json
+          payload_hash: string
+          processed_at: string | null
+          provider: Database["public"]["Enums"]["store_provider"]
+          purchase_id: string | null
+          received_at: string
+          status: string
+        }
+        Insert: {
+          error_code?: string | null
+          event_type: string
+          external_event_id: string
+          id?: string
+          metadata?: Json
+          payload_hash: string
+          processed_at?: string | null
+          provider: Database["public"]["Enums"]["store_provider"]
+          purchase_id?: string | null
+          received_at?: string
+          status?: string
+        }
+        Update: {
+          error_code?: string | null
+          event_type?: string
+          external_event_id?: string
+          id?: string
+          metadata?: Json
+          payload_hash?: string
+          processed_at?: string | null
+          provider?: Database["public"]["Enums"]["store_provider"]
+          purchase_id?: string | null
+          received_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_webhook_events_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "store_purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_accounts: {
         Row: {
           balance_coins: number
@@ -1556,6 +1606,38 @@ export type Database = {
           updated_at: string
         }[]
       }
+      restore_revoked_store_purchase: {
+        Args: {
+          p_external_transaction_id: string
+          p_provider: Database["public"]["Enums"]["store_provider"]
+          p_provider_payload?: Json
+          p_reason: string
+        }
+        Returns: {
+          coins_granted: number
+          coins_to_balance: number
+          coins_to_debt: number
+          created_at: string
+          credited_at: string | null
+          external_transaction_id: string
+          id: string
+          product_id: string
+          provider: Database["public"]["Enums"]["store_provider"]
+          provider_payload: Json
+          receipt_hash: string
+          revoked_at: string | null
+          state: Database["public"]["Enums"]["store_purchase_state"]
+          updated_at: string
+          user_id: string
+          verified_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "store_purchases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       revoke_verified_store_purchase: {
         Args: {
           p_external_transaction_id: string
@@ -1644,6 +1726,7 @@ export type Database = {
         | "admin_debit"
         | "author_payout_debit"
         | "purchase_reversal_debit"
+        | "refund_reversal_credit"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1807,6 +1890,7 @@ export const Constants = {
         "admin_debit",
         "author_payout_debit",
         "purchase_reversal_debit",
+        "refund_reversal_credit",
       ],
     },
   },
