@@ -241,3 +241,62 @@ Migrations:
 
 Next product step:
 - Phase 4C: author revenue dashboard, configurable revenue-share policy, refund/reversal accounting, and payout ledger. Do not activate real-money payout until legal/tax/payout requirements are finalized.
+
+
+## Phase 4C — author revenue, revenue-share policy, refunds and payout ledger
+
+Status: implemented on production Supabase and source.
+
+Completed:
+- Versioned `revenue_share_policies` with exactly one active policy at a time.
+- Policy changes are forward-only for new sales: every unlock snapshots its policy ID, author basis points, author earnings and platform share.
+- No revenue-share percentage is active by default. Admin must explicitly choose and activate one in the app.
+- Author revenue accounts now track:
+  - gross sales
+  - refunded gross
+  - accrued author earnings
+  - reversed/refunded author earnings
+  - paid/externally settled earnings
+- Author revenue ledger now stores immutable sale/refund allocation snapshots.
+- Admin refund RPC:
+  - revokes the entitlement
+  - returns the original Xu to the reader
+  - creates a `refund_credit` wallet entry
+  - reverses the exact original author/platform allocation
+  - is idempotent and safe to retry
+- Admin payout ledger RPC records a payout only after an external settlement reference exists.
+  - It does NOT transfer real money.
+  - It prevents recording more than the author’s currently available accrued earnings.
+  - It is idempotent.
+- Author revenue dashboard added at `/author/revenue`.
+- Author Studio links to the revenue dashboard.
+- Admin monetization screen added at `/admin/monetization`.
+- Admin Center links to the monetization policy screen.
+- Real-money withdrawal remains intentionally disabled until KYC/tax/payout requirements are finalized.
+
+Production verification with temporary accounts:
+- activated temporary 70% author-share policy for test only
+- 20 Xu chapter sale -> author 14 Xu / platform 6 Xu
+- refund restored reader wallet and reversed exactly 14 Xu author earnings
+- retrying same refund created no second wallet credit
+- 50 Xu sale -> author 35 Xu
+- recorded 30 Xu external payout -> remaining available author balance 5 Xu
+- retrying the same payout created no duplicate payout row
+- all temporary users, books, entitlements, revenue rows, payouts and the temporary policy were deleted afterward
+- production now has zero active revenue-share policies; no business percentage was chosen automatically
+
+Migrations:
+- `202610030009_phase4c_revenue_refunds_payouts.sql`
+- `202610030010_phase4c_unlock_revenue_policy.sql`
+- `202610030011_phase4c_admin_rls.sql`
+- `202610030012_phase4c_index_hardening.sql`
+
+Next product step:
+- Phase 4D: compliant mobile store purchase infrastructure for CHƯƠNG Xu:
+  - store product catalog
+  - Google Play Billing purchase tokens
+  - Apple StoreKit transaction IDs
+  - server-side receipt verification
+  - idempotent wallet credit after verification
+  - refund/revocation reconciliation
+  - sandbox/test mode before any production money flow
