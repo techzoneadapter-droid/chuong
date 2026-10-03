@@ -82,7 +82,10 @@ jobs:
         run: |
           set -euo pipefail
           export CI=1
-          EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321           EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_release_test           npx expo start --web --port 3001 --host localhost --clear > /tmp/chuong-backend.log 2>&1 &
+          export EXPO_PUBLIC_SUPABASE_MODE=production
+          export EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+          export EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_release_test
+          npx expo start --web --port 3002 --host localhost --clear > /tmp/chuong-backend.log 2>&1 &
           SERVER_PID=$!
           cleanup() {
             kill "$SERVER_PID" 2>/dev/null || true
