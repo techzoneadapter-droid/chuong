@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState } from '../../components/States';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUnreadNotificationCount } from '../../services/notifications';
+import { getPublicReaderProfile } from '../../services/community';
 
 const menu = [
   ['download-outline', 'Tải xuống', 'Cục bộ'],
@@ -16,13 +17,21 @@ const menu = [
 export default function ProfileScreen() {
   const router = useRouter(); const { user, profile, loading, configured, logout, error, refreshProfile } = useAuth();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [social, setSocial] = useState<{ followers: number; following: number } | null>(null);
   useFocusEffect(useCallback(() => {
     let active = true;
     if (!user) {
       setUnreadNotifications(0);
+      setSocial(null);
       return () => { active = false; };
     }
-    void getUnreadNotificationCount().then((count) => { if (active) setUnreadNotifications(count); });
+    void Promise.all([getUnreadNotificationCount(), getPublicReaderProfile(user.id)])
+      .then(([count, reader]) => {
+        if (!active) return;
+        setUnreadNotifications(count);
+        setSocial(reader ? { followers: reader.followerCount, following: reader.followingCount } : null);
+      })
+      .catch(() => { if (active) setSocial(null); });
     return () => { active = false; };
   }, [user]));
   if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang khôi phục phiên đăng nhập…" /></SafeAreaView>;
@@ -42,7 +51,7 @@ export default function ProfileScreen() {
         <Ionicons name="create-outline" size={19} color="#756B6F" />
       </Pressable>
       {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
-      <View style={styles.stats}><View><Text style={styles.statValue}>—</Text><Text style={styles.statLabel}>Theo dõi</Text></View><View><Text style={styles.statValue}>—</Text><Text style={styles.statLabel}>Chương tuần</Text></View><View><Text style={styles.statValue}>{profile?.role === 'admin' ? 'Quản trị' : profile?.role === 'author' ? 'Tác giả' : 'Độc giả'}</Text><Text style={styles.statLabel}>Vai trò</Text></View></View>
+      <View style={styles.stats}><View><Text style={styles.statValue}>{social ? social.followers.toLocaleString('vi-VN') : '—'}</Text><Text style={styles.statLabel}>Người theo dõi</Text></View><View><Text style={styles.statValue}>{social ? social.following.toLocaleString('vi-VN') : '—'}</Text><Text style={styles.statLabel}>Đang theo dõi</Text></View><View><Text style={styles.statValue}>{profile?.role === 'admin' ? 'Quản trị' : profile?.role === 'author' ? 'Tác giả' : 'Độc giả'}</Text><Text style={styles.statLabel}>Vai trò</Text></View></View>
       <Pressable style={styles.wallet} onPress={() => router.push('/wallet')}>
         <View style={styles.walletIcon}><Ionicons name="wallet-outline" size={20} color="#8F1D3F" /></View>
         <View style={{ flex: 1 }}><Text style={styles.walletTitle}>Ví CHƯƠNG</Text><Text style={styles.walletBody}>Số dư Linh Thạch · Lịch sử giao dịch</Text></View>
@@ -51,6 +60,24 @@ export default function ProfileScreen() {
       {profile?.role === 'admin' ? <Pressable style={styles.admin} onPress={() => router.push('/admin')}><Ionicons name="shield-checkmark-outline" size={20} color="#FFFFFF" /><View style={{ flex: 1 }}><Text style={styles.adminTitle}>Trung tâm quản trị</Text><Text style={styles.adminBody}>Kiểm duyệt báo cáo, bản quyền và nội dung.</Text></View><Ionicons name="chevron-forward" size={18} color="#FFFFFF" /></Pressable> : null}
     </>}
     <View style={styles.menu}>
+      {user ? <>
+        <Pressable style={styles.row} onPress={() => router.push('/community')}>
+          <Ionicons name="people-outline" size={21} color="#8F1D3F" />
+          <Text style={styles.rowLabel}>Cộng đồng</Text>
+          <Text style={styles.rowValue}>Bảng tin & khám phá</Text>
+          <Ionicons name="chevron-forward" size={17} color="#B2A6AB" />
+        </Pressable>
+        <Pressable style={styles.row} onPress={() => router.push({ pathname: '/user/[id]', params: { id: user.id } })}>
+          <Ionicons name="person-circle-outline" size={21} color="#8F1D3F" />
+          <Text style={styles.rowLabel}>Hồ sơ công khai</Text>
+          <Ionicons name="chevron-forward" size={17} color="#B2A6AB" />
+        </Pressable>
+        <Pressable style={styles.row} onPress={() => router.push('/profile/privacy')}>
+          <Ionicons name="shield-checkmark-outline" size={21} color="#8F1D3F" />
+          <Text style={styles.rowLabel}>Quyền riêng tư</Text>
+          <Ionicons name="chevron-forward" size={17} color="#B2A6AB" />
+        </Pressable>
+      </> : null}
       <Pressable style={styles.row} onPress={() => router.push('/notifications')}>
         <Ionicons name="notifications-outline" size={21} color="#8F1D3F" />
         <Text style={styles.rowLabel}>Thông báo</Text>
