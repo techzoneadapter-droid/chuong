@@ -49,8 +49,10 @@ export function Comments({ bookId, chapterId }: { bookId: string; chapterId?: st
     try { await deleteComment(id, user.id); await load(); } catch (cause) { setError(messageForError(cause)); }
   };
   const render = (item: DiscussionComment, nested = false) => <View key={item.id} style={[styles.row, nested && styles.reply]}>
-    {item.avatarUrl ? <Image source={{ uri: item.avatarUrl }} style={styles.avatar} /> : <View style={styles.avatar}><Text style={styles.initial}>{item.name[0]}</Text></View>}
-    <View style={styles.copy}><Text style={styles.name}>{item.name}</Text><Text style={styles.body}>{item.content}</Text>
+    <Pressable disabled={!item.userId} onPress={() => item.userId && router.push({ pathname: '/user/[id]', params: { id: item.userId } })}>
+      {item.avatarUrl ? <Image source={{ uri: item.avatarUrl }} style={styles.avatar} /> : <View style={styles.avatar}><Text style={styles.initial}>{item.name[0]}</Text></View>}
+    </Pressable>
+    <View style={styles.copy}><Pressable disabled={!item.userId} onPress={() => item.userId && router.push({ pathname: '/user/[id]', params: { id: item.userId } })}><Text style={styles.name}>{item.name}</Text></Pressable><Text style={styles.body}>{item.content}</Text>
       <Text style={styles.time}>{item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : 'Demo'}</Text>
       <View style={styles.actions}><Pressable onPress={() => like(item)}><Text style={styles.action}>{item.liked ? '♥' : '♡'} {item.likes}</Text></Pressable>
         {!nested ? <Pressable onPress={() => { if (!user && isSupabaseConfigured) router.push('/auth/login'); else setReply(item); }}><Text style={styles.action}>Trả lời</Text></Pressable> : null}
