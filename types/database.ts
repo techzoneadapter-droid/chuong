@@ -1509,6 +1509,39 @@ export type Database = {
           },
         ]
       }
+      reader_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reader_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reader_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reader_book_days: {
         Row: {
           actor_hash: string
@@ -1645,6 +1678,113 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reader_follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reader_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reader_follows_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reader_mutes: {
+        Row: {
+          created_at: string
+          muted_id: string
+          muter_id: string
+        }
+        Insert: {
+          created_at?: string
+          muted_id: string
+          muter_id: string
+        }
+        Update: {
+          created_at?: string
+          muted_id?: string
+          muter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reader_mutes_muted_id_fkey"
+            columns: ["muted_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reader_mutes_muter_id_fkey"
+            columns: ["muter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reader_privacy: {
+        Row: {
+          allow_follows: boolean
+          created_at: string
+          profile_public: boolean
+          show_comments: boolean
+          show_reviews: boolean
+          show_shelves: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_follows?: boolean
+          created_at?: string
+          profile_public?: boolean
+          show_comments?: boolean
+          show_reviews?: boolean
+          show_shelves?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_follows?: boolean
+          created_at?: string
+          profile_public?: boolean
+          show_comments?: boolean
+          show_reviews?: boolean
+          show_shelves?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reader_privacy_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2566,6 +2706,35 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_community_feed: {
+        Args: { p_limit?: number }
+        Returns: {
+          activity_id: string
+          activity_type: string
+          actor_avatar_url: string
+          actor_name: string
+          actor_user_id: string
+          body: string
+          book_id: string
+          book_title: string
+          chapter_id: string
+          created_at: string
+          rating: number
+        }[]
+      }
+      get_my_reader_privacy: {
+        Args: never
+        Returns: {
+          allow_follows: boolean
+          created_at: string
+          profile_public: boolean
+          show_comments: boolean
+          show_reviews: boolean
+          show_shelves: boolean
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_personalized_book_ids: {
         Args: { p_limit?: number }
         Returns: {
@@ -2583,7 +2752,56 @@ export type Database = {
           genre: string
         }[]
       }
+      get_public_reader_profile: {
+        Args: { p_user_id: string }
+        Returns: {
+          allow_follows: boolean
+          avatar_url: string
+          bio: string
+          created_at: string
+          display_name: string
+          follower_count: number
+          following_count: number
+          id: string
+          profile_public: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          show_comments: boolean
+          show_reviews: boolean
+          show_shelves: boolean
+          username: string
+          viewer_blocked: boolean
+          viewer_follows: boolean
+          viewer_muted: boolean
+        }[]
+      }
+      get_public_reader_shelf: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: {
+          added_at: string
+          author_name: string
+          book_id: string
+          book_status: Database["public"]["Enums"]["book_status"]
+          cover_url: string
+          genre: string
+          shelf_status: Database["public"]["Enums"]["library_status"]
+          title: string
+        }[]
+      }
       get_push_worker_secret: { Args: never; Returns: string }
+      get_reader_public_activity: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: {
+          activity_id: string
+          activity_type: string
+          actor_user_id: string
+          body: string
+          book_id: string
+          book_title: string
+          chapter_id: string
+          created_at: string
+          rating: number
+        }[]
+      }
       get_unread_notification_count: { Args: never; Returns: number }
       mark_all_notifications_read: { Args: never; Returns: number }
       mark_notification_read: {
@@ -2737,6 +2955,31 @@ export type Database = {
           total_count: number
         }[]
       }
+      search_public_readers: {
+        Args: { p_limit?: number; p_query?: string }
+        Returns: {
+          avatar_url: string
+          bio: string
+          display_name: string
+          follower_count: number
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          username: string
+          viewer_follows: boolean
+        }[]
+      }
+      set_reader_block: {
+        Args: { p_blocked?: boolean; p_target_id: string }
+        Returns: boolean
+      }
+      set_reader_follow: {
+        Args: { p_following?: boolean; p_target_id: string }
+        Returns: boolean
+      }
+      set_reader_mute: {
+        Args: { p_muted?: boolean; p_target_id: string }
+        Returns: boolean
+      }
       set_recommendation_hidden: {
         Args: { p_book_id: string; p_hidden?: boolean }
         Returns: boolean
@@ -2821,6 +3064,25 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_reader_privacy: {
+        Args: {
+          p_allow_follows: boolean
+          p_profile_public: boolean
+          p_show_comments: boolean
+          p_show_reviews: boolean
+          p_show_shelves: boolean
+        }
+        Returns: {
+          allow_follows: boolean
+          created_at: string
+          profile_public: boolean
+          show_comments: boolean
+          show_reviews: boolean
+          show_shelves: boolean
+          updated_at: string
+          user_id: string
+        }[]
       }
     }
     Enums: {
