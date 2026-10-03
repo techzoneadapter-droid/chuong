@@ -6,7 +6,12 @@ import { toServiceError } from './errors';
 export type StoreProduct = Tables<'store_products'>;
 export type StorePurchase = Tables<'store_purchases'>;
 export type StoreProvider = 'google_play' | 'app_store';
-export type IapVerificationStatus = { google_play: boolean; app_store: boolean };
+export type IapVerificationStatus = {
+  google_play: boolean;
+  app_store: boolean;
+  google_pubsub?: boolean;
+  apple_notifications?: boolean;
+};
 export type VerifiedStorePurchaseResponse = {
   verified: boolean;
   credited: boolean;
@@ -67,6 +72,8 @@ export async function getIapVerificationStatus(): Promise<IapVerificationStatus>
     return {
       google_play: Boolean(data?.google_play),
       app_store: Boolean(data?.app_store),
+      google_pubsub: Boolean(data?.google_pubsub),
+      apple_notifications: Boolean(data?.apple_notifications),
     };
   } catch (error) {
     throw toServiceError(error, 'Không thể kiểm tra trạng thái xác minh cửa hàng.');
