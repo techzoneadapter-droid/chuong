@@ -47,6 +47,60 @@ export type Database = {
           },
         ]
       }
+      author_payout_profiles: {
+        Row: {
+          author_id: string
+          compliance_note: string | null
+          created_at: string
+          destination_label: string | null
+          kyc_status: string
+          payout_method: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          tax_status: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          compliance_note?: string | null
+          created_at?: string
+          destination_label?: string | null
+          kyc_status?: string
+          payout_method?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          tax_status?: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          compliance_note?: string | null
+          created_at?: string
+          destination_label?: string | null
+          kyc_status?: string
+          payout_method?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          tax_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_payout_profiles_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: true
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_payout_profiles_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       author_payouts: {
         Row: {
           amount_coins: number
@@ -58,7 +112,12 @@ export type Database = {
           note: string | null
           processed_at: string | null
           processed_by: string | null
+          request_snapshot: Json
           requested_at: string
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: Database["public"]["Enums"]["author_payout_status"]
         }
         Insert: {
@@ -71,7 +130,12 @@ export type Database = {
           note?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          request_snapshot?: Json
           requested_at?: string
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: Database["public"]["Enums"]["author_payout_status"]
         }
         Update: {
@@ -84,7 +148,12 @@ export type Database = {
           note?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          request_snapshot?: Json
           requested_at?: string
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: Database["public"]["Enums"]["author_payout_status"]
         }
         Relationships: [
@@ -98,6 +167,20 @@ export type Database = {
           {
             foreignKeyName: "author_payouts_processed_by_fkey"
             columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_payouts_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_payouts_reviewed_by_fkey"
+            columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1455,6 +1538,37 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      admin_mark_payout_paid: {
+        Args: {
+          p_external_reference: string
+          p_note: string
+          p_payout_id: string
+        }
+        Returns: {
+          amount_coins: number
+          author_id: string
+          created_at: string
+          external_reference: string | null
+          id: string
+          idempotency_key: string | null
+          note: string | null
+          processed_at: string | null
+          processed_by: string | null
+          request_snapshot: Json
+          requested_at: string
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["author_payout_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "author_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_record_paid_author_payout: {
         Args: {
           p_amount_coins: number
@@ -1473,7 +1587,12 @@ export type Database = {
           note: string | null
           processed_at: string | null
           processed_by: string | null
+          request_snapshot: Json
           requested_at: string
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: Database["public"]["Enums"]["author_payout_status"]
         }
         SetofOptions: {
@@ -1496,6 +1615,59 @@ export type Database = {
           refund_transaction_id: string
           refunded_coins: number
         }[]
+      }
+      admin_review_payout_request: {
+        Args: { p_action: string; p_note: string; p_payout_id: string }
+        Returns: {
+          amount_coins: number
+          author_id: string
+          created_at: string
+          external_reference: string | null
+          id: string
+          idempotency_key: string | null
+          note: string | null
+          processed_at: string | null
+          processed_by: string | null
+          request_snapshot: Json
+          requested_at: string
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["author_payout_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "author_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_set_author_payout_compliance: {
+        Args: {
+          p_author_id: string
+          p_kyc_status: string
+          p_note: string
+          p_tax_status: string
+        }
+        Returns: {
+          author_id: string
+          compliance_note: string | null
+          created_at: string
+          destination_label: string | null
+          kyc_status: string
+          payout_method: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          tax_status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "author_payout_profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       admin_set_moderation: {
         Args: {
@@ -1537,6 +1709,85 @@ export type Database = {
           p_status: Database["public"]["Enums"]["report_status"]
         }
         Returns: undefined
+      }
+      author_cancel_payout_request: {
+        Args: { p_payout_id: string }
+        Returns: {
+          amount_coins: number
+          author_id: string
+          created_at: string
+          external_reference: string | null
+          id: string
+          idempotency_key: string | null
+          note: string | null
+          processed_at: string | null
+          processed_by: string | null
+          request_snapshot: Json
+          requested_at: string
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["author_payout_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "author_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      author_request_payout: {
+        Args: {
+          p_amount_coins: number
+          p_idempotency_key: string
+          p_note: string
+        }
+        Returns: {
+          amount_coins: number
+          author_id: string
+          created_at: string
+          external_reference: string | null
+          id: string
+          idempotency_key: string | null
+          note: string | null
+          processed_at: string | null
+          processed_by: string | null
+          request_snapshot: Json
+          requested_at: string
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["author_payout_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "author_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      author_update_payout_profile: {
+        Args: { p_destination_label: string; p_payout_method: string }
+        Returns: {
+          author_id: string
+          compliance_note: string | null
+          created_at: string
+          destination_label: string | null
+          kyc_status: string
+          payout_method: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          tax_status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "author_payout_profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       credit_verified_store_purchase: {
         Args: {
