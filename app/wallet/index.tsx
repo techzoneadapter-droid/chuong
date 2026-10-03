@@ -67,15 +67,20 @@ export default function WalletScreen() {
           <View style={styles.coin}><Text style={styles.coinText}>Xu</Text></View>
         </View>
         <Text style={styles.heroNote}>CHƯƠNG Xu dùng để mở khóa truyện và chương VIP trên nền tảng.</Text>
-        <Pressable disabled style={styles.buyDisabled}>
-          <Ionicons name="add-circle-outline" size={18} color="#B69AA4" />
-          <Text style={styles.buyDisabledText}>Nạp Xu · Sắp mở</Text>
+        <Pressable style={styles.buyButton} onPress={() => router.push('/wallet/store')}>
+          <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+          <Text style={styles.buyButtonText}>Nạp CHƯƠNG Xu</Text>
         </Pressable>
-        <Text style={styles.storeNote}>Nạp Xu sẽ được bật sau khi kết nối Google Play Billing và Apple In-App Purchase.</Text>
+        <Text style={styles.storeNote}>Catalog đã sẵn sàng; thanh toán thật chỉ hoạt động trong build Android/iOS sau khi kết nối native billing.</Text>
       </View>
 
+      {wallet?.debt_coins ? <View style={styles.debtNotice}>
+        <Ionicons name="warning-outline" size={20} color="#8F1D3F" />
+        <Text style={styles.debtNoticeText}>Tài khoản đang có {formatCoins(wallet.debt_coins)} Xu cần bù do giao dịch cửa hàng bị hoàn/hủy. Các lần nạp tiếp theo sẽ ưu tiên bù khoản này trước khi cộng vào số dư khả dụng.</Text>
+      </View> : null}
+
       <View style={styles.metrics}>
-        <Metric label="Đã nhận" value={wallet?.lifetime_credited ?? 0} icon="arrow-down-circle-outline" />
+        <Metric label="Đã nhận" value={(wallet?.lifetime_credited ?? 0) - (wallet?.lifetime_reversed ?? 0)} icon="arrow-down-circle-outline" />
         <Metric label="Đã sử dụng" value={wallet?.lifetime_spent ?? 0} icon="arrow-up-circle-outline" />
       </View>
 
@@ -134,9 +139,11 @@ const styles = StyleSheet.create({
   coin: { backgroundColor: '#A92A50', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   coinText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
   heroNote: { color: '#ECCBD5', fontSize: 12, lineHeight: 18, marginTop: 9, maxWidth: 420 },
-  buyDisabled: { marginTop: 18, height: 46, borderRadius: 13, backgroundColor: 'rgba(255,255,255,.12)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  buyDisabledText: { color: '#D9B7C1', fontSize: 12, fontWeight: '900' },
+  buyButton: { marginTop: 18, height: 46, borderRadius: 13, backgroundColor: '#A92A50', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  buyButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
   storeNote: { color: '#CFA9B5', fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 8 },
+  debtNotice: { marginTop: 12, backgroundColor: '#F8E7EC', borderRadius: 14, padding: 13, flexDirection: 'row', gap: 9 },
+  debtNoticeText: { flex: 1, color: '#7C5360', fontSize: 10, lineHeight: 16 },
   metrics: { flexDirection: 'row', gap: 10, marginTop: 14 },
   metric: { flex: 1, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E4D8D1', borderRadius: 16, padding: 15 },
   metricValue: { color: '#2C2226', fontSize: 17, fontWeight: '900', marginTop: 8 },
