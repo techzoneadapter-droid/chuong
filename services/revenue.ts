@@ -120,7 +120,7 @@ export async function adminRefundEntitlement(input: {
     p_reason: input.reason.trim(),
     p_idempotency_key: input.idempotencyKey,
   });
-  if (error) throw toServiceError(error, 'Không thể hoàn Xu cho giao dịch.');
+  if (error) throw toServiceError(error, 'Không thể hoàn Linh Thạch cho giao dịch.');
   return data?.[0] ?? null;
 }
 
