@@ -421,3 +421,70 @@ Next:
 - Build native Android/iOS test versions.
 - Complete sandbox purchase validation.
 - Phase 4D-C: Google RTDN / Apple Server Notifications for automatic post-purchase refund and revocation reconciliation.
+
+
+## Phase 4D-C — post-purchase refund/revocation reconciliation
+
+Status: backend and admin monitoring implemented. External Google/Apple store-console webhook configuration is still required before live events can arrive.
+
+Completed:
+- Added `store_webhook_events` immutable audit table with admin-only read access.
+- Added idempotent `restore_revoked_store_purchase` RPC for store refund reversals.
+- Added `refund_reversal_credit` wallet transaction type.
+- Refund reversal restores the exact original purchase value once:
+  - repays Linh Thạch debt first
+  - credits only the remaining value to spendable balance
+  - decreases `lifetime_reversed`
+  - returns purchase state from `revoked` to `credited`
+- Added `iap-events` Supabase Edge Function for Google/Apple server-to-server events.
+- Google RTDN:
+  - validates Google OIDC push JWT signature, issuer, audience and service-account email
+  - supports one-time purchase completed/canceled events
+  - supports voided purchase/full-refund events
+  - re-checks ProductPurchaseV2 with Google Play Developer API before wallet changes
+  - can credit a completed purchase even if the mobile client disconnected after payment
+  - webhook retries are deduplicated by Pub/Sub message ID and purchase transaction ID
+- Apple App Store Server Notifications V2:
+  - records notification UUIDs for deduplication
+  - uses incoming transaction only as a lookup hint
+  - performs a fresh authenticated App Store Server API lookup before wallet changes
+  - `REFUND` revokes only after Apple confirms revocation
+  - `REFUND_REVERSED` restores only after Apple confirms the transaction is no longer revoked
+  - `CONSUMPTION_REQUEST` is logged for review rather than automatically influencing Apple's refund decision
+- Added Admin Center -> `Thanh toán & đối soát` dashboard:
+  - provider verification readiness
+  - Google RTDN / Apple notification readiness
+  - active Linh Thạch packages
+  - purchase/revocation totals
+  - failed/processed webhook totals
+  - recent webhook events
+  - recent store purchases
+- `iap-verify` upgraded to expose webhook readiness status.
+- Setup instructions updated in `docs/IAP_SETUP.md`.
+
+Production verification with temporary accounts:
+- 550 Linh Thạch purchase credited.
+- simulated spending left 50 Linh Thạch.
+- refund revocation converted the unreturned value into debt.
+- refund reversal repaid the debt and returned the wallet to the exact pre-refund economic state.
+- retrying the same refund reversal created no duplicate wallet credit or event.
+- temporary users, wallet and purchase data were deleted afterward.
+
+Migrations:
+- `202610030016_phase4dc_refund_reversal_enum.sql`
+- `202610030017_phase4dc_webhook_reconciliation.sql`
+
+Edge Functions:
+- `iap-verify` version 3
+- `iap-events` version 1
+
+External setup still required:
+- Google Play Console RTDN topic + authenticated Pub/Sub push subscription
+- Supabase secrets for Google Pub/Sub audience/service-account identity
+- Google Play service-account credentials
+- App Store Connect Server Notifications V2 URL
+- Apple App Store Server API credentials
+- native Android/iOS sandbox builds and store test accounts
+
+Next:
+- Phase 4E: author withdrawal request workflow, payout-review queue, KYC/tax placeholders, payout status lifecycle, and admin settlement operations.
