@@ -10,6 +10,16 @@ export type ModerationTarget = 'book' | 'chapter' | 'comment' | 'author' | 'revi
 export type ReportRow = Tables<'reports'>;
 export type ModerationActionRow = Tables<'moderation_actions'>;
 
+export type ReviewModerationPreview = {
+  id: string;
+  rating: number;
+  reviewText: string;
+  spoiler: boolean;
+  moderationState: ModerationState;
+  userName: string;
+  bookTitle: string;
+};
+
 export async function submitReport(input: {
   reporterId: string;
   reason: ReportReason;
@@ -72,6 +82,31 @@ export async function getAdminReport(id: string) {
   const { data, error } = await client.from('reports').select('*').eq('id', id).single();
   if (error) throw toServiceError(error, 'Không thể tải báo cáo.');
   return data;
+}
+
+export async function getAdminReviewPreview(reviewId: string): Promise<ReviewModerationPreview> {
+  const client = requireSupabase();
+  const { data: review, error } = await client.from('book_reviews').select('*').eq('id', reviewId).single();
+  if (error) throw toServiceError(error, 'Không thể tải nội dung đánh giá.');
+
+  const [profileResult, bookResult] = await Promise.all([
+    client.from('profiles').select('display_name,username').eq('id', review.user_id).maybeSingle(),
+    client.from('books').select('title').eq('id', review.book_id).maybeSingle(),
+  ]);
+
+  if (profileResult.error || bookResult.error) {
+    throw toServiceError(profileResult.error ?? bookResult.error, 'Không thể tải ngữ cảnh đánh giá.');
+  }
+
+  return {
+    id: review.id,
+    rating: Number(review.rating),
+    reviewText: review.review_text,
+    spoiler: review.spoiler,
+    moderationState: review.moderation_state,
+    userName: profileResult.data?.display_name || profileResult.data?.username || 'Độc giả CHƯƠNG',
+    bookTitle: bookResult.data?.title || 'Truyện CHƯƠNG',
+  };
 }
 
 export async function getAdminDashboardCounts() {
