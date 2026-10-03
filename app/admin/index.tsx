@@ -29,6 +29,13 @@ export default function AdminHomeScreen() {
   if (error) return <SafeAreaView style={styles.safe}><RetryState detail={error} onRetry={load} /></SafeAreaView>;
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
+    <View style={styles.topbar}>
+      <Pressable style={styles.backButton} onPress={() => router.replace('/(tabs)/profile')}>
+        <Ionicons name="arrow-back" size={22} color="#2D2327" />
+      </Pressable>
+      <Text style={styles.topbarTitle}>Trung tâm quản trị</Text>
+      <View style={styles.backButton} />
+    </View>
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.header}><View><Text style={styles.kicker}>CHƯƠNG ADMIN</Text><Text style={styles.title}>Kiểm duyệt & an toàn</Text></View><Ionicons name="shield-checkmark" size={32} color="#8F1D3F" /></View>
       <Text style={styles.subtitle}>Theo dõi báo cáo, vi phạm bản quyền và trạng thái nội dung trên nền tảng.</Text>
@@ -59,6 +66,9 @@ function Metric({ value, label, tone }: { value: number; label: string; tone: st
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8F2E9' },
+  topbar: { minHeight: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DED1CA' },
+  backButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  topbarTitle: { flex: 1, color: '#251D20', fontSize: 16, fontWeight: '900', textAlign: 'center' },
   page: { padding: 18, paddingBottom: 44, width: '100%', maxWidth: 760, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
   kicker: { color: '#8F1D3F', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
