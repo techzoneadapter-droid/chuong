@@ -24,7 +24,7 @@ export default function WriteScreen() {
   const views = books.reduce((sum, book) => sum + (book.viewsCount ?? 0), 0); const followers = books.reduce((sum, book) => sum + (book.followersCount ?? 0), 0); const chapters = books.reduce((sum, book) => sum + book.totalChapters, 0); const drafts = books.filter((book) => book.backendStatus === 'draft').length; const published = books.filter((book) => book.backendStatus === 'ongoing').length;
   return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.page}>
     <View style={styles.headRow}><View><Text style={styles.kicker}>AUTHOR STUDIO</Text><Text style={styles.penName}>{author.penName}</Text></View><Pressable style={styles.add} onPress={() => router.push('/author/books/new')}><Ionicons name="add" size={20} color="#FFFFFF" /></Pressable></View>
-    <Text style={styles.note}>Số liệu bên dưới được tổng hợp từ dữ liệu truyện hiện có; chưa phải hệ thống analytics thời gian thực.</Text>
+    <Text style={styles.note}>Lượt đọc bên dưới được ghi nhận từ phiên đọc thật. Phân tích chi tiết được tổng hợp khoảng mỗi 5 phút để giảm tải khi có nhiều độc giả cùng lúc.</Text>
     <Pressable style={styles.revenueCard} onPress={() => router.push('/author/revenue')}>
       <View style={styles.revenueIcon}><Ionicons name="wallet-outline" size={21} color="#8F1D3F" /></View>
       <View style={{ flex: 1 }}><Text style={styles.revenueTitle}>Doanh thu tác giả</Text><Text style={styles.revenueBody}>Doanh thu Linh Thạch · Hoàn tiền · Đối soát</Text></View>
@@ -33,6 +33,11 @@ export default function WriteScreen() {
     <Pressable style={styles.revenueCard} onPress={() => router.push('/author/reviews')}>
       <View style={styles.revenueIcon}><Ionicons name="star-outline" size={21} color="#8F1D3F" /></View>
       <View style={{ flex: 1 }}><Text style={styles.revenueTitle}>Đánh giá độc giả</Text><Text style={styles.revenueBody}>Điểm sao · Cảm nhận · Phản hồi theo từng truyện</Text></View>
+      <Ionicons name="chevron-forward" size={18} color="#8F1D3F" />
+    </Pressable>
+    <Pressable style={styles.revenueCard} onPress={() => router.push('/author/analytics')}>
+      <View style={styles.revenueIcon}><Ionicons name="analytics-outline" size={21} color="#8F1D3F" /></View>
+      <View style={{ flex: 1 }}><Text style={styles.revenueTitle}>Phân tích độc giả</Text><Text style={styles.revenueBody}>Phiên đọc · Hoàn thành · Quay lại · Thời gian đọc</Text></View>
       <Ionicons name="chevron-forward" size={18} color="#8F1D3F" />
     </Pressable>
     <View style={styles.metrics}>{[[String(views), 'Lượt đọc'], [String(followers), 'Theo dõi'], [String(chapters), 'Tổng chương'], [String(books.reduce((sum, book) => sum + (book.draftChapters ?? 0), 0)), 'Chương nháp'], [String(drafts), 'Bản nháp'], [String(published), 'Đang xuất bản'], [String(books.filter((book) => book.backendStatus === 'completed').length), 'Đã hoàn thành'], [String(author.followersCount), 'Theo dõi tác giả']].map(([value, label]) => <View style={styles.metric} key={label}><Text style={styles.value}>{value}</Text><Text style={styles.label}>{label}</Text></View>)}</View>
