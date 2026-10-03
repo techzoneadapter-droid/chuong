@@ -140,9 +140,12 @@ Production verification:
 3. server retained 80% / scroll position 1800
 4. temporary account and progress row were removed afterward
 
-Migration:
+Migrations:
 
 - `202610030031_phase4h_progress_sync.sql`
+- `202610030032_phase4h_progress_sync_invoker.sql`
+
+The sync RPC runs as `SECURITY INVOKER`, so the normal owner RLS policy still protects the row.
 
 ## Native dependencies
 
