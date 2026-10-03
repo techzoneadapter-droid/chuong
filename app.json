@@ -9,7 +9,13 @@
     "newArchEnabled": true,
     "plugins": [
       "expo-router",
-      ["expo-image-picker", { "photosPermission": "Cho phép CHƯƠNG chọn ảnh bìa và ảnh đại diện." }]
+      "expo-iap",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cho phép CHƯƠNG chọn ảnh bìa và ảnh đại diện."
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,
