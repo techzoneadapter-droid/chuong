@@ -19,6 +19,8 @@ jobs:
         with:
           node-version: "20.19.5"
           cache: npm
+      - name: Install current project dependencies
+        run: npm ci
       - name: Install Expo SDK 54 offline dependencies
         run: npx expo install expo-file-system expo-network --npm
       - name: Commit lockfile and remove one-shot workflow
