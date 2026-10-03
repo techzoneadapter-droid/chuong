@@ -49,6 +49,32 @@ export async function getReadingProgress(bookId: string, userId?: string): Promi
   return data ? { userId: data.user_id, bookId: data.book_id, chapterId: data.chapter_id, chapterNumber: data.chapter_number, progressPercent: Number(data.progress_percent), scrollPosition: Number(data.scroll_position), updatedAt: data.updated_at } : null;
 }
 
+export async function getLatestReadingProgress(userId?: string): Promise<ReadingProgress | null> {
+  if (!supabase || !userId) {
+    const all = Object.values(await readJson<Record<string, ReadingProgress>>(progressKey, {}));
+    return all.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0] ?? null;
+  }
+
+  const { data, error } = await supabase
+    .from('reading_progress')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw toServiceError(error, 'Không thể tải truyện đang đọc gần nhất.');
+  return data ? {
+    userId: data.user_id,
+    bookId: data.book_id,
+    chapterId: data.chapter_id,
+    chapterNumber: data.chapter_number,
+    progressPercent: Number(data.progress_percent),
+    scrollPosition: Number(data.scroll_position),
+    updatedAt: data.updated_at,
+  } : null;
+}
+
 export async function saveReadingProgress(progress: Omit<ReadingProgress, 'updatedAt'>, userId?: string) {
   const updatedAt = new Date().toISOString();
   if (!supabase || !userId) {
