@@ -222,9 +222,11 @@ export function BookReviews({ bookId, authorUserId }: { bookId: string; authorUs
       const hiddenSpoiler = item.spoiler && !revealed.has(item.id) && item.userId !== user?.id;
       return <View key={item.id} style={styles.review}>
         <View style={styles.reviewTop}>
-          {item.avatarUrl ? <Image source={{ uri: item.avatarUrl }} style={styles.avatar} /> : <View style={styles.avatar}><Text style={styles.avatarText}>{item.userName[0]?.toUpperCase() || 'C'}</Text></View>}
+          <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: item.userId } })}>
+            {item.avatarUrl ? <Image source={{ uri: item.avatarUrl }} style={styles.avatar} /> : <View style={styles.avatar}><Text style={styles.avatarText}>{item.userName[0]?.toUpperCase() || 'C'}</Text></View>}
+          </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.reviewName}>{item.userName}</Text>
+            <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: item.userId } })}><Text style={styles.reviewName}>{item.userName}</Text></Pressable>
             <View style={styles.reviewStars}><Stars value={item.rating} size={12} /><Text style={styles.reviewDate}>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</Text></View>
           </View>
           {item.moderationState !== 'approved' ? <Text style={styles.moderationBadge}>{item.moderationState === 'hidden' ? 'Đã ẩn' : 'Bị từ chối'}</Text> : null}
