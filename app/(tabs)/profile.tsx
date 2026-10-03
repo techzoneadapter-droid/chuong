@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState } from '../../components/States';
 import { useAuth } from '../../contexts/AuthContext';
+import { getUnreadNotificationCount } from '../../services/notifications';
 
 const menu = [
-  ['notifications-outline', 'Thông báo', ''],
   ['download-outline', 'Tải xuống', 'Cục bộ'],
   ['color-palette-outline', 'Giao diện & đọc', ''],
   ['settings-outline', 'Cài đặt', '']
@@ -14,6 +15,16 @@ const menu = [
 
 export default function ProfileScreen() {
   const router = useRouter(); const { user, profile, loading, configured, logout, error, refreshProfile } = useAuth();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (!user) {
+      setUnreadNotifications(0);
+      return () => { active = false; };
+    }
+    void getUnreadNotificationCount().then((count) => { if (active) setUnreadNotifications(count); });
+    return () => { active = false; };
+  }, [user]));
   if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang khôi phục phiên đăng nhập…" /></SafeAreaView>;
   return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>Tôi</Text>
@@ -34,12 +45,20 @@ export default function ProfileScreen() {
       <View style={styles.stats}><View><Text style={styles.statValue}>—</Text><Text style={styles.statLabel}>Theo dõi</Text></View><View><Text style={styles.statValue}>—</Text><Text style={styles.statLabel}>Chương tuần</Text></View><View><Text style={styles.statValue}>{profile?.role === 'admin' ? 'Quản trị' : profile?.role === 'author' ? 'Tác giả' : 'Độc giả'}</Text><Text style={styles.statLabel}>Vai trò</Text></View></View>
       <Pressable style={styles.wallet} onPress={() => router.push('/wallet')}>
         <View style={styles.walletIcon}><Ionicons name="wallet-outline" size={20} color="#8F1D3F" /></View>
-        <View style={{ flex: 1 }}><Text style={styles.walletTitle}>Ví CHƯƠNG</Text><Text style={styles.walletBody}>Số dư Xu · Lịch sử giao dịch</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.walletTitle}>Ví CHƯƠNG</Text><Text style={styles.walletBody}>Số dư Linh Thạch · Lịch sử giao dịch</Text></View>
         <Ionicons name="chevron-forward" size={18} color="#8F1D3F" />
       </Pressable>
       {profile?.role === 'admin' ? <Pressable style={styles.admin} onPress={() => router.push('/admin')}><Ionicons name="shield-checkmark-outline" size={20} color="#FFFFFF" /><View style={{ flex: 1 }}><Text style={styles.adminTitle}>Trung tâm quản trị</Text><Text style={styles.adminBody}>Kiểm duyệt báo cáo, bản quyền và nội dung.</Text></View><Ionicons name="chevron-forward" size={18} color="#FFFFFF" /></Pressable> : null}
     </>}
-    <View style={styles.menu}>{menu.map(([icon, label, value]) => <View style={styles.row} key={label}><Ionicons name={icon} size={21} color="#8F1D3F" /><Text style={styles.rowLabel}>{label}</Text>{value ? <Text style={styles.rowValue}>{value}</Text> : null}<Ionicons name="chevron-forward" size={17} color="#B2A6AB" /></View>)}</View>
+    <View style={styles.menu}>
+      <Pressable style={styles.row} onPress={() => router.push('/notifications')}>
+        <Ionicons name="notifications-outline" size={21} color="#8F1D3F" />
+        <Text style={styles.rowLabel}>Thông báo</Text>
+        {unreadNotifications > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text></View> : null}
+        <Ionicons name="chevron-forward" size={17} color="#B2A6AB" />
+      </Pressable>
+      {menu.map(([icon, label, value]) => <View style={styles.row} key={label}><Ionicons name={icon} size={21} color="#8F1D3F" /><Text style={styles.rowLabel}>{label}</Text>{value ? <Text style={styles.rowValue}>{value}</Text> : null}<Ionicons name="chevron-forward" size={17} color="#B2A6AB" /></View>)}
+    </View>
     {user ? <Pressable style={styles.logout} onPress={() => logout().catch((cause) => Alert.alert('Không thể đăng xuất', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'))}><Ionicons name="log-out-outline" size={18} color="#8F1D3F" /><Text style={styles.logoutText}>Đăng xuất</Text></Pressable> : null}
   </ScrollView></SafeAreaView>;
 }
@@ -50,5 +69,5 @@ const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }, avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center' }, avatarImage: { width: 56, height: 56, borderRadius: 28 }, avatarText: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' }, name: { color: '#221A1D', fontSize: 17, fontWeight: '900' }, handle: { color: '#8F1D3F', fontSize: 11, marginTop: 3 }, level: { color: '#756B6F', fontSize: 11, marginTop: 3 }, bio: { color: '#554A4E', fontSize: 12, lineHeight: 18, marginTop: 13 }, stats: { marginTop: 20, padding: 16, backgroundColor: '#FFFDFC', borderRadius: 16, borderWidth: 1, borderColor: '#E9DDD6', flexDirection: 'row', justifyContent: 'space-between' }, statValue: { color: '#221A1D', fontSize: 16, fontWeight: '900', textAlign: 'center' }, statLabel: { color: '#756B6F', fontSize: 10, marginTop: 3, textAlign: 'center' },
   wallet: { marginTop: 14, minHeight: 66, borderRadius: 16, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E9DDD6', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11 }, walletIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' }, walletTitle: { color: '#2D2327', fontSize: 13, fontWeight: '900' }, walletBody: { color: '#796D72', fontSize: 10, marginTop: 3 },
   admin: { marginTop: 14, minHeight: 66, borderRadius: 16, backgroundColor: '#8F1D3F', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11 }, adminTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' }, adminBody: { color: '#F2CED9', fontSize: 10, marginTop: 3 },
-  menu: { marginTop: 14, backgroundColor: '#FFFDFC', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#E9DDD6' }, row: { minHeight: 55, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E9DDD6' }, rowLabel: { flex: 1, color: '#221A1D', fontSize: 14, fontWeight: '700' }, rowValue: { color: '#756B6F', fontSize: 12 }, logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, padding: 16, marginTop: 8 }, logoutText: { color: '#8F1D3F', fontSize: 12, fontWeight: '900' }
+  menu: { marginTop: 14, backgroundColor: '#FFFDFC', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#E9DDD6' }, row: { minHeight: 55, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E9DDD6' }, rowLabel: { flex: 1, color: '#221A1D', fontSize: 14, fontWeight: '700' }, rowValue: { color: '#756B6F', fontSize: 12 }, notificationBadge: { minWidth: 24, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center' }, notificationBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' }, logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, padding: 16, marginTop: 8 }, logoutText: { color: '#8F1D3F', fontSize: 12, fontWeight: '900' }
 });
