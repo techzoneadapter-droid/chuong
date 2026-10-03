@@ -39,15 +39,53 @@ export { createBook, getMyBooks } from './books';
 
 export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
   const client = requireSupabase();
-  const { data, error } = await client.from('chapters').select('*').eq('book_id', bookId).order('chapter_number');
+  const { data, error } = await client
+    .from('chapters')
+    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at,updated_at')
+    .eq('book_id', bookId)
+    .order('chapter_number');
   if (error) throw toServiceError(error, 'Không thể tải bản thảo.');
-  return (data ?? []).map((row) => ({ id: row.id, bookId: row.book_id, number: row.chapter_number, title: row.title, content: row.content, date: row.published_at ?? row.updated_at, relativeDate: row.status === 'published' ? 'Đã xuất bản' : 'Bản nháp', access: row.is_vip ? 'vip' : 'free', priceCoins: row.price_coins, status: row.status, publishedAt: row.published_at, isRead: false, isDownloaded: false }));
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    bookId: row.book_id,
+    number: row.chapter_number,
+    title: row.title,
+    date: row.published_at ?? row.updated_at,
+    relativeDate: row.status === 'published' ? 'Đã xuất bản' : 'Bản nháp',
+    access: row.is_vip ? 'vip' : 'free',
+    priceCoins: row.price_coins,
+    status: row.status,
+    publishedAt: row.published_at,
+    isRead: false,
+    isDownloaded: false,
+  }));
 }
 
 export async function getAuthorChapter(bookId: string, chapterId: string): Promise<Chapter | null> {
   if (chapterId === 'new') return null;
-  const chapters = await getAuthorChapters(bookId);
-  return chapters.find((chapter) => chapter.id === chapterId) ?? null;
+  const client = requireSupabase();
+  const { data, error } = await client.rpc('get_author_chapter_for_editing', {
+    p_book_id: bookId,
+    p_chapter_id: chapterId,
+  });
+  if (error) throw toServiceError(error, 'Không thể tải nội dung bản thảo.');
+  const row = data?.[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    bookId: row.book_id,
+    number: row.chapter_number,
+    title: row.title,
+    content: row.content,
+    date: row.published_at ?? row.updated_at,
+    relativeDate: row.status === 'published' ? 'Đã xuất bản' : 'Bản nháp',
+    access: row.is_vip ? 'vip' : 'free',
+    priceCoins: row.price_coins,
+    status: row.status,
+    publishedAt: row.published_at,
+    isRead: false,
+    isDownloaded: false,
+  };
 }
 
 export async function saveChapter(input: ChapterInput): Promise<string> {
