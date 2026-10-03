@@ -50,6 +50,11 @@ export default function AdminHomeScreen() {
         <View style={{ flex: 1 }}><Text style={styles.primaryTitle}>Hàng đợi báo cáo</Text><Text style={styles.primaryBody}>Xem xét bản quyền, spam, quấy rối và các báo cáo khác.</Text></View>
         <Ionicons name="chevron-forward" size={20} color="#FFF" />
       </Pressable>
+      <Pressable style={styles.catalogCard} onPress={() => router.push('/admin/catalog')}>
+        <View style={styles.catalogIcon}><Ionicons name="library-outline" size={21} color="#E5D1A3" /></View>
+        <View style={{ flex: 1 }}><Text style={styles.catalogTitle}>Tàng Kinh Các · Kho truyện</Text><Text style={styles.catalogBody}>Admin thêm truyện, tải bìa, gắn tác giả hiển thị và nhập nhiều chương để mở rộng kho nội dung.</Text></View>
+        <Ionicons name="chevron-forward" size={20} color="#E5D1A3" />
+      </Pressable>
       <Pressable style={styles.secondaryCard} onPress={() => router.push('/admin/monetization')}>
         <Ionicons name="pie-chart-outline" size={21} color="#8F1D3F" />
         <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Chính sách doanh thu</Text><Text style={styles.secondaryBody}>Cấu hình tỷ lệ chia Linh Thạch theo phiên bản, không sửa ngược giao dịch cũ.</Text></View>
@@ -96,6 +101,10 @@ const styles = StyleSheet.create({
   primary: { marginTop: 18, minHeight: 82, borderRadius: 18, padding: 16, backgroundColor: '#8F1D3F', flexDirection: 'row', alignItems: 'center', gap: 13 },
   primaryTitle: { color: '#FFF', fontSize: 15, fontWeight: '900' },
   primaryBody: { color: '#F2CED9', fontSize: 11, lineHeight: 16, marginTop: 3 },
+  catalogCard: { marginTop: 10, minHeight: 86, borderRadius: 18, padding: 15, backgroundColor: '#27463F', borderWidth: 1, borderColor: '#47665E', flexDirection: 'row', alignItems: 'center', gap: 13 },
+  catalogIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: 'rgba(229,209,163,.10)', borderWidth: 1, borderColor: 'rgba(229,209,163,.32)', alignItems: 'center', justifyContent: 'center' },
+  catalogTitle: { color: '#FFFDF8', fontSize: 14, fontWeight: '900' },
+  catalogBody: { color: 'rgba(255,253,248,.66)', fontSize: 10, lineHeight: 15, marginTop: 3 },
   secondaryCard: { marginTop: 10, minHeight: 78, borderRadius: 18, padding: 15, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E4D8D1', flexDirection: 'row', alignItems: 'center', gap: 13 },
   secondaryTitle: { color: '#2D2327', fontSize: 14, fontWeight: '900' },
   secondaryBody: { color: '#756B6F', fontSize: 10, lineHeight: 15, marginTop: 3 },
