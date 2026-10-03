@@ -1183,9 +1183,105 @@ Remaining release QA:
 - private-profile behavior while another account is viewing
 - long review/comment rendering in feed
 
+## Phase 4L — automated release readiness and regression gates
+
+Status: source/backend release gates are implemented and green on CI. Native store release still requires real EAS/store credentials, artwork and physical-device QA.
+
+Completed:
+- Added repeatable release verification scripts:
+  - `npm run test:release`
+  - `npm run verify`
+- Added a static release audit covering:
+  - stable app identity and deep-link scheme
+  - Android/iOS application identifiers
+  - EAS preview/production profiles
+  - release-critical routes/services/docs
+  - common server-secret/private-key patterns in client source
+- Current static release audit passes 351 automated checks.
+- Added CI dependency compatibility validation with `npx expo install --check`.
+- Expanded CI web gate:
+  - TypeScript
+  - release audit
+  - PGlite database regression
+  - web export
+- Added Playwright browser gate with isolated preview environments:
+  - Demo Mode smoke on port 3001
+  - mock-backend regression on port 3002
+- Demo browser suite verifies:
+  - public/demo routes
+  - no horizontal overflow
+  - anonymous library persistence
+  - reading progress/bookmark persistence
+  - reader settings
+  - audio/AI demo
+  - community/public-profile/privacy routes
+- Mock-backend browser suite verifies:
+  - backend book/chapter rendering
+  - sparse chapter navigation
+  - missing-book behavior
+  - authenticated profile restore
+  - progress sync RPC
+  - login/logout
+  - serialized chapter autosave
+  - failed publication rollback
+  - community discovery/follow
+  - public reader profile/shelf/activity
+  - privacy settings save
+- Added CI concurrency so a new commit cancels stale runs for the same ref.
+- Added `docs/RELEASE_READINESS.md` with the exact automated gates and native/store blockers.
+
+Production Supabase release audit:
+- 44 / 44 public tables have RLS enabled.
+- 0 public tables have RLS disabled.
+- Every current profile has a wallet row.
+- Every current profile has a reader-privacy row.
+- Rating aggregate mismatch: 0.
+- Published chapter counter mismatch: 0.
+- Book follow counter mismatch: 0.
+- Author follow counter mismatch: 0.
+- Active scheduled jobs:
+  - push dispatch every minute
+  - engagement rollup every five minutes
+  - engagement retention daily
+- Active Edge Functions:
+  - `iap-verify`
+  - `iap-events`
+  - `push-dispatch`
+- Store catalog currently has four active product rows.
+- Security Advisor has four intentional anonymous Phase 4K public-read SECURITY DEFINER notices; authenticated-only social mutation/privacy/feed RPCs are not anonymously executable.
+- Performance Advisor currently reports only unused-index informational notices on the small/new production dataset.
+
+CI:
+- Exact Phase 4L candidate `3809a0b1b182508211942db147e101288176bf62` passed both jobs:
+  - web-check: PASS
+  - browser-smoke: PASS
+- Demo browser tests: PASS.
+- Mock-backend browser tests: PASS.
+- Expo dependency compatibility: PASS.
+- TypeScript: PASS.
+- Release audit: PASS.
+- Database regression: PASS.
+- Web export: PASS.
+
+Manual/native release blockers:
+- final store icon is not configured
+- Android adaptive icon is not configured
+- custom splash artwork is not configured
+- app is not linked to a real Expo/EAS `projectId`
+- source version is still `0.1.0`; choose the first public version before submission
+- configure Android FCM v1 and Apple APNs if releasing iOS
+- create/activate the exact IAP products in the real store consoles and test real receipts/refunds
+- perform physical Android/iOS QA for offline, push, IAP, analytics, deep links and two-account social flows
+- `npm ci` currently reports 35 dependency audit notices (12 moderate, 23 high); these need an Expo-compatible dependency review rather than a blind breaking `npm audit fix --force`
+
+Docs:
+- `docs/RELEASE_READINESS.md`
+
 Next:
-- Phase 4L: release-readiness pass:
-  - end-to-end multi-account QA across reader/community/review flows
-  - physical Android/iOS offline + push + analytics regression
-  - performance checks on feed/discovery with larger data
-  - final store-release checklist and remaining production hardening
+- Phase 4M: native release candidate:
+  - link the real Expo/EAS project
+  - configure final icon/adaptive icon/splash
+  - build an Android internal-test candidate
+  - run the physical-device release matrix
+  - validate real FCM push and Google Play Billing
+  - prepare final Play Store release checklist and listing assets
