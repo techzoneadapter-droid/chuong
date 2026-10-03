@@ -13,6 +13,7 @@ export type RevenueDashboard = {
   ledger: (RevenueLedgerEntry & { bookTitle?: string })[];
   payouts: AuthorPayout[];
   availablePayoutCoins: number;
+  reservedPayoutCoins: number;
   unallocatedGrossCoins: number;
 };
 
@@ -68,9 +69,15 @@ export async function getAuthorRevenueDashboard(authorId: string): Promise<Reven
     if (booksError) throw booksError;
 
     const titleMap = new Map((books ?? []).map((book) => [book.id, book.title]));
+    const reservedPayoutCoins = (payouts ?? [])
+      .filter((item) => item.status === 'pending' || item.status === 'approved')
+      .reduce((sum, item) => sum + item.amount_coins, 0);
     const availablePayoutCoins = Math.max(
       0,
-      account.author_earnings_coins - account.refunded_earnings_coins - account.paid_out_coins
+      account.author_earnings_coins
+        - account.refunded_earnings_coins
+        - account.paid_out_coins
+        - reservedPayoutCoins
     );
     const unallocatedGrossCoins = rows.reduce((sum, row) => {
       if (row.share_policy_id !== null) return sum;
@@ -83,6 +90,7 @@ export async function getAuthorRevenueDashboard(authorId: string): Promise<Reven
       ledger: rows.map((row) => ({ ...row, bookTitle: titleMap.get(row.book_id) })),
       payouts: payouts ?? [],
       availablePayoutCoins,
+      reservedPayoutCoins,
       unallocatedGrossCoins,
     };
   } catch (error) {
