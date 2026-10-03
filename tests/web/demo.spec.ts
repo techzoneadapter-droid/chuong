@@ -8,6 +8,7 @@ const routes = [
   ['/reader/kiem-yen-van?chapter=1', 'Chương 1'], ['/ai/convert', 'Convert'], ['/ai/recap', 'Tóm tắt'], ['/ai/chat', 'Hỏi truyện'],
   ['/author/onboarding', 'Trở thành tác giả'], ['/author/books/new', 'Tạo truyện'],
   ['/author/books/demo/chapters/new', 'Trình soạn thảo chương'], ['/profile/edit', 'Chỉnh sửa hồ sơ'],
+  ['/community', 'Cộng đồng'], ['/user/demo', 'Hồ sơ này không công khai'], ['/profile/privacy', 'Đăng nhập'],
 ] as const;
 
 test('all requested demo routes render without runtime errors or overflow', async ({ page }) => {
