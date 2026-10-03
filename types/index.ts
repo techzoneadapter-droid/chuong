@@ -27,6 +27,7 @@ export interface Chapter {
 export interface Book {
   id: string;
   authorId?: string;
+  authorUserId?: string;
   title: string;
   slug?: string;
   author: string;
