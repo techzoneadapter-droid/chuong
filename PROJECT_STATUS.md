@@ -488,3 +488,72 @@ External setup still required:
 
 Next:
 - Phase 4E: author withdrawal request workflow, payout-review queue, KYC/tax placeholders, payout status lifecycle, and admin settlement operations.
+
+
+## Store admin loading bugfix
+
+Issue found from live browser logs:
+- `OPTIONS /functions/v1/iap-verify` returned HTTP 405 in Vibaocode/web.
+- The Admin -> Thanh toán & đối soát screen therefore failed at the verifier-status request even though its database queries were succeeding.
+
+Fixed:
+- `iap-verify` version 4 now handles browser CORS preflight and returns CORS headers.
+- The admin store dashboard no longer fails the entire screen if verifier-status lookup is temporarily unavailable; it falls back to “Chưa cấu hình” while still showing database reconciliation data.
+
+## Phase 4E — author payout requests and admin settlement
+
+Status: implemented on production Supabase and source. This is a payout workflow/ledger, not an automated bank-transfer system.
+
+Completed:
+- Added `author_payout_profiles`:
+  - payout method label
+  - masked/non-sensitive destination label
+  - KYC status placeholder
+  - tax status placeholder
+  - admin review metadata
+- Extended `author_payouts` with:
+  - requester audit
+  - reviewer audit
+  - review note
+  - request snapshot
+- Author RPCs:
+  - update payout destination label
+  - create idempotent payout request
+  - cancel pending payout request
+- Requestable balance now subtracts pending/approved payout reservations.
+- Revenue-account row locking prevents concurrent requests from over-reserving the same earnings.
+- Admin RPCs:
+  - set KYC/tax workflow status
+  - approve/cancel payout request
+  - mark approved payout as paid with required external settlement reference
+- Approval requires:
+  - KYC verified
+  - tax verified or not required
+  - payout destination configured
+- Settlement checks current author earnings again, so a late refund can prevent an unsafe payout.
+- Retrying settlement does not increment `paid_out_coins` twice.
+- Added author screen `/author/payout`.
+- Added admin queue `/admin/payouts`.
+- Author revenue screen links to payout requests.
+- Admin Center links to author payouts.
+- Full identity documents and full bank credentials are intentionally not stored in this phase.
+
+Production verification with temporary accounts:
+- seeded 1,000 Linh Thạch of author earnings
+- requested 600; duplicate retry created exactly one request
+- reservation reduced requestable balance to 400
+- admin set KYC verified and tax not required
+- admin approved and marked 600 paid with external reference
+- retrying mark-paid kept `paid_out_coins` at exactly 600
+- author requested remaining 400 then cancelled it
+- cancelled request released the reservation, returning requestable balance to 400
+- all temporary users/authors/payouts were deleted afterward
+
+Migration:
+- `202610030018_phase4e_payout_workflow.sql`
+
+Docs:
+- `docs/PAYOUT_WORKFLOW.md`
+
+Next:
+- Phase 4F: notifications/inbox for purchase, author earnings, payout status and moderation events; then native push notifications.
