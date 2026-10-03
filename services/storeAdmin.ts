@@ -35,7 +35,12 @@ export async function getStoreOpsDashboard(): Promise<StoreOpsDashboard> {
       webhookFailedCount,
       webhookProcessedCount,
     ] = await Promise.all([
-      getIapVerificationStatus(),
+      getIapVerificationStatus().catch(() => ({
+        google_play: false,
+        app_store: false,
+        google_pubsub: false,
+        apple_notifications: false,
+      })),
       client.from('store_products').select('*').order('sort_order'),
       client.from('store_purchases').select('*').order('created_at', { ascending: false }).limit(25),
       client.from('store_webhook_events').select('*').order('received_at', { ascending: false }).limit(40),
