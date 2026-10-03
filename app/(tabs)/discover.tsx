@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
+import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
+import { xianxia } from '../../constants/xianxia';
 import {
   addSearchHistory,
   clearSearchHistory,
@@ -136,6 +138,7 @@ export default function DiscoverScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <XianxiaBackdrop />
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         keyboardShouldPersistTaps="handled"
@@ -144,8 +147,9 @@ export default function DiscoverScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.eyebrow}>CHƯƠNG</Text>
+            <Text style={styles.eyebrow}>TÀNG KINH CÁC</Text>
             <Text style={styles.title}>Khám phá</Text>
+            <Text style={styles.headerSub}>Tìm cơ duyên giữa ngàn thế giới.</Text>
           </View>
           <View style={styles.liveBadge}>
             <View style={styles.liveDot} />
@@ -260,10 +264,13 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; onOpen: () => void }) {
   return <Pressable onPress={onOpen} style={({ pressed }) => [styles.bookRow, pressed && styles.pressed]}>
     {rank ? <View style={[styles.rank, rank <= 3 && styles.rankTop]}><Text style={[styles.rankText, rank <= 3 && styles.rankTextTop]}>{rank}</Text></View> : null}
-    <View style={[styles.cover, { backgroundColor: book.cover }]}>
+    <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
+      <XianxiaCoverArt compact />
       {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : null}
+      {book.coverUrl ? <View pointerEvents="none" style={styles.coverShade} /> : null}
       <Text style={styles.coverBrand}>CHƯƠNG</Text>
       {!book.coverUrl ? <Text numberOfLines={3} style={styles.coverTitle}>{book.title}</Text> : null}
+      <View style={styles.coverSeal}><Text style={styles.coverSealText}>仙</Text></View>
     </View>
     <View style={styles.bookInfo}>
       <View style={styles.bookTitleRow}>
@@ -287,15 +294,16 @@ function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; o
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F2E9' },
+  safe: { flex: 1, backgroundColor: xianxia.paper },
   page: { padding: 16, paddingBottom: 44, width: '100%', maxWidth: 760, alignSelf: 'center' },
   header: { marginTop: 7, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  eyebrow: { color: '#8F1D3F', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  title: { color: '#221A1D', fontSize: 30, fontWeight: '900', marginTop: 3 },
+  eyebrow: { color: xianxia.cinnabar, fontSize: 9, fontWeight: '900', letterSpacing: 1.4 },
+  title: { color: xianxia.ink, fontSize: 30, fontWeight: '900', marginTop: 3 },
+  headerSub: { color: xianxia.muted, fontSize: 9, marginTop: 3 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E8DCD5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#47704D' },
   liveText: { color: '#756B6F', fontSize: 9, fontWeight: '800' },
-  search: { minHeight: 54, backgroundColor: '#FFFDFC', borderRadius: 17, borderWidth: 1, borderColor: '#E2D5CE', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 },
+  search: { minHeight: 54, backgroundColor: 'rgba(255,253,247,.90)', borderRadius: 17, borderWidth: 1, borderColor: xianxia.line, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, shadowColor: '#5F554A', shadowOpacity: .06, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   input: { flex: 1, marginLeft: 10, color: '#221A1D', fontSize: 14, paddingVertical: 12 },
   clearSearch: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   searchHint: { color: '#96898F', fontSize: 9, marginTop: 7, marginLeft: 3 },
@@ -314,25 +322,28 @@ const styles = StyleSheet.create({
   horizontalChips: { gap: 7, paddingRight: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   chip: { minHeight: 34, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#DFD1CA', alignItems: 'center', justifyContent: 'center' },
-  chipActive: { backgroundColor: '#8F1D3F', borderColor: '#8F1D3F' },
+  chipActive: { backgroundColor: xianxia.jadeDeep, borderColor: '#496A61' },
   chipText: { color: '#65595E', fontSize: 10, fontWeight: '800' },
   chipTextActive: { color: '#FFF' },
   filterLabel: { color: '#5E5157', fontSize: 10, fontWeight: '900', marginTop: 14, marginBottom: 7 },
   sortRow: { gap: 7, paddingBottom: 12 },
   sortChip: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, borderRadius: 11, borderWidth: 1, borderColor: '#DFC9D0', backgroundColor: '#FFFDFC' },
-  sortChipActive: { backgroundColor: '#8F1D3F', borderColor: '#8F1D3F' },
+  sortChipActive: { backgroundColor: xianxia.jadeDeep, borderColor: '#496A61' },
   sortText: { color: '#8F1D3F', fontSize: 9, fontWeight: '900' },
   sortTextActive: { color: '#FFF' },
   stateBox: { minHeight: 220 },
   results: { gap: 9 },
-  bookRow: { minHeight: 137, borderRadius: 17, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D1', padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bookRow: { minHeight: 141, borderRadius: 18, backgroundColor: 'rgba(255,253,247,.90)', borderWidth: 1, borderColor: xianxia.line, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10, shadowColor: '#5B5147', shadowOpacity: .04, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
   pressed: { opacity: .78, transform: [{ scale: .995 }] },
   rank: { width: 26, height: 34, borderRadius: 9, backgroundColor: '#EEE8EA', alignItems: 'center', justifyContent: 'center' },
-  rankTop: { backgroundColor: '#8F1D3F' },
+  rankTop: { backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold },
   rankText: { color: '#786D71', fontSize: 12, fontWeight: '900' },
   rankTextTop: { color: '#FFF' },
-  cover: { width: 76, height: 108, borderRadius: 12, padding: 8, overflow: 'hidden', justifyContent: 'space-between' },
+  cover: { width: 78, height: 116, borderRadius: 13, padding: 8, overflow: 'hidden', justifyContent: 'space-between', borderWidth: 1, borderColor: xianxia.goldSoft },
   coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,24,22,.12)' },
+  coverSeal: { position: 'absolute', right: 6, top: 6, width: 20, height: 20, borderRadius: 6, backgroundColor: 'rgba(132,50,41,.82)', borderWidth: 1, borderColor: 'rgba(229,209,163,.7)', alignItems: 'center', justifyContent: 'center' },
+  coverSealText: { color: '#F3D99D', fontSize: 9, fontWeight: '900' },
   coverBrand: { color: 'rgba(255,255,255,.78)', fontSize: 6, fontWeight: '900', letterSpacing: .8 },
   coverTitle: { color: '#FFF', fontSize: 11, lineHeight: 14, fontWeight: '900' },
   bookInfo: { flex: 1, minWidth: 0 },
@@ -340,7 +351,7 @@ const styles = StyleSheet.create({
   bookTitle: { flex: 1, color: '#2A2024', fontSize: 14, lineHeight: 18, fontWeight: '900' },
   vip: { borderRadius: 7, backgroundColor: '#F0E1E5', paddingHorizontal: 6, paddingVertical: 3 },
   vipText: { color: '#8F1D3F', fontSize: 7, fontWeight: '900' },
-  author: { color: '#8F1D3F', fontSize: 9, fontWeight: '800', marginTop: 3 },
+  author: { color: xianxia.jade, fontSize: 9, fontWeight: '800', marginTop: 3 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 6 },
   genre: { color: '#63565C', fontSize: 8, fontWeight: '800', backgroundColor: '#F5EFEB', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
@@ -349,7 +360,7 @@ const styles = StyleSheet.create({
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 6 },
   status: { color: '#47704D', fontSize: 8, fontWeight: '900' },
   chapterCount: { color: '#95898E', fontSize: 8 },
-  infoCard: { marginTop: 20, borderRadius: 17, backgroundColor: '#F0E1E5', padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  infoCard: { marginTop: 20, borderRadius: 17, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   infoTitle: { color: '#382C31', fontSize: 11, fontWeight: '900' },
   infoBody: { color: '#756B6F', fontSize: 9, lineHeight: 14, marginTop: 3 },
 });
