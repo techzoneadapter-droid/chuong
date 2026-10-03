@@ -15,9 +15,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getBookById, getBooks } from '../../services/books';
 import { getChaptersByBook } from '../../services/chapters';
 import { getFollowState, getLibrary, getReadingProgress, removeFromLibrary, setFollowState, setLibraryStatus } from '../../services/library';
+import { downloadBookForOffline, DownloadSelection } from '../../services/downloadManager';
+import { formatOfflineBytes, getOfflineBookRecords } from '../../services/offlineDownloads';
 import { Book, ReadingProgress } from '../../types';
 
 type DownloadOption = 'Chương hiện tại' | '20 chương tiếp' | 'Toàn bộ';
+
+const downloadSelection: Record<DownloadOption, DownloadSelection> = {
+  'Chương hiện tại': 'current',
+  '20 chương tiếp': 'next20',
+  'Toàn bộ': 'all',
+};
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,8 +43,10 @@ export default function BookDetailScreen() {
   const [following, setFollowing] = useState(false);
   const [followingBook, setFollowingBook] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
-  const [downloaded, setDownloaded] = useState<Record<string, boolean>>({});
-  const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadedChapterCount, setDownloadedChapterCount] = useState(0);
+  const [downloadedBytes, setDownloadedBytes] = useState(0);
+  const [downloading, setDownloading] = useState<DownloadOption | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState({ completed: 0, total: 0 });
 
   useEffect(() => {
     let active = true;
@@ -49,13 +59,15 @@ export default function BookDetailScreen() {
         if (!active) return;
         const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length || result.data.totalChapters, latestChapter: chapters.data.at(-1)?.number ?? result.data.latestChapter };
         setBook(hydrated);
-        const [library, savedProgress, authorFollow, bookFollow, catalogResult] = await Promise.all([
+        const [library, savedProgress, authorFollow, bookFollow, catalogResult, offlineRecords] = await Promise.all([
           getLibrary(user?.id), getReadingProgress(hydrated.id, user?.id),
           hydrated.authorId || result.mode === 'demo' ? getFollowState('author', hydrated.authorId ?? hydrated.author, user?.id) : false,
-          getFollowState('book', hydrated.id, user?.id), getBooks()
+          getFollowState('book', hydrated.id, user?.id), getBooks(), getOfflineBookRecords(hydrated.id)
         ]);
         if (!active) return;
         setInLibrary(library.some((entry) => entry.bookId === hydrated.id)); setProgress(savedProgress); setFollowing(authorFollow); setFollowingBook(bookFollow); setCatalog(catalogResult.data);
+        setDownloadedChapterCount(offlineRecords.length);
+        setDownloadedBytes(offlineRecords.reduce((sum, item) => sum + item.bytes, 0));
       } catch (error) { if (active) setLoadError(error instanceof Error ? error.message : 'Không thể tải dữ liệu mới.'); }
       finally { if (active) setLoading(false); }
     };
@@ -67,12 +79,36 @@ export default function BookDetailScreen() {
 
   const openReader = (chapter = currentChapter || 1) => book.totalChapters > 0 ? router.push({ pathname: '/reader/[bookId]', params: { bookId: book.id, chapter } }) : Alert.alert('Chưa có chương', 'Tác giả chưa xuất bản chương nào cho truyện này.');
   const shareBook = () => Share.share({ message: `${book.title} — ${book.author}\nĐọc trên CHƯƠNG: Mỗi chương, một thế giới.` });
-  const download = (option: DownloadOption) => {
+  const download = async (option: DownloadOption) => {
+    if (downloading) return;
     setDownloading(option);
-    setTimeout(() => {
-      setDownloaded((value) => ({ ...value, [option]: true }));
+    setDownloadProgress({ completed: 0, total: 0 });
+
+    try {
+      const result = await downloadBookForOffline(
+        book,
+        downloadSelection[option],
+        currentChapter || 1,
+        (next) => setDownloadProgress({ completed: next.completed, total: next.total }),
+      );
+
+      const records = await getOfflineBookRecords(book.id);
+      setDownloadedChapterCount(records.length);
+      setDownloadedBytes(records.reduce((sum, item) => sum + item.bytes, 0));
+
+      const notes = [
+        `Đã lưu ${result.saved}/${result.requested} chương.`,
+        result.locked ? `${result.locked} chương VIP chưa mở khóa nên không được tải.` : '',
+        result.failed ? `${result.failed} chương tải lỗi, bạn có thể thử lại sau.` : '',
+      ].filter(Boolean).join('\n');
+
+      Alert.alert('Tải offline hoàn tất', notes);
+    } catch (error) {
+      Alert.alert('Không thể tải truyện', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+    } finally {
       setDownloading(null);
-    }, 900);
+      setDownloadProgress({ completed: 0, total: 0 });
+    }
   };
   const toggleLibrary = async () => {
     const next = !inLibrary; setInLibrary(next);
@@ -131,7 +167,7 @@ export default function BookDetailScreen() {
         <View style={styles.actions}>
           <Action icon={inLibrary ? 'checkmark' : 'add'} label={inLibrary ? 'Đã lưu' : 'Tủ sách'} onPress={toggleLibrary} active={inLibrary} />
           <Action icon={followingBook ? 'heart' : 'heart-outline'} label={followingBook ? 'Đang theo dõi' : 'Theo dõi truyện'} onPress={() => toggleFollow('book')} active={followingBook} />
-          <Action icon="download-outline" label="Tải truyện" onPress={() => setDownloadOpen(true)} />
+          <Action icon={downloadedChapterCount ? 'checkmark-circle' : 'download-outline'} label={downloadedChapterCount ? `Offline · ${downloadedChapterCount}` : 'Tải truyện'} onPress={() => setDownloadOpen(true)} active={downloadedChapterCount > 0} />
           <Action icon="flag-outline" label="Báo cáo" onPress={() => user ? router.push({ pathname: '/report', params: { bookId: book.id, label: book.title } }) : router.push('/auth/login')} />
         </View>
 
@@ -160,15 +196,38 @@ export default function BookDetailScreen() {
         </ScrollView>
       </ScrollView>
 
-      <BottomSheet visible={downloadOpen} title="Tải truyện" onClose={() => setDownloadOpen(false)}>
-        <Text style={styles.sheetNote}>Lưu nội dung từ CHƯƠNG để đọc khi không có mạng.</Text>
-        {(['Chương hiện tại', '20 chương tiếp', 'Toàn bộ'] as DownloadOption[]).map((option, index) => (
-          <Pressable key={option} style={styles.downloadRow} onPress={() => download(option)} disabled={downloading === option}>
-            <View style={styles.downloadIcon}><Ionicons name={downloaded[option] ? 'checkmark' : 'download-outline'} size={18} color="#8F1D3F" /></View>
-            <View style={{ flex: 1 }}><Text style={styles.downloadTitle}>{option}</Text><Text style={styles.downloadMeta}>{downloading === option ? `Đang tải · ${[1.8, 34, 286][index]} MB` : downloaded[option] ? `Đã tải · ${[1.8, 34, 286][index]} MB` : `Dung lượng · ${[1.8, 34, 286][index]} MB`}</Text></View>
-            <Ionicons name="chevron-forward" size={17} color="#A6999E" />
+      <BottomSheet visible={downloadOpen} title="Tải truyện" onClose={() => !downloading && setDownloadOpen(false)}>
+        <Text style={styles.sheetNote}>Lưu nội dung đã được phép đọc trên thiết bị để dùng khi mất mạng. Chương VIP chỉ tải được sau khi đã mở khóa.</Text>
+        {downloadedChapterCount > 0 ? <View style={styles.downloadSummary}>
+          <Ionicons name="checkmark-circle" size={19} color="#527058" />
+          <Text style={styles.downloadSummaryText}>Đã có {downloadedChapterCount} chương offline · {formatOfflineBytes(downloadedBytes)}</Text>
+          <Pressable onPress={() => { setDownloadOpen(false); router.push('/downloads'); }}>
+            <Text style={styles.manageDownload}>Quản lý</Text>
           </Pressable>
-        ))}
+        </View> : null}
+        {(['Chương hiện tại', '20 chương tiếp', 'Toàn bộ'] as DownloadOption[]).map((option) => {
+          const isRunning = downloading === option;
+          const meta = option === 'Chương hiện tại'
+            ? `Chương ${currentChapter || 1}`
+            : option === '20 chương tiếp'
+              ? 'Tối đa 20 chương từ vị trí đang đọc'
+              : `${book.totalChapters} chương công khai`;
+          return (
+            <Pressable key={option} style={styles.downloadRow} onPress={() => { void download(option); }} disabled={Boolean(downloading)}>
+              <View style={styles.downloadIcon}><Ionicons name={isRunning ? 'cloud-download-outline' : 'download-outline'} size={18} color="#8F1D3F" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.downloadTitle}>{option}</Text>
+                <Text style={styles.downloadMeta}>
+                  {isRunning && downloadProgress.total
+                    ? `Đang tải ${downloadProgress.completed}/${downloadProgress.total} chương`
+                    : meta}
+                </Text>
+                {isRunning && downloadProgress.total ? <View style={styles.downloadTrack}><View style={[styles.downloadFill, { width: `${Math.min(100, downloadProgress.completed / downloadProgress.total * 100)}%` }]} /></View> : null}
+              </View>
+              <Ionicons name="chevron-forward" size={17} color="#A6999E" />
+            </Pressable>
+          );
+        })}
       </BottomSheet>
     </SafeAreaView>
   );
@@ -247,6 +306,11 @@ const styles = StyleSheet.create({
   downloadRow: { flexDirection: 'row', alignItems: 'center', minHeight: 68, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E1D5CE', gap: 12 },
   downloadIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1E2E6', alignItems: 'center', justifyContent: 'center' },
   downloadTitle: { color: '#2C2226', fontSize: 14, fontWeight: '800' },
-  downloadMeta: { color: '#8B7E83', fontSize: 10, marginTop: 3 }
+  downloadMeta: { color: '#8B7E83', fontSize: 10, marginTop: 3 },
+  downloadSummary: { minHeight: 46, borderRadius: 12, backgroundColor: '#E8EFE7', paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  downloadSummaryText: { flex: 1, color: '#527058', fontSize: 9, fontWeight: '800' },
+  manageDownload: { color: '#8F1D3F', fontSize: 9, fontWeight: '900' },
+  downloadTrack: { height: 3, borderRadius: 99, backgroundColor: '#E6DBD6', overflow: 'hidden', marginTop: 7 },
+  downloadFill: { height: 3, borderRadius: 99, backgroundColor: '#8F1D3F' }
   ,loadError: { color: '#8F1D3F', backgroundColor: '#F0E1E5', padding: 9, borderRadius: 9, fontSize: 10, textAlign: 'center' }
 });
