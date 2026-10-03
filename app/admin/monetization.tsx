@@ -45,7 +45,7 @@ export default function AdminMonetizationScreen() {
     setSuccess('');
     try {
       await adminSetRevenueSharePolicy({ authorSharePercent: value, note, activate: true });
-      setSuccess(`Đã kích hoạt chính sách mới: tác giả nhận ${value}% trên doanh thu Xu đủ điều kiện.`);
+      setSuccess(`Đã kích hoạt chính sách mới: tác giả nhận ${value}% trên doanh thu Linh Thạch đủ điều kiện.`);
       setPercent('');
       setNote('');
       await load();
@@ -104,7 +104,7 @@ export default function AdminMonetizationScreen() {
         </View>
       </View>)}
 
-      <View style={styles.notice}><Ionicons name="cash-outline" size={19} color="#8F1D3F" /><Text style={styles.noticeText}>Màn này chỉ cấu hình cách phân bổ CHƯƠNG Xu. Việc quy đổi sang tiền thật, thuế, KYC và payout vẫn chưa được bật tự động.</Text></View>
+      <View style={styles.notice}><Ionicons name="cash-outline" size={19} color="#8F1D3F" /><Text style={styles.noticeText}>Màn này chỉ cấu hình cách phân bổ Linh Thạch. Việc quy đổi sang tiền thật, thuế, KYC và payout vẫn chưa được bật tự động.</Text></View>
     </ScrollView>
   </SafeAreaView>;
 }
