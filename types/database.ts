@@ -2113,6 +2113,13 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_public_genre_counts: {
+        Args: { p_limit?: number }
+        Returns: {
+          book_count: number
+          genre: string
+        }[]
+      }
       get_push_worker_secret: { Args: never; Returns: string }
       get_unread_notification_count: { Args: never; Returns: number }
       mark_all_notifications_read: { Args: never; Returns: number }
