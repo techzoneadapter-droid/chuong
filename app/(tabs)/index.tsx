@@ -8,8 +8,14 @@ import { EmptyState, LoadingState, RetryState } from '../../components/States';
 import { books as demoBooks } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBooks } from '../../services/books';
-import { getReadingProgress } from '../../services/library';
+import { getLatestReadingProgress } from '../../services/library';
 import { getUnreadNotificationCount } from '../../services/notifications';
+import {
+  getPersonalizedRecommendations,
+  hideRecommendation,
+  PersonalizedRecommendation,
+  recommendationReasonText,
+} from '../../services/recommendations';
 import { Book, ReadingProgress } from '../../types';
 
 export default function HomeScreen() {
@@ -17,6 +23,8 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [books, setBooks] = useState<Book[]>(demoBooks);
   const [savedProgress, setSavedProgress] = useState<ReadingProgress | null>(null);
+  const [recommendations, setRecommendations] = useState<PersonalizedRecommendation[]>([]);
+  const [recommendError, setRecommendError] = useState('');
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const [loadError, setLoadError] = useState('');
@@ -31,20 +39,38 @@ export default function HomeScreen() {
     return () => { active = false; };
   }, [user]));
   useEffect(() => {
-    let active = true; setLoading(true); setLoadError('');
-    getBooks().then(async (result) => {
-      if (!active) return; setBooks(result.data);
-      if (result.data.length === 0) return;
-      const progress = await getReadingProgress(result.data[0].id, user?.id); if (active) setSavedProgress(progress);
-    }).catch((cause) => { if (active) setLoadError(cause instanceof Error ? cause.message : 'Không thể tải truyện.'); }).finally(() => { if (active) setLoading(false); });
+    let active = true;
+    setLoading(true);
+    setLoadError('');
+    setRecommendError('');
+
+    Promise.all([
+      getBooks(),
+      getLatestReadingProgress(user?.id),
+      getPersonalizedRecommendations(10).catch((cause) => {
+        if (active) setRecommendError(cause instanceof Error ? cause.message : 'Không thể tải đề xuất.');
+        return [] as PersonalizedRecommendation[];
+      }),
+    ]).then(([result, progress, personalized]) => {
+      if (!active) return;
+      setBooks(result.data);
+      setSavedProgress(progress);
+      setRecommendations(personalized);
+    }).catch((cause) => {
+      if (active) setLoadError(cause instanceof Error ? cause.message : 'Không thể tải truyện.');
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+
     return () => { active = false; };
   }, [user?.id, reload]);
   if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải truyện…" /></SafeAreaView>;
   if (loadError) return <SafeAreaView style={styles.safe}><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;
-  const currentBook = books[0];
+  const currentBook = books.find((book) => book.id === savedProgress?.bookId) ?? books[0];
   if (!currentBook) return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.emptyHome}><Text style={styles.brand}>CHƯƠNG</Text><EmptyState title="Chưa có truyện công khai" detail={loadError || 'Nội dung sẽ xuất hiện sau khi tác giả xuất bản truyện.'} /></View></SafeAreaView>;
-  const currentPercent = savedProgress?.progressPercent ?? currentBook.progress;
-  const currentChapter = savedProgress?.chapterNumber ?? Math.max(1, Math.floor(currentBook.totalChapters * currentBook.progress / 100));
+  const currentProgress = savedProgress?.bookId === currentBook.id ? savedProgress : null;
+  const currentPercent = currentProgress?.progressPercent ?? currentBook.progress;
+  const currentChapter = currentProgress?.chapterNumber ?? Math.max(1, Math.floor(currentBook.totalChapters * currentBook.progress / 100));
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.page}>
@@ -66,7 +92,7 @@ export default function HomeScreen() {
 
         <Pressable style={({ pressed }) => [styles.hero, pressed && styles.pressed]} onPress={() => router.push({ pathname: '/book/[id]', params: { id: currentBook.id } })}>
           <View style={styles.heroTop}>
-            <Text style={styles.heroEyebrow}>ĐANG ĐỌC</Text>
+            <Text style={styles.heroEyebrow}>{currentProgress ? 'ĐANG ĐỌC GẦN NHẤT' : 'NỔI BẬT'}</Text>
             <Text style={styles.heroPercent}>{Math.round(currentPercent)}%</Text>
           </View>
           <Text style={styles.heroTitle}>{currentBook.title}</Text>
@@ -76,7 +102,7 @@ export default function HomeScreen() {
           </View>
           <Pressable style={styles.continueButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: currentBook.id, chapter: currentChapter } })}>
             <Ionicons name="book-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.continueText}>Đọc tiếp</Text>
+            <Text style={styles.continueText}>{currentProgress ? 'Đọc tiếp' : 'Bắt đầu đọc'}</Text>
           </Pressable>
         </Pressable>
 
@@ -90,20 +116,60 @@ export default function HomeScreen() {
         </ScrollView>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Dành cho bạn</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Dành cho bạn</Text>
+            <Text style={styles.sectionSub}>
+              {recommendations.some((item) => item.personalized)
+                ? 'Dựa trên truyện, thể loại và tác giả bạn thực sự tương tác.'
+                : 'Đề xuất nổi bật. Đọc và theo dõi thêm để CHƯƠNG hiểu gu của bạn.'}
+            </Text>
+          </View>
           <Text style={styles.seeAll} onPress={() => router.push('/discover')}>Khám phá</Text>
         </View>
 
-        <View style={styles.recommend}>
-          <View style={styles.recommendText}>
-            <Text style={styles.recommendKicker}>TUYỂN CHỌN RIÊNG</Text>
-            <Text style={styles.recommendTitle}>Truyện hợp gu của bạn sẽ xuất hiện ở đây.</Text>
-            <Text style={styles.recommendBody}>
-              Sau khi đọc vài chương, CHƯƠNG sẽ cá nhân hóa đề xuất theo thể loại và tác giả bạn yêu thích.
-            </Text>
+        {recommendError ? <View style={styles.recommendError}>
+          <Text style={styles.recommendErrorText}>{recommendError}</Text>
+          <Pressable onPress={() => setReload((value) => value + 1)}><Text style={styles.retryText}>Thử lại</Text></Pressable>
+        </View> : null}
+
+        {recommendations.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendRow}>
+            {recommendations.map((item) => (
+              <View style={styles.recommendItem} key={item.book.id}>
+                <BookCard book={item.book} />
+                <View style={styles.reasonRow}>
+                  <Ionicons name={item.personalized ? 'sparkles' : 'flame-outline'} size={12} color="#8F1D3F" />
+                  <Text numberOfLines={2} style={styles.reasonText}>{recommendationReasonText(item)}</Text>
+                  {user ? <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={'Ẩn đề xuất ' + item.book.title}
+                    hitSlop={8}
+                    onPress={async () => {
+                      try {
+                        await hideRecommendation(item.book.id);
+                        setRecommendations((current) => current.filter((entry) => entry.book.id !== item.book.id));
+                      } catch (cause) {
+                        setRecommendError(cause instanceof Error ? cause.message : 'Không thể ẩn đề xuất.');
+                      }
+                    }}
+                    style={styles.hideRecommend}
+                  >
+                    <Ionicons name="close" size={14} color="#9B8E93" />
+                  </Pressable> : null}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        ) : !recommendError ? (
+          <View style={styles.recommend}>
+            <View style={styles.recommendText}>
+              <Text style={styles.recommendKicker}>TUYỂN CHỌN RIÊNG</Text>
+              <Text style={styles.recommendTitle}>CHƯƠNG đang học gu đọc của bạn.</Text>
+              <Text style={styles.recommendBody}>Đọc, thêm vào tủ sách hoặc theo dõi tác giả để nhận đề xuất chính xác hơn.</Text>
+            </View>
+            <Ionicons name="sparkles" size={36} color="#8F1D3F" />
           </View>
-          <Ionicons name="sparkles" size={36} color="#8F1D3F" />
-        </View>
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Tác giả Việt</Text>
@@ -186,8 +252,17 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   sectionTitle: { color: '#221A1D', fontSize: 20, fontWeight: '900' },
+  sectionSub: { color: '#82757B', fontSize: 9, lineHeight: 13, marginTop: 3, paddingRight: 10 },
   seeAll: { color: '#8F1D3F', fontSize: 12, fontWeight: '800' },
   row: { paddingLeft: 16, paddingRight: 4 },
+  recommendRow: { paddingLeft: 16, paddingRight: 4 },
+  recommendItem: { width: 154 },
+  reasonRow: { width: 140, minHeight: 36, flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 5, paddingRight: 2 },
+  reasonText: { flex: 1, color: '#786B70', fontSize: 8, lineHeight: 12, fontWeight: '700' },
+  hideRecommend: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2EAE6', marginTop: -3 },
+  recommendError: { marginHorizontal: 16, borderRadius: 14, backgroundColor: '#F8E7EC', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  recommendErrorText: { flex: 1, color: '#8F1D3F', fontSize: 10, lineHeight: 14 },
+  retryText: { color: '#8F1D3F', fontSize: 10, fontWeight: '900' },
   recommend: {
     marginHorizontal: 16,
     backgroundColor: '#F0E1E5',
