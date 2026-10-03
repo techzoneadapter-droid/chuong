@@ -1,6 +1,6 @@
 # CHƯƠNG — PROJECT STATUS
 
-Updated: 2026-10-02
+Updated: 2026-10-03
 
 ## Live Supabase production backend
 
@@ -946,12 +946,69 @@ Release QA still required on physical devices:
 - account switching with pending sync
 - uninstall/reinstall behavior
 
+## Phase 4I — real ratings, reviews and reader feedback
+
+Status: implemented on production Supabase and source. Reader UI, Author Studio insights and moderation/report integration are complete.
+
+Completed:
+- Replaced the placeholder rating block with real 1–5 star ratings and reader reviews.
+- One canonical review row per reader/book.
+- Added `books.rating_count`; `books.rating` is now maintained from approved reviews only.
+- Aggregate rating refreshes on review create/delete, rating change and moderation change.
+- Review text supports up to 4,000 characters.
+- Readers can mark reviews as spoilers; spoiler text is collapsed until explicitly revealed.
+- Readers can mark other reviews useful.
+- Review sorting:
+  - useful
+  - newest
+  - highest score
+  - lowest score
+- Review ownership/security:
+  - authors cannot rate their own book
+  - user/book identity cannot be changed after review creation
+  - users cannot edit moderation fields or useful counters
+  - maximum 10 newly-created reviews/account/hour
+  - five-second edit cooldown
+- Review moderation uses the existing approved/hidden/rejected model.
+- Reports now accept `review_id` as a first-class target.
+- Admin report detail displays the reported review context before moderation.
+- Review moderation actions are written into the existing moderation audit trail.
+- Added Author Studio -> `Đánh giá độc giả` dashboard:
+  - weighted author rating
+  - per-book rating/count
+  - recent review feed
+  - spoiler/useful/moderation indicators
+- Authors can inspect reader feedback but cannot edit/delete reader reviews or manipulate scores.
+
+Production verification:
+- temporary readers submitted 5-star and 3-star reviews
+- aggregate became 4.00 from exactly two approved ratings
+- useful vote incremented the target review to 1
+- review-target report creation passed
+- author self-rating was blocked by the database
+- admin hid the 3-star review through the real moderation RPC
+- aggregate immediately became 5.00 from one remaining approved rating
+- ordinary reader visibility excluded the hidden review
+- moderation audit rows were created
+- all temporary Phase 4I users/book/reviews/votes/reports/actions were deleted afterward
+
+Migrations:
+- `202610030033_phase4i_reviews.sql`
+- `202610030034_phase4i_trigger_hardening.sql`
+- `202610030035_phase4i_rating_trigger_scope.sql`
+
+Docs:
+- `docs/RATINGS_REVIEWS.md`
+
+CI:
+- Phase 4I source passed TypeScript and web-export validation after the React Native review-distribution width fix.
+- Later Phase 4I backend/migration commits also passed CI; final documentation/moderation-preview commit should be verified before handoff.
+
 Next:
-- Phase 4I: real ratings/reviews and reader engagement quality:
-  - one rating per reader/book
-  - aggregate rating maintenance
-  - review text with moderation/report integration
-  - spoiler flag
-  - useful sorting
-  - author-facing review summary
-  - anti-spam/rate-limit foundation
+- Phase 4J: reading analytics and retention signals:
+  - real book/chapter view events without double-count spam
+  - chapter completion and reading-session metrics
+  - reader retention/continue-reading signals
+  - author-facing readership analytics
+  - privacy-safe aggregate dashboards
+  - stronger trending/recommendation signals from real engagement
