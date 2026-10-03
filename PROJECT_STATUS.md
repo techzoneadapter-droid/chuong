@@ -727,3 +727,78 @@ Next:
   - search history
   - trending/hot ranking from real signals
   - personalized discovery groundwork
+
+
+## Phase 4G-A — scalable Search & Discovery
+
+Status: implemented on production Supabase and source.
+
+Completed:
+- Rebuilt Discover to use server-side catalog search instead of downloading every public book and filtering in JavaScript.
+- Accent-insensitive Vietnamese search:
+  - `kiem yen` finds `Kiếm Yên Vân`
+  - `thanh pho` finds `Thành Phố Sau Mưa`
+- Search signals:
+  - book title
+  - description
+  - tags
+  - author pen name
+  - genre
+- Filters:
+  - dynamic real genre list with public-book counts
+  - free / VIP
+  - ongoing / completed / paused
+- Sorting:
+  - relevance
+  - real-signal popularity
+  - newest update
+  - rating
+- Popular ranking uses only real fields:
+  - views
+  - followers
+  - rating
+  - update freshness
+- Recent searches are stored locally in AsyncStorage:
+  - max eight terms
+  - accent/case-equivalent de-duplication
+  - remove-one / clear-all
+  - no server upload in this phase
+- Public search explicitly excludes:
+  - private/unlisted books
+  - drafts
+  - hidden/rejected books
+  - moderated authors
+- Search RPC is `SECURITY INVOKER`; RLS remains active.
+- Enabled PostgreSQL `unaccent` + `pg_trgm`.
+- Added trigram indexes for:
+  - normalized titles
+  - author pen names
+  - genres
+  - materialized normalized `books.search_text`
+- Added trigger-maintained `books.search_text` so larger catalogs do not rebuild normalized title/description/tag text on every request.
+- Added public genre-count RPC.
+- Removed the obsolete unused FTS title index after replacing it with the actual trigram search path.
+- Also closed push performance advisor findings:
+  - added `push_deliveries(device_id)` foreign-key index
+  - consolidated duplicate push-device SELECT policies into one owner-or-admin policy
+
+Production verification:
+- `kiem yen` returns only the expected public book
+- `thanh pho` returns only the expected public book
+- public genre aggregation returns the current four production demo genres
+- all four public starter books have normalized search text
+- Discover UI/service commits passed TypeScript + web export CI
+- Supabase performance advisor now has only expected unused-index informational notices on the very small/new production dataset; no missing-FK-index or duplicate-policy warning remains
+
+Migrations:
+- `202610030025_phase4ga_search_discovery.sql`
+- `202610030026_phase4ga_genre_counts.sql`
+- `202610030027_phase4ga_search_scale_hardening.sql`
+- `202610030028_scale_hardening_push_search.sql`
+
+Docs:
+- `docs/DISCOVERY_SEARCH.md`
+
+Next:
+- Phase 4G-B: first-party recommendations and personalized discovery groundwork using library/favorites/follows/reading genres.
+- Then Phase 4H: offline download hardening, cache/storage management, sync/retry queue and release-scale performance.
