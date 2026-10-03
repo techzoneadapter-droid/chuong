@@ -64,19 +64,19 @@ export default function WalletScreen() {
         <Text style={styles.heroKicker}>SỐ DƯ KHẢ DỤNG</Text>
         <View style={styles.balanceRow}>
           <Text style={styles.balance}>{formatCoins(wallet?.balance_coins ?? 0)}</Text>
-          <View style={styles.coin}><Text style={styles.coinText}>Xu</Text></View>
+          <View style={styles.coin}><Text style={styles.coinText}>Linh Thạch</Text></View>
         </View>
-        <Text style={styles.heroNote}>CHƯƠNG Xu dùng để mở khóa truyện và chương VIP trên nền tảng.</Text>
+        <Text style={styles.heroNote}>Linh Thạch dùng để mở khóa truyện và chương VIP trên nền tảng.</Text>
         <Pressable style={styles.buyButton} onPress={() => router.push('/wallet/store')}>
           <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-          <Text style={styles.buyButtonText}>Nạp CHƯƠNG Xu</Text>
+          <Text style={styles.buyButtonText}>Nạp Linh Thạch</Text>
         </Pressable>
         <Text style={styles.storeNote}>Catalog đã sẵn sàng; thanh toán thật chỉ hoạt động trong build Android/iOS sau khi kết nối native billing.</Text>
       </View>
 
       {wallet?.debt_coins ? <View style={styles.debtNotice}>
         <Ionicons name="warning-outline" size={20} color="#8F1D3F" />
-        <Text style={styles.debtNoticeText}>Tài khoản đang có {formatCoins(wallet.debt_coins)} Xu cần bù do giao dịch cửa hàng bị hoàn/hủy. Các lần nạp tiếp theo sẽ ưu tiên bù khoản này trước khi cộng vào số dư khả dụng.</Text>
+        <Text style={styles.debtNoticeText}>Tài khoản đang có {formatCoins(wallet.debt_coins)} Linh Thạch cần bù do giao dịch cửa hàng bị hoàn/hủy. Các lần nạp tiếp theo sẽ ưu tiên bù khoản này trước khi cộng vào số dư khả dụng.</Text>
       </View> : null}
 
       <View style={styles.metrics}>
@@ -89,11 +89,11 @@ export default function WalletScreen() {
         <Text style={styles.sectionMeta}>{items.length ? `${items.length} giao dịch` : 'Chưa có'}</Text>
       </View>
 
-      {!items.length ? <View style={styles.emptyWrap}><EmptyState title="Chưa có giao dịch Xu" /></View> : items.map((item) => <TransactionRow key={item.id} item={item} />)}
+      {!items.length ? <View style={styles.emptyWrap}><EmptyState title="Chưa có giao dịch Linh Thạch" /></View> : items.map((item) => <TransactionRow key={item.id} item={item} />)}
 
       <View style={styles.safety}>
         <Ionicons name="shield-checkmark-outline" size={20} color="#8F1D3F" />
-        <Text style={styles.safetyText}>Số dư được quản lý bằng sổ cái giao dịch bất biến. Ứng dụng không thể tự cộng Xu; các lần nạp sau này chỉ được ghi nhận sau khi biên lai cửa hàng được xác minh.</Text>
+        <Text style={styles.safetyText}>Số dư được quản lý bằng sổ cái giao dịch bất biến. Ứng dụng không thể tự cộng Linh Thạch; các lần nạp sau này chỉ được ghi nhận sau khi biên lai cửa hàng được xác minh.</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;
@@ -102,7 +102,7 @@ export default function WalletScreen() {
 function Metric({ label, value, icon }: { label: string; value: number; icon: keyof typeof Ionicons.glyphMap }) {
   return <View style={styles.metric}>
     <Ionicons name={icon} size={20} color="#8F1D3F" />
-    <Text style={styles.metricValue}>{formatCoins(value)} Xu</Text>
+    <Text style={styles.metricValue}>{formatCoins(value)} Linh Thạch</Text>
     <Text style={styles.metricLabel}>{label}</Text>
   </View>;
 }
@@ -119,7 +119,7 @@ function TransactionRow({ item }: { item: WalletTransaction }) {
       {item.description ? <Text style={styles.txDate}>{new Date(item.created_at).toLocaleString('vi-VN')}</Text> : null}
     </View>
     <View style={styles.txAmountWrap}>
-      <Text style={[styles.txAmount, credit ? styles.creditText : styles.debitText]}>{credit ? '+' : ''}{formatCoins(item.amount_coins)} Xu</Text>
+      <Text style={[styles.txAmount, credit ? styles.creditText : styles.debitText]}>{credit ? '+' : ''}{formatCoins(item.amount_coins)} Linh Thạch</Text>
       <Text style={styles.txBalance}>Còn {formatCoins(item.balance_after)}</Text>
     </View>
   </View>;
