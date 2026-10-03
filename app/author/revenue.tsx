@@ -70,6 +70,11 @@ export default function AuthorRevenueScreen() {
         <Text style={styles.heroValue}>{formatRevenueCoins(data.availablePayoutCoins)} Linh Thạch</Text>
         <Text style={styles.heroBody}>Số này là phần doanh thu tác giả đã ghi nhận sau hoàn tiền và các khoản đã đối soát. Đây chưa phải số tiền VND thực nhận.</Text>
       </View>
+      <Pressable style={styles.payoutCta} onPress={() => router.push('/author/payout')}>
+        <View style={styles.payoutCtaIcon}><Ionicons name="cash-outline" size={20} color="#8F1D3F" /></View>
+        <View style={{ flex: 1 }}><Text style={styles.payoutCtaTitle}>Yêu cầu rút doanh thu</Text><Text style={styles.payoutCtaBody}>Tạo yêu cầu · KYC/thuế · Theo dõi trạng thái thanh toán</Text></View>
+        <Ionicons name="chevron-forward" size={18} color="#8F1D3F" />
+      </Pressable>
 
       <View style={styles.grid}>
         <Metric label="Doanh thu gộp" value={account.gross_sales_coins} />
@@ -134,6 +139,10 @@ const styles = StyleSheet.create({
   heroKicker: { color: '#EFC5D1', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   heroValue: { color: '#FFF', fontSize: 36, fontWeight: '900', marginTop: 7 },
   heroBody: { color: '#E9C5D0', fontSize: 11, lineHeight: 17, marginTop: 8, maxWidth: 520 },
+  payoutCta: { marginTop: 12, minHeight: 66, borderRadius: 16, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E4D8D1', paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  payoutCtaIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' },
+  payoutCtaTitle: { color: '#2D2327', fontSize: 12, fontWeight: '900' },
+  payoutCtaBody: { color: '#81757A', fontSize: 9, marginTop: 3 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   metric: { width: '48%', flexGrow: 1, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D1', borderRadius: 15, padding: 14 },
   metricValue: { color: '#2B2226', fontSize: 16, fontWeight: '900' },
