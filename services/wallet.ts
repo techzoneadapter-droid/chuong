@@ -59,14 +59,14 @@ export async function adminAdjustWallet(input: {
 
 export function walletTransactionLabel(type: WalletTransaction['type']) {
   return ({
-    purchase_credit: 'Nạp CHƯƠNG Xu',
+    purchase_credit: 'Nạp Linh Thạch',
     unlock_debit: 'Mở khóa nội dung',
-    refund_credit: 'Hoàn Xu',
-    promo_credit: 'Xu khuyến mãi',
-    admin_credit: 'Điều chỉnh cộng Xu',
-    admin_debit: 'Điều chỉnh trừ Xu',
+    refund_credit: 'Hoàn Linh Thạch',
+    promo_credit: 'Linh Thạch khuyến mãi',
+    admin_credit: 'Điều chỉnh cộng Linh Thạch',
+    admin_debit: 'Điều chỉnh trừ Linh Thạch',
     author_payout_debit: 'Thanh toán doanh thu',
-    purchase_reversal_debit: 'Thu hồi Xu do hoàn giao dịch',
+    purchase_reversal_debit: 'Thu hồi Linh Thạch do hoàn giao dịch',
   } as const)[type];
 }
 
