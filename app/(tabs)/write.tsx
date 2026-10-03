@@ -153,7 +153,7 @@ export default function WriteScreen() {
             <Text style={styles.writeText}>Viết</Text>
           </Pressable>
         </View>)}
-      </View>
+      </View>}
 
       <Pressable style={styles.primaryButton} onPress={() => router.push('/author/books/new')}>
         <Ionicons name="add-circle-outline" size={18} color={xianxia.goldSoft} />
