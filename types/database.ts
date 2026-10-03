@@ -54,6 +54,10 @@ export type Database = {
           created_at: string
           followers_count: number
           id: string
+          moderated_at: string | null
+          moderated_by: string | null
+          moderation_note: string | null
+          moderation_state: Database["public"]["Enums"]["moderation_state"]
           pen_name: string
           user_id: string
           verified: boolean
@@ -64,6 +68,10 @@ export type Database = {
           created_at?: string
           followers_count?: number
           id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
           pen_name: string
           user_id: string
           verified?: boolean
@@ -74,11 +82,22 @@ export type Database = {
           created_at?: string
           followers_count?: number
           id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
           pen_name?: string
           user_id?: string
           verified?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "authors_moderated_by_fkey"
+            columns: ["moderated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "authors_user_id_fkey"
             columns: ["user_id"]
@@ -209,6 +228,10 @@ export type Database = {
           id: string
           is_vip: boolean
           language: string
+          moderated_at: string | null
+          moderated_by: string | null
+          moderation_note: string | null
+          moderation_state: Database["public"]["Enums"]["moderation_state"]
           price_coins: number
           rating: number
           slug: string
@@ -230,6 +253,10 @@ export type Database = {
           id?: string
           is_vip?: boolean
           language?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           rating?: number
           slug: string
@@ -251,6 +278,10 @@ export type Database = {
           id?: string
           is_vip?: boolean
           language?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           rating?: number
           slug?: string
@@ -271,6 +302,13 @@ export type Database = {
             referencedRelation: "authors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "books_moderated_by_fkey"
+            columns: ["moderated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       chapters: {
@@ -281,6 +319,10 @@ export type Database = {
           created_at: string
           id: string
           is_vip: boolean
+          moderated_at: string | null
+          moderated_by: string | null
+          moderation_note: string | null
+          moderation_state: Database["public"]["Enums"]["moderation_state"]
           price_coins: number
           published_at: string | null
           status: Database["public"]["Enums"]["chapter_status"]
@@ -294,6 +336,10 @@ export type Database = {
           created_at?: string
           id?: string
           is_vip?: boolean
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           published_at?: string | null
           status?: Database["public"]["Enums"]["chapter_status"]
@@ -307,6 +353,10 @@ export type Database = {
           created_at?: string
           id?: string
           is_vip?: boolean
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           published_at?: string | null
           status?: Database["public"]["Enums"]["chapter_status"]
@@ -319,6 +369,13 @@ export type Database = {
             columns: ["book_id"]
             isOneToOne: false
             referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapters_moderated_by_fkey"
+            columns: ["moderated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -360,6 +417,10 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          moderated_at: string | null
+          moderated_by: string | null
+          moderation_note: string | null
+          moderation_state: Database["public"]["Enums"]["moderation_state"]
           parent_id: string | null
           updated_at: string
           user_id: string
@@ -370,6 +431,10 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
           parent_id?: string | null
           updated_at?: string
           user_id: string
@@ -380,6 +445,10 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
           parent_id?: string | null
           updated_at?: string
           user_id?: string
@@ -397,6 +466,13 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_moderated_by_fkey"
+            columns: ["moderated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -494,6 +570,57 @@ export type Database = {
           },
         ]
       }
+      moderation_actions: {
+        Row: {
+          action: string
+          admin_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          reason: string | null
+          report_id: string | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action: string
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          report_id?: string | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          report_id?: string | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_actions_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_actions_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -579,18 +706,136 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          assigned_admin_id: string | null
+          author_id: string | null
+          book_id: string | null
+          chapter_id: string | null
+          comment_id: string | null
+          created_at: string
+          details: string
+          id: string
+          reason: Database["public"]["Enums"]["report_reason"]
+          reporter_id: string | null
+          resolution_note: string | null
+          status: Database["public"]["Enums"]["report_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_admin_id?: string | null
+          author_id?: string | null
+          book_id?: string | null
+          chapter_id?: string | null
+          comment_id?: string | null
+          created_at?: string
+          details?: string
+          id?: string
+          reason: Database["public"]["Enums"]["report_reason"]
+          reporter_id?: string | null
+          resolution_note?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_admin_id?: string | null
+          author_id?: string | null
+          book_id?: string | null
+          chapter_id?: string | null
+          comment_id?: string | null
+          created_at?: string
+          details?: string
+          id?: string
+          reason?: Database["public"]["Enums"]["report_reason"]
+          reporter_id?: string | null
+          resolution_note?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_assigned_admin_id_fkey"
+            columns: ["assigned_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_set_moderation: {
+        Args: {
+          p_reason?: string
+          p_report_id?: string
+          p_state: Database["public"]["Enums"]["moderation_state"]
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
+      }
+      admin_update_report: {
+        Args: {
+          p_report_id: string
+          p_resolution_note?: string
+          p_status: Database["public"]["Enums"]["report_status"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       book_status: "draft" | "ongoing" | "completed" | "paused"
       book_visibility: "public" | "private" | "unlisted"
       chapter_status: "draft" | "published"
       library_status: "reading" | "favorite" | "completed"
+      moderation_state: "approved" | "hidden" | "rejected"
+      report_reason:
+        | "copyright"
+        | "plagiarism"
+        | "spam"
+        | "harassment"
+        | "inappropriate"
+        | "impersonation"
+        | "other"
+      report_status: "open" | "reviewing" | "resolved" | "rejected"
       source_type: "original" | "licensed_translation" | "authorized"
       user_role: "reader" | "author" | "admin"
     }
@@ -724,6 +969,17 @@ export const Constants = {
       book_visibility: ["public", "private", "unlisted"],
       chapter_status: ["draft", "published"],
       library_status: ["reading", "favorite", "completed"],
+      moderation_state: ["approved", "hidden", "rejected"],
+      report_reason: [
+        "copyright",
+        "plagiarism",
+        "spam",
+        "harassment",
+        "inappropriate",
+        "impersonation",
+        "other",
+      ],
+      report_status: ["open", "reviewing", "resolved", "rejected"],
       source_type: ["original", "licensed_translation", "authorized"],
       user_role: ["reader", "author", "admin"],
     },
