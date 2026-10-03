@@ -35,6 +35,7 @@ export type OfflineChapterRecord = {
   downloadedAt: string;
   lastAccessedAt: string;
   licenseValidUntil: string | null;
+  checksum?: string;
 };
 
 export type OfflineBookSummary = {
@@ -69,6 +70,7 @@ type StoredChapterPayload = {
   chapter: Chapter;
   contentVersion: string;
   savedAt: string;
+  checksum?: string;
 };
 
 function emptyManifest(): OfflineManifest {
@@ -87,6 +89,24 @@ function estimateBytes(text: string) {
   // Conservative UTF-16-ish estimate for quota decisions. Native file size replaces
   // this estimate after writing whenever the platform exposes it.
   return Math.max(1, text.length * 2);
+}
+
+function checksumChapter(chapter: Chapter, contentVersion: string) {
+  const input = [
+    chapter.bookId ?? '',
+    chapter.id ?? '',
+    chapter.number,
+    chapter.title,
+    contentVersion,
+    chapter.content ?? '',
+  ].join('\u241f');
+
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
 async function readManifest(): Promise<OfflineManifest> {
@@ -205,15 +225,18 @@ export async function saveOfflineChapter(
   const now = new Date();
   const key = chapterKey(book.id, chapter.number);
   const contentVersion = chapter.updatedAt || chapter.publishedAt || chapter.id || String(chapter.number);
+  const storedChapter: Chapter = {
+    ...chapter,
+    bookId: book.id,
+    isDownloaded: true,
+    offline: true,
+  };
+  const checksum = checksumChapter(storedChapter, contentVersion);
   const payload: StoredChapterPayload = {
-    chapter: {
-      ...chapter,
-      bookId: book.id,
-      isDownloaded: true,
-      offline: true,
-    },
+    chapter: storedChapter,
     contentVersion,
     savedAt: now.toISOString(),
+    checksum,
   };
 
   const bytes = await writePayload(key, payload);
@@ -239,6 +262,7 @@ export async function saveOfflineChapter(
     licenseValidUntil: chapter.access === 'vip'
       ? new Date(now.getTime() + VIP_OFFLINE_LICENSE_MS).toISOString()
       : null,
+    checksum,
   };
 
   manifest.chapters = [record, ...manifest.chapters.filter((item) => item.key !== key)];
@@ -259,6 +283,14 @@ export async function getOfflineChapter(bookId: string, chapterNumber: number): 
     manifest.chapters = manifest.chapters.filter((item) => item.key !== key);
     await writeManifest(manifest);
     return null;
+  }
+
+  const actualChecksum = checksumChapter(payload.chapter, payload.contentVersion);
+  if ((payload.checksum && payload.checksum !== actualChecksum) || (record.checksum && record.checksum !== actualChecksum)) {
+    await deletePayload(key);
+    manifest.chapters = manifest.chapters.filter((item) => item.key !== key);
+    await writeManifest(manifest);
+    throw new Error('Bản tải bị lỗi nên đã được xóa. Hãy tải lại chương khi có mạng.');
   }
 
   record.lastAccessedAt = new Date().toISOString();
