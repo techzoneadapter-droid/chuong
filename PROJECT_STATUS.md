@@ -802,3 +802,66 @@ Docs:
 Next:
 - Phase 4G-B: first-party recommendations and personalized discovery groundwork using library/favorites/follows/reading genres.
 - Then Phase 4H: offline download hardening, cache/storage management, sync/retry queue and release-scale performance.
+
+
+## Phase 4G-B — personalized recommendations
+
+Status: implemented on production Supabase and source.
+
+Completed:
+- Added owner-scoped `recommendation_feedback` with reversible “not interested” hides.
+- Added server-side `get_personalized_book_ids()`.
+- Personalized ranking uses first-party CHƯƠNG signals only:
+  - reading progress
+  - library state
+  - followed books
+  - followed authors
+  - genres of interacted books
+- Anonymous readers fall back to public popularity/freshness ranking.
+- Public recommendation candidates still require:
+  - public visibility
+  - non-draft status
+  - approved book moderation
+  - approved author moderation
+- Already-read/library/followed books are ranked after unseen candidates.
+- Recommendation reasons are returned to UI:
+  - followed author
+  - favorite/read genre
+  - familiar author
+  - popular on CHƯƠNG
+- Added `services/recommendations.ts`.
+- Home “Dành cho bạn” is now real data instead of placeholder copy.
+- Home continue-reading hero now uses the latest reading-progress row instead of the first catalog book.
+- Signed-in readers can hide a recommendation directly from Home.
+- Added full `/recommendations` screen:
+  - reason labels
+  - hide controls
+  - pull-to-refresh
+  - restore all hidden recommendations
+  - anonymous sign-in CTA
+
+Production verification:
+- temporary reader favorited and read Kiếm Yên Vân
+- followed its author
+- personalized recommendations became active
+- unseen books were ranked before the interacted book
+- hiding Thành Phố Sau Mưa removed it from the next recommendation query
+- deleting the temporary auth user removed all temporary library/progress/feedback rows
+
+Migrations:
+- `202610030029_phase4gb_personalized_recommendations.sql`
+- `202610030030_phase4gb_unseen_priority.sql`
+
+Docs:
+- `docs/PERSONALIZED_RECOMMENDATIONS.md`
+
+Next:
+- Phase 4H: offline/download hardening and release-scale reading reliability:
+  - durable offline download manifest
+  - storage quota and cleanup
+  - version-aware chapter cache
+  - background/retry sync queue
+  - offline progress/bookmark queue
+  - download integrity checks
+  - offline reader states
+  - release-scale cache/performance review
