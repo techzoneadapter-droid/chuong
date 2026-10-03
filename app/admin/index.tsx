@@ -43,6 +43,11 @@ export default function AdminHomeScreen() {
         <View style={{ flex: 1 }}><Text style={styles.primaryTitle}>Hàng đợi báo cáo</Text><Text style={styles.primaryBody}>Xem xét bản quyền, spam, quấy rối và các báo cáo khác.</Text></View>
         <Ionicons name="chevron-forward" size={20} color="#FFF" />
       </Pressable>
+      <Pressable style={styles.secondaryCard} onPress={() => router.push('/admin/monetization')}>
+        <Ionicons name="pie-chart-outline" size={21} color="#8F1D3F" />
+        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Chính sách doanh thu</Text><Text style={styles.secondaryBody}>Cấu hình tỷ lệ chia Xu theo phiên bản, không sửa ngược giao dịch cũ.</Text></View>
+        <Ionicons name="chevron-forward" size={20} color="#8F1D3F" />
+      </Pressable>
       <View style={styles.notice}><Ionicons name="information-circle-outline" size={20} color="#8F1D3F" /><Text style={styles.noticeText}>Mọi thao tác ẩn, từ chối hoặc khôi phục nội dung đều được ghi vào nhật ký kiểm duyệt trong database.</Text></View>
     </ScrollView>
   </SafeAreaView>;
@@ -66,6 +71,9 @@ const styles = StyleSheet.create({
   primary: { marginTop: 18, minHeight: 82, borderRadius: 18, padding: 16, backgroundColor: '#8F1D3F', flexDirection: 'row', alignItems: 'center', gap: 13 },
   primaryTitle: { color: '#FFF', fontSize: 15, fontWeight: '900' },
   primaryBody: { color: '#F2CED9', fontSize: 11, lineHeight: 16, marginTop: 3 },
+  secondaryCard: { marginTop: 10, minHeight: 78, borderRadius: 18, padding: 15, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E4D8D1', flexDirection: 'row', alignItems: 'center', gap: 13 },
+  secondaryTitle: { color: '#2D2327', fontSize: 14, fontWeight: '900' },
+  secondaryBody: { color: '#756B6F', fontSize: 10, lineHeight: 15, marginTop: 3 },
   notice: { marginTop: 16, borderRadius: 15, backgroundColor: '#F0E1E5', padding: 14, flexDirection: 'row', gap: 10 },
   noticeText: { flex: 1, color: '#65575D', fontSize: 11, lineHeight: 17 },
 });
