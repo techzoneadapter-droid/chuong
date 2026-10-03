@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Comments } from '../../components/Comments';
+import { BookReviews } from '../../components/BookReviews';
 import { BookCard } from '../../components/BookCard';
 import { LoadingState, RetryState } from '../../components/States';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -185,8 +186,7 @@ export default function BookDetailScreen() {
           <Text style={styles.outlineText}>Xem toàn bộ chương</Text><Ionicons name="arrow-forward" size={16} color="#8F1D3F" />
         </Pressable>
 
-        <SectionHeader title="Đánh giá" action={`${book.rating} / 5`} />
-        <View style={styles.ratingLine}><Text style={styles.ratingValue}>{book.rating}</Text><View><Text style={styles.stars}>★★★★★</Text><Text style={styles.ratingMeta}>{isSupabaseConfigured ? 'Chưa có thống kê đánh giá' : 'Từ 8.436 độc giả'}</Text></View></View>
+        <BookReviews bookId={book.id} authorUserId={book.authorUserId} />
 
         <Comments bookId={book.id} />
 
