@@ -47,23 +47,89 @@ export type Database = {
           },
         ]
       }
+      author_payouts: {
+        Row: {
+          amount_coins: number
+          author_id: string
+          created_at: string
+          external_reference: string | null
+          id: string
+          idempotency_key: string | null
+          note: string | null
+          processed_at: string | null
+          processed_by: string | null
+          requested_at: string
+          status: Database["public"]["Enums"]["author_payout_status"]
+        }
+        Insert: {
+          amount_coins: number
+          author_id: string
+          created_at?: string
+          external_reference?: string | null
+          id?: string
+          idempotency_key?: string | null
+          note?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string
+          status?: Database["public"]["Enums"]["author_payout_status"]
+        }
+        Update: {
+          amount_coins?: number
+          author_id?: string
+          created_at?: string
+          external_reference?: string | null
+          id?: string
+          idempotency_key?: string | null
+          note?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string
+          status?: Database["public"]["Enums"]["author_payout_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_payouts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_payouts_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       author_revenue_accounts: {
         Row: {
+          author_earnings_coins: number
           author_id: string
           gross_sales_coins: number
+          paid_out_coins: number
           refunded_coins: number
+          refunded_earnings_coins: number
           updated_at: string
         }
         Insert: {
+          author_earnings_coins?: number
           author_id: string
           gross_sales_coins?: number
+          paid_out_coins?: number
           refunded_coins?: number
+          refunded_earnings_coins?: number
           updated_at?: string
         }
         Update: {
+          author_earnings_coins?: number
           author_id?: string
           gross_sales_coins?: number
+          paid_out_coins?: number
           refunded_coins?: number
+          refunded_earnings_coins?: number
           updated_at?: string
         }
         Relationships: [
@@ -78,7 +144,9 @@ export type Database = {
       }
       author_revenue_ledger: {
         Row: {
+          author_earnings_coins: number
           author_id: string
+          author_share_bps: number | null
           book_entitlement_id: string | null
           book_id: string
           chapter_entitlement_id: string | null
@@ -87,11 +155,15 @@ export type Database = {
           description: string | null
           gross_coins: number
           id: string
+          platform_share_coins: number
+          share_policy_id: string | null
           type: Database["public"]["Enums"]["author_revenue_type"]
           wallet_transaction_id: string | null
         }
         Insert: {
+          author_earnings_coins?: number
           author_id: string
+          author_share_bps?: number | null
           book_entitlement_id?: string | null
           book_id: string
           chapter_entitlement_id?: string | null
@@ -100,11 +172,15 @@ export type Database = {
           description?: string | null
           gross_coins: number
           id?: string
+          platform_share_coins?: number
+          share_policy_id?: string | null
           type: Database["public"]["Enums"]["author_revenue_type"]
           wallet_transaction_id?: string | null
         }
         Update: {
+          author_earnings_coins?: number
           author_id?: string
+          author_share_bps?: number | null
           book_entitlement_id?: string | null
           book_id?: string
           chapter_entitlement_id?: string | null
@@ -113,6 +189,8 @@ export type Database = {
           description?: string | null
           gross_coins?: number
           id?: string
+          platform_share_coins?: number
+          share_policy_id?: string | null
           type?: Database["public"]["Enums"]["author_revenue_type"]
           wallet_transaction_id?: string | null
         }
@@ -150,6 +228,13 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_revenue_ledger_share_policy_id_fkey"
+            columns: ["share_policy_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_share_policies"
             referencedColumns: ["id"]
           },
           {
@@ -1031,6 +1116,47 @@ export type Database = {
           },
         ]
       }
+      revenue_share_policies: {
+        Row: {
+          active: boolean
+          author_share_bps: number
+          created_at: string
+          created_by: string | null
+          effective_at: string
+          ended_at: string | null
+          id: string
+          note: string | null
+        }
+        Insert: {
+          active?: boolean
+          author_share_bps: number
+          created_at?: string
+          created_by?: string | null
+          effective_at?: string
+          ended_at?: string | null
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          active?: boolean
+          author_share_bps?: number
+          created_at?: string
+          created_by?: string | null
+          effective_at?: string
+          ended_at?: string | null
+          id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_share_policies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_accounts: {
         Row: {
           balance_coins: number
@@ -1130,6 +1256,48 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      admin_record_paid_author_payout: {
+        Args: {
+          p_amount_coins: number
+          p_author_id: string
+          p_external_reference: string
+          p_idempotency_key: string
+          p_note: string
+        }
+        Returns: {
+          amount_coins: number
+          author_id: string
+          created_at: string
+          external_reference: string | null
+          id: string
+          idempotency_key: string | null
+          note: string | null
+          processed_at: string | null
+          processed_by: string | null
+          requested_at: string
+          status: Database["public"]["Enums"]["author_payout_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "author_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_refund_entitlement: {
+        Args: {
+          p_entitlement_id: string
+          p_entitlement_type: string
+          p_idempotency_key: string
+          p_reason: string
+        }
+        Returns: {
+          already_refunded: boolean
+          balance_coins: number
+          refund_transaction_id: string
+          refunded_coins: number
+        }[]
+      }
       admin_set_moderation: {
         Args: {
           p_reason?: string
@@ -1139,6 +1307,29 @@ export type Database = {
           p_target_type: string
         }
         Returns: undefined
+      }
+      admin_set_revenue_share_policy: {
+        Args: {
+          p_activate?: boolean
+          p_author_share_bps: number
+          p_note?: string
+        }
+        Returns: {
+          active: boolean
+          author_share_bps: number
+          created_at: string
+          created_by: string | null
+          effective_at: string
+          ended_at: string | null
+          id: string
+          note: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "revenue_share_policies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       admin_update_report: {
         Args: {
@@ -1204,6 +1395,7 @@ export type Database = {
       }
     }
     Enums: {
+      author_payout_status: "pending" | "approved" | "paid" | "cancelled"
       author_revenue_type: "sale" | "refund" | "adjustment"
       book_status: "draft" | "ongoing" | "completed" | "paused"
       book_visibility: "public" | "private" | "unlisted"
@@ -1361,6 +1553,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      author_payout_status: ["pending", "approved", "paid", "cancelled"],
       author_revenue_type: ["sale", "refund", "adjustment"],
       book_status: ["draft", "ongoing", "completed", "paused"],
       book_visibility: ["public", "private", "unlisted"],
