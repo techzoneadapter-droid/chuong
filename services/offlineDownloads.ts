@@ -24,6 +24,7 @@ export type OfflineChapterRecord = {
   author: string;
   cover: string;
   coverUrl: string | null;
+  genre: string | null;
   chapterId: string | null;
   chapterNumber: number;
   chapterTitle: string;
@@ -42,6 +43,7 @@ export type OfflineBookSummary = {
   author: string;
   cover: string;
   coverUrl: string | null;
+  genre: string | null;
   chapterCount: number;
   expiredVipCount: number;
   bytes: number;
@@ -193,7 +195,7 @@ async function enforceQuota(manifest: OfflineManifest, preserveKeys: string[] = 
 }
 
 export async function saveOfflineChapter(
-  book: Pick<Book, 'id' | 'title' | 'author' | 'cover' | 'coverUrl'>,
+  book: Pick<Book, 'id' | 'title' | 'author' | 'cover' | 'coverUrl'> & Partial<Pick<Book, 'genre'>>,
   chapter: Chapter,
 ) {
   if (!chapter.content || !chapter.content.trim()) {
@@ -224,6 +226,7 @@ export async function saveOfflineChapter(
     author: book.author,
     cover: book.cover,
     coverUrl: book.coverUrl ?? null,
+    genre: book.genre ?? existing?.genre ?? null,
     chapterId: chapter.id ?? null,
     chapterNumber: chapter.number,
     chapterTitle: chapter.title,
@@ -290,6 +293,7 @@ export async function refreshOfflineChapterIfDownloaded(chapter: Chapter) {
       author: current.author,
       cover: current.cover,
       coverUrl: current.coverUrl,
+      genre: current.genre ?? undefined,
     },
     chapter,
   );
@@ -330,6 +334,7 @@ export async function listOfflineBooks(): Promise<OfflineBookSummary[]> {
         author: item.author,
         cover: item.cover,
         coverUrl: item.coverUrl,
+        genre: item.genre ?? null,
         chapterCount: 1,
         expiredVipCount: expired(item) ? 1 : 0,
         bytes: item.bytes,
@@ -356,6 +361,51 @@ export async function getOfflineBookRecords(bookId: string) {
   return manifest.chapters
     .filter((item) => item.bookId === bookId)
     .sort((a, b) => a.chapterNumber - b.chapterNumber);
+}
+
+export async function getOfflineBookSnapshot(bookId: string): Promise<Book | null> {
+  const records = await getOfflineBookRecords(bookId);
+  if (!records.length) return null;
+
+  const first = records[0];
+  const chapters: Chapter[] = records.map((record) => ({
+    id: record.chapterId ?? undefined,
+    bookId: record.bookId,
+    number: record.chapterNumber,
+    title: record.chapterTitle,
+    date: new Date(record.downloadedAt).toLocaleDateString('vi-VN'),
+    relativeDate: 'Đã tải offline',
+    access: record.access,
+    priceCoins: record.priceCoins,
+    status: 'published',
+    publishedAt: null,
+    updatedAt: record.contentVersion,
+    isRead: false,
+    isDownloaded: true,
+    offline: true,
+  }));
+
+  return {
+    id: first.bookId,
+    title: first.bookTitle,
+    author: first.author,
+    authorFollowers: '—',
+    cover: first.cover,
+    coverUrl: first.coverUrl,
+    genre: first.genre || 'Offline',
+    rating: 0,
+    views: '—',
+    followers: '—',
+    status: 'Đã tải offline',
+    description: 'Bản tải trên thiết bị. Kết nối mạng để xem thông tin mới nhất.',
+    tags: [],
+    totalChapters: chapters.length,
+    latestChapter: chapters[chapters.length - 1]?.number ?? 1,
+    isVip: chapters.some((chapter) => chapter.access === 'vip'),
+    price: 0,
+    progress: 0,
+    chapters,
+  };
 }
 
 export async function getOfflineStorageStats(): Promise<OfflineStorageStats> {
