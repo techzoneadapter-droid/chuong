@@ -178,15 +178,14 @@ async function applyOperation(operation: OfflineSyncOperation) {
 
   if (operation.type === 'progress') {
     const p = operation.payload;
-    const { error } = await supabase.from('reading_progress').upsert({
-      user_id: operation.userId,
-      book_id: operation.bookId,
-      chapter_id: p.chapterId ?? null,
-      chapter_number: p.chapterNumber,
-      progress_percent: p.progressPercent,
-      scroll_position: p.scrollPosition,
-      updated_at: p.updatedAt,
-    }, { onConflict: 'user_id,book_id' });
+    const { error } = await supabase.rpc('sync_reading_progress', {
+      p_book_id: operation.bookId,
+      p_chapter_id: (p.chapterId ?? null) as unknown as string,
+      p_chapter_number: p.chapterNumber,
+      p_progress_percent: p.progressPercent,
+      p_scroll_position: p.scrollPosition,
+      p_updated_at: p.updatedAt,
+    });
     if (error) throw error;
     return true;
   }
