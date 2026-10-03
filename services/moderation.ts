@@ -5,7 +5,7 @@ import { toServiceError } from './errors';
 export type ReportReason = 'copyright' | 'plagiarism' | 'spam' | 'harassment' | 'inappropriate' | 'impersonation' | 'other';
 export type ReportStatus = 'open' | 'reviewing' | 'resolved' | 'rejected';
 export type ModerationState = 'approved' | 'hidden' | 'rejected';
-export type ModerationTarget = 'book' | 'chapter' | 'comment' | 'author';
+export type ModerationTarget = 'book' | 'chapter' | 'comment' | 'author' | 'review';
 
 export type ReportRow = Tables<'reports'>;
 export type ModerationActionRow = Tables<'moderation_actions'>;
@@ -18,8 +18,9 @@ export async function submitReport(input: {
   chapterId?: string;
   commentId?: string;
   authorId?: string;
+  reviewId?: string;
 }) {
-  const targetCount = [input.bookId, input.chapterId, input.commentId, input.authorId].filter(Boolean).length;
+  const targetCount = [input.bookId, input.chapterId, input.commentId, input.authorId, input.reviewId].filter(Boolean).length;
   if (targetCount !== 1) throw new Error('Báo cáo cần đúng một đối tượng.');
   const details = input.details?.trim() ?? '';
   if (details.length > 5000) throw new Error('Nội dung báo cáo tối đa 5.000 ký tự.');
@@ -34,6 +35,7 @@ export async function submitReport(input: {
       chapter_id: input.chapterId ?? null,
       comment_id: input.commentId ?? null,
       author_id: input.authorId ?? null,
+      review_id: input.reviewId ?? null,
     })
     .select('*')
     .single();
@@ -127,6 +129,7 @@ export function getReportTarget(report: ReportRow): { type: ModerationTarget; id
   if (report.chapter_id) return { type: 'chapter', id: report.chapter_id };
   if (report.comment_id) return { type: 'comment', id: report.comment_id };
   if (report.author_id) return { type: 'author', id: report.author_id };
+  if (report.review_id) return { type: 'review', id: report.review_id };
   return null;
 }
 
