@@ -456,14 +456,14 @@ test('community discovery, follow, public profile and privacy settings stay conn
   await page.goto('/community');
   await expect(page.getByText('Cộng đồng', { exact: true })).toBeVisible();
 
-  await page.getByText('Khám phá độc giả', { exact: true }).click();
+  await page.getByText('Khám phá độc giả', { exact: true }).first().click();
   await expect(page.getByText('Bạn đọc thử nghiệm', { exact: true })).toBeVisible();
 
-  await page.getByText('Theo dõi', { exact: true }).click();
-  await expect(page.getByText('Đang theo dõi', { exact: true })).toBeVisible();
+  await page.getByText('Theo dõi', { exact: true }).first().click();
+  await expect(page.getByText('Đang theo dõi', { exact: true }).first()).toBeVisible();
   await expect.poll(() => writes.filter((item) => item.table === 'set_reader_follow').length).toBe(1);
 
-  await page.getByText('Bạn đọc thử nghiệm', { exact: true }).click();
+  await page.getByText('Bạn đọc thử nghiệm', { exact: true }).first().click();
   await expect(page).toHaveURL(new RegExp(`/user/${targetUserId}`));
   await expect(page.getByText('Kệ sách công khai', { exact: true })).toBeVisible();
   await expect(page.getByText('Truyện từ máy chủ', { exact: true }).first()).toBeVisible();
