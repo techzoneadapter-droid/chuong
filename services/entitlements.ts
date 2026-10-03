@@ -25,7 +25,7 @@ export class UnlockError extends Error {
 function classifyUnlockError(error: unknown): never {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes('AUTH_REQUIRED')) throw new UnlockError('AUTH_REQUIRED', 'Bạn cần đăng nhập để mở khóa nội dung.');
-  if (message.includes('INSUFFICIENT_COINS')) throw new UnlockError('INSUFFICIENT_COINS', 'Số dư CHƯƠNG Xu không đủ.');
+  if (message.includes('INSUFFICIENT_COINS')) throw new UnlockError('INSUFFICIENT_COINS', 'Số dư Linh Thạch không đủ.');
   if (message.includes('CONTENT_NOT_AVAILABLE')) throw new UnlockError('CONTENT_NOT_AVAILABLE', 'Nội dung hiện không khả dụng.');
   if (message.includes('BOOK_UNLOCK_REQUIRED')) throw new UnlockError('BOOK_UNLOCK_REQUIRED', 'Truyện này cần được mở khóa toàn bộ.');
   throw toServiceError(error, 'Không thể mở khóa nội dung.');
