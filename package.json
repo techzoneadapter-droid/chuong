@@ -12,7 +12,9 @@
     "dev": "expo start --web --port 3000 --host lan",
     "build": "expo export --platform web",
     "test:db": "node tests/database.mjs",
-    "test:web": "playwright test"
+    "test:web": "playwright test",
+    "native:android": "expo run:android",
+    "native:ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -29,7 +31,8 @@
     "react-native-screens": "~4.16.0",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-web": "^0.21.0",
-    "expo-font": "~14.0.12"
+    "expo-font": "~14.0.12",
+    "expo-iap": "5.8.2"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
