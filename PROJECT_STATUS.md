@@ -557,3 +557,80 @@ Docs:
 
 Next:
 - Phase 4F: notifications/inbox for purchase, author earnings, payout status and moderation events; then native push notifications.
+
+
+## Phase 4F-A — in-app notifications and inbox
+
+Status: implemented on production Supabase and source. Native push delivery is intentionally deferred until device-token and FCM/APNs setup is available.
+
+Completed:
+- Added `notification_preferences` with per-category in-app controls and reserved `push_enabled`.
+- Added `notifications` inbox table with:
+  - category
+  - event type
+  - title/body
+  - deep-link route
+  - metadata
+  - read timestamp
+  - expiry support
+  - per-user deterministic dedupe keys
+- RLS:
+  - users can read only their own notifications/preferences
+  - clients cannot directly insert/update/delete notification rows
+  - read-state and preference writes go through authenticated RPCs
+- Added RPCs:
+  - `get_unread_notification_count()`
+  - `mark_notification_read()`
+  - `mark_all_notifications_read()`
+  - `update_notification_preferences()`
+- Added database-triggered notification events for:
+  - author revenue sale/refund
+  - author payout approved/paid/cancelled
+  - Linh Thạch purchase credited/revoked/refund-reversed
+  - comment replies
+  - new top-level comments on an author's book
+  - book/chapter/comment moderation changes
+  - new reports to admins
+  - resolved/rejected reports back to the reporter
+- Notification trigger functions fail open: notification problems never roll back core purchase, revenue, payout, comment or moderation transactions.
+- Added `/notifications` inbox with:
+  - all/unread filters
+  - mark-one read on open
+  - mark-all read
+  - category icons
+  - deep-link navigation
+- Added `/notifications/settings` with per-category controls.
+- Added unread badges:
+  - Home bell icon
+  - Profile -> Thông báo
+- Push notification switch is intentionally disabled until real native push delivery is configured.
+- Architecture docs: `docs/NOTIFICATIONS.md`.
+
+Production verification with temporary accounts:
+- reader comment created an author notification
+- author reply created a reader notification
+- author revenue sale created an earnings notification
+- payout approval created a payout notification
+- book moderation change created a moderation notification
+- new report created an admin notification
+- resolving the report notified the reporter
+- disabling reader comment notifications blocked a later reply notification
+- mark-one-read and mark-all-read reduced unread count correctly
+- all temporary users, book, comments, preferences and notifications were deleted afterward
+
+Migration:
+- `202610030019_phase4f_notifications.sql`
+
+CI:
+- notification service, inbox, settings and unread-badge commits passed TypeScript and web export checks
+
+Next:
+- Phase 4F-B: native push notifications
+  - device-token registry
+  - Android FCM / iOS APNs (or Expo Notifications)
+  - server push outbox + retries
+  - deep-link handling from push
+  - invalid token cleanup
+  - per-device logout cleanup
+  - sandbox device testing
+- Then Phase 4G: search, ranking and discovery improvements.
