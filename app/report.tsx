@@ -16,13 +16,14 @@ export default function ReportScreen() {
     chapterId?: string;
     commentId?: string;
     authorId?: string;
+    reviewId?: string;
     label?: string;
   }>();
   const [reason, setReason] = useState<ReportReason>('copyright');
   const [details, setDetails] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const targetCount = useMemo(() => [params.bookId, params.chapterId, params.commentId, params.authorId].filter(Boolean).length, [params]);
+  const targetCount = useMemo(() => [params.bookId, params.chapterId, params.commentId, params.authorId, params.reviewId].filter(Boolean).length, [params]);
 
   useEffect(() => {
     if (!user) router.replace('/auth/login');
@@ -40,6 +41,7 @@ export default function ReportScreen() {
         chapterId: params.chapterId,
         commentId: params.commentId,
         authorId: params.authorId,
+        reviewId: params.reviewId,
       });
       setMessage('Đã gửi báo cáo. Đội ngũ CHƯƠNG sẽ xem xét nội dung này.');
       setTimeout(() => router.back(), 900);
