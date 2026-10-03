@@ -16,12 +16,21 @@ type ProgressOperation = {
   createdAt: string;
 };
 
-type LibraryOperation = {
+type LibrarySetOperation = {
   id: string;
-  type: 'library-set' | 'library-remove';
+  type: 'library-set';
   userId: string;
   bookId: string;
-  payload?: { status: LibraryStatus; addedAt: string };
+  payload: { status: LibraryStatus; addedAt: string };
+  attempts: number;
+  createdAt: string;
+};
+
+type LibraryRemoveOperation = {
+  id: string;
+  type: 'library-remove';
+  userId: string;
+  bookId: string;
   attempts: number;
   createdAt: string;
 };
@@ -54,7 +63,8 @@ type BookmarkDeleteIdOperation = {
 
 export type OfflineSyncOperation =
   | ProgressOperation
-  | LibraryOperation
+  | LibrarySetOperation
+  | LibraryRemoveOperation
   | BookmarkOperation
   | BookmarkDeleteIdOperation;
 
@@ -76,7 +86,8 @@ function operationKey(operation: OfflineSyncOperation) {
   if (operation.type === 'progress') return `progress:${operation.userId}:${operation.bookId}`;
   if (operation.type === 'library-set' || operation.type === 'library-remove') return `library:${operation.userId}:${operation.bookId}`;
   if (operation.type === 'bookmark-set') return `bookmark:${operation.userId}:${operation.bookId}:${operation.payload.chapterNumber}`;
-  return `bookmark-id:${operation.userId}:${operation.payload.bookmarkId}`;
+  if (operation.type === 'bookmark-delete-id') return `bookmark-id:${operation.userId}:${operation.payload.bookmarkId}`;
+  return operation.id;
 }
 
 export async function enqueueOfflineSync(operation: OfflineSyncOperation) {
@@ -105,7 +116,7 @@ export function makeProgressOperation(
   };
 }
 
-export function makeLibrarySetOperation(userId: string, bookId: string, status: LibraryStatus, addedAt: string): LibraryOperation {
+export function makeLibrarySetOperation(userId: string, bookId: string, status: LibraryStatus, addedAt: string): LibrarySetOperation {
   return {
     id: `library:${userId}:${bookId}`,
     type: 'library-set',
@@ -117,7 +128,7 @@ export function makeLibrarySetOperation(userId: string, bookId: string, status: 
   };
 }
 
-export function makeLibraryRemoveOperation(userId: string, bookId: string): LibraryOperation {
+export function makeLibraryRemoveOperation(userId: string, bookId: string): LibraryRemoveOperation {
   return {
     id: `library:${userId}:${bookId}`,
     type: 'library-remove',
@@ -184,8 +195,8 @@ async function applyOperation(operation: OfflineSyncOperation) {
     const { error } = await supabase.from('library').upsert({
       user_id: operation.userId,
       book_id: operation.bookId,
-      status: operation.payload!.status,
-      added_at: operation.payload!.addedAt,
+      status: operation.payload.status,
+      added_at: operation.payload.addedAt,
     }, { onConflict: 'user_id,book_id' });
     if (error) throw error;
     return true;
@@ -209,36 +220,40 @@ async function applyOperation(operation: OfflineSyncOperation) {
     return true;
   }
 
-  if (operation.payload.desired) {
-    const { data, error: findError } = await supabase.from('bookmarks')
-      .select('id')
+  if (operation.type === 'bookmark-set') {
+    if (operation.payload.desired) {
+      const { data, error: findError } = await supabase.from('bookmarks')
+        .select('id')
+        .eq('user_id', operation.userId)
+        .eq('book_id', operation.bookId)
+        .eq('chapter_number', operation.payload.chapterNumber)
+        .limit(1);
+      if (findError) throw findError;
+
+      if (!data?.length) {
+        const { error } = await supabase.from('bookmarks').insert({
+          user_id: operation.userId,
+          book_id: operation.bookId,
+          chapter_id: operation.payload.chapterId ?? null,
+          chapter_number: operation.payload.chapterNumber,
+          position: operation.payload.position,
+          note: operation.payload.note ?? null,
+        });
+        if (error) throw error;
+      }
+      return true;
+    }
+
+    const { error } = await supabase.from('bookmarks')
+      .delete()
       .eq('user_id', operation.userId)
       .eq('book_id', operation.bookId)
-      .eq('chapter_number', operation.payload.chapterNumber)
-      .limit(1);
-    if (findError) throw findError;
-
-    if (!data?.length) {
-      const { error } = await supabase.from('bookmarks').insert({
-        user_id: operation.userId,
-        book_id: operation.bookId,
-        chapter_id: operation.payload.chapterId ?? null,
-        chapter_number: operation.payload.chapterNumber,
-        position: operation.payload.position,
-        note: operation.payload.note ?? null,
-      });
-      if (error) throw error;
-    }
+      .eq('chapter_number', operation.payload.chapterNumber);
+    if (error) throw error;
     return true;
   }
 
-  const { error } = await supabase.from('bookmarks')
-    .delete()
-    .eq('user_id', operation.userId)
-    .eq('book_id', operation.bookId)
-    .eq('chapter_number', operation.payload.chapterNumber);
-  if (error) throw error;
-  return true;
+  return false;
 }
 
 export async function flushOfflineSyncQueue(userId?: string) {
