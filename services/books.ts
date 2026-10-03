@@ -28,6 +28,7 @@ export function mapBook(row: BookRow, author?: AuthorRow, genres: string[] = [])
     coverUrl: row.cover_url,
     genre: genres[0] ?? 'Khác',
     rating: Number(row.rating),
+    ratingCount: Number(row.rating_count ?? 0),
     views: compactNumber(row.views_count),
     viewsCount: row.views_count,
     followers: compactNumber(row.followers_count),
