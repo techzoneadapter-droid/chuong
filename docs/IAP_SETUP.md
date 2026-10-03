@@ -91,3 +91,97 @@ Do not enable live purchasing until all of these pass:
 - wallet credit matches catalog
 - purchase belongs to the signed-in CHƯƠNG account
 - no client path can directly credit wallet balance
+
+
+## Refund/revocation webhooks — Phase 4D-C
+
+CHƯƠNG now has a second Edge Function:
+
+- `iap-verify`: signed-in client purchase verification
+- `iap-events`: Google/Apple server-to-server purchase lifecycle events
+
+Webhook endpoint:
+
+`https://lwchpifeahyuoajeidsa.supabase.co/functions/v1/iap-events`
+
+### Google Play RTDN
+
+Create a Google Cloud Pub/Sub push subscription for the Play Console RTDN topic.
+
+Use an authenticated push subscription with an OIDC service account.
+
+Required Edge Function secrets:
+
+- `GOOGLE_PUBSUB_AUDIENCE=https://lwchpifeahyuoajeidsa.supabase.co/functions/v1/iap-events`
+- `GOOGLE_PUBSUB_SERVICE_ACCOUNT_EMAIL=<OIDC service account email>`
+
+The webhook validates the Google-signed OIDC token before accepting RTDN.
+
+Supported one-time purchase events:
+
+- purchase completed -> server verifies ProductPurchaseV2 and credits once
+- pending/canceled purchase -> revokes a previously credited local purchase when Google reports `CANCELLED`
+- voided purchase/full refund -> revokes the corresponding Linh Thạch purchase
+- Play Console test notification -> logged and ignored safely
+
+The backend still checks the Google Play Developer API before changing wallet state. Raw purchase tokens are not stored in the database.
+
+### Apple App Store Server Notifications V2
+
+Set the App Store Server Notifications V2 production and sandbox URL to:
+
+`https://lwchpifeahyuoajeidsa.supabase.co/functions/v1/iap-events`
+
+The webhook uses the incoming notification only to identify the transaction, then performs a fresh authenticated App Store Server API transaction lookup before changing wallet state.
+
+Supported events:
+
+- `REFUND` -> revoke the Linh Thạch purchase only when Apple API confirms a revocation date
+- `REFUND_REVERSED` -> restore the purchase only when Apple API confirms the transaction is no longer revoked
+- `CONSUMPTION_REQUEST` -> recorded for admin review; CHƯƠNG does not auto-influence Apple's refund decision yet
+- unrelated events -> recorded and ignored
+
+### Refund reversal behavior
+
+If a refund is later reversed by the store:
+
+- the purchase returns to `credited`
+- the original Linh Thạch value is restored exactly once
+- any outstanding Linh Thạch debt is repaid first
+- only the remaining value becomes spendable balance
+- `lifetime_reversed` is reduced accordingly
+
+This path is idempotent, so webhook retries do not duplicate credit.
+
+### Admin monitoring
+
+Admin Center now includes:
+
+`Trung tâm quản trị -> Thanh toán & đối soát`
+
+It shows:
+
+- Google Play verification readiness
+- App Store verification readiness
+- Google RTDN readiness
+- Apple notification readiness
+- active Linh Thạch packages and store IDs
+- credited/revoked purchase counts
+- failed/processed webhook counts
+- recent webhook events
+- recent store purchases
+
+### Store notification testing before production
+
+Before enabling real money:
+
+1. Google Play Console test RTDN reaches `iap-events`.
+2. Google sandbox purchase credits exactly once.
+3. Cancel/pending-cancel event does not create free Linh Thạch.
+4. Voided/refunded Google order revokes the credited amount.
+5. Apple App Store Server Notifications test reaches the endpoint.
+6. Apple sandbox purchase credits exactly once.
+7. Apple refund revokes the purchase.
+8. Apple refund reversal restores the purchase exactly once.
+9. Retry the same webhook and confirm no duplicated balance change.
+10. Confirm admin dashboard has no unresolved failed webhook events.
