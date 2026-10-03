@@ -528,7 +528,8 @@ as $$
     where p.id = p_user_id
   )
   select
-    l.book_id, b.title, b.cover_url, a.pen_name as author_name, b.genre,
+    l.book_id, b.title, b.cover_url, a.pen_name as author_name,
+    coalesce((select bg.genre from public.book_genres bg where bg.book_id = b.id order by bg.genre limit 1), '') as genre,
     b.status as book_status, l.status as shelf_status, l.added_at
   from allowed x
   cross join viewer v
