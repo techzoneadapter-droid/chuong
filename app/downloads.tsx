@@ -66,8 +66,15 @@ export default function DownloadsScreen() {
 
   const openBook = async (book: OfflineBookSummary) => {
     const records = await getOfflineBookRecords(book.bookId);
-    const first = records[0];
-    if (!first) return;
+    const first = records.find((item) =>
+      item.access === 'free'
+      || !item.licenseValidUntil
+      || Date.parse(item.licenseValidUntil) > Date.now()
+    );
+    if (!first) {
+      Alert.alert('Cần kết nối mạng', 'Các chương offline của truyện này đều cần xác minh lại quyền VIP.');
+      return;
+    }
     router.push({ pathname: '/reader/[bookId]', params: { bookId: book.bookId, chapter: first.chapterNumber } });
   };
 
