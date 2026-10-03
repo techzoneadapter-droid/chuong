@@ -4,9 +4,15 @@ import { requireSupabase, supabase } from '../lib/supabase';
 import { Chapter, ChapterInput, ServiceResult } from '../types';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
+import {
+  getOfflineChapter,
+  OfflineLicenseExpiredError,
+  refreshOfflineChapterIfDownloaded,
+  removeOfflineChapter,
+} from './offlineDownloads';
 
 type ChapterRow = Database['public']['Tables']['chapters']['Row'];
-type ChapterShape = Pick<ChapterRow, 'id' | 'book_id' | 'chapter_number' | 'title' | 'status' | 'is_vip' | 'price_coins' | 'published_at'> & {
+type ChapterShape = Pick<ChapterRow, 'id' | 'book_id' | 'chapter_number' | 'title' | 'status' | 'is_vip' | 'price_coins' | 'published_at' | 'updated_at'> & {
   content?: string | null;
 };
 
@@ -35,6 +41,7 @@ export const mapChapter = (row: ChapterShape): Chapter => ({
   priceCoins: row.price_coins,
   status: row.status,
   publishedAt: row.published_at,
+  updatedAt: row.updated_at,
   isRead: false,
   isDownloaded: false
 });
@@ -51,7 +58,7 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await supabase
         .from('chapters')
-        .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at')
+        .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at,updated_at')
         .eq('book_id', bookId)
         .eq('status', 'published')
         .order('chapter_number')
@@ -67,7 +74,14 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
 }
 
 export async function getChapter(bookId: string, chapterNumber: number): Promise<ServiceResult<Chapter | null>> {
-  if (!supabase) return { data: demoChapter(bookId, chapterNumber), mode: 'demo' };
+  if (!supabase) {
+    const offline = await getOfflineChapter(bookId, chapterNumber).catch((error) => {
+      if (error instanceof OfflineLicenseExpiredError) throw error;
+      return null;
+    });
+    return offline ? { data: offline, mode: 'offline' } : { data: demoChapter(bookId, chapterNumber), mode: 'demo' };
+  }
+
   try {
     const { data, error } = await supabase.rpc('get_chapter_for_reading', {
       p_book_id: bookId,
@@ -76,12 +90,27 @@ export async function getChapter(bookId: string, chapterNumber: number): Promise
     if (error) throw error;
     const row = data?.[0];
     if (!row) return { data: null, mode: 'supabase' };
+
     if (row.lock_kind === 'book' || row.lock_kind === 'chapter') {
+      // A refunded/revoked entitlement must invalidate any previously downloaded VIP copy
+      // as soon as the app can reach the server again.
+      await removeOfflineChapter(bookId, chapterNumber).catch(() => false);
       throw new ContentLockedError(row.lock_kind, row.lock_price_coins ?? row.price_coins ?? 0, row.id);
     }
-    return { data: mapChapter(row), mode: 'supabase' };
+
+    const chapter = mapChapter(row);
+    await refreshOfflineChapterIfDownloaded(chapter).catch(() => false);
+    return { data: chapter, mode: 'supabase' };
   } catch (error) {
-    if (error instanceof ContentLockedError) throw error;
+    if (error instanceof ContentLockedError || error instanceof OfflineLicenseExpiredError) throw error;
+
+    try {
+      const offline = await getOfflineChapter(bookId, chapterNumber);
+      if (offline) return { data: offline, mode: 'offline' };
+    } catch (offlineError) {
+      if (offlineError instanceof OfflineLicenseExpiredError) throw offlineError;
+    }
+
     throw toServiceError(error, 'Không thể tải nội dung chương.');
   }
 }
@@ -123,7 +152,7 @@ async function setChapterStatus(id: string, status: 'draft' | 'published') {
     .from('chapters')
     .update({ status })
     .eq('id', id)
-    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at')
+    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at,updated_at')
     .single();
   if (error) throw toServiceError(error, 'Không thể thay đổi trạng thái chương. Kiểm tra tiêu đề và nội dung.');
   return mapChapter(data);
