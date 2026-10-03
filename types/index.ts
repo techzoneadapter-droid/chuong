@@ -18,6 +18,8 @@ export interface Chapter {
   priceCoins?: number;
   status?: ChapterStatus;
   publishedAt?: string | null;
+  updatedAt?: string | null;
+  offline?: boolean;
   isRead: boolean;
   isDownloaded: boolean;
 }
