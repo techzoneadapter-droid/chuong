@@ -1778,6 +1778,7 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      admin_get_push_runtime_status: { Args: never; Returns: Json }
       admin_mark_payout_paid: {
         Args: {
           p_external_reference: string
