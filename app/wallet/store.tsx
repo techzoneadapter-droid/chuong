@@ -22,7 +22,7 @@ export default function WalletStoreScreen() {
     try {
       setItems(await getStoreProducts());
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Không thể tải các gói Xu.');
+      setError(cause instanceof Error ? cause.message : 'Không thể tải các gói Linh Thạch.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -37,7 +37,7 @@ export default function WalletStoreScreen() {
     if (user) void load();
   }, [load, user]);
 
-  if (authLoading || (loading && user)) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải cửa hàng Xu…" /></SafeAreaView>;
+  if (authLoading || (loading && user)) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải cửa hàng Linh Thạch…" /></SafeAreaView>;
   if (!user) return null;
   if (error && !items.length) return <SafeAreaView style={styles.safe}><RetryState detail={error} onRetry={() => load()} /></SafeAreaView>;
 
@@ -47,7 +47,7 @@ export default function WalletStoreScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.topbar}>
       <Pressable style={styles.iconButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#2E2428" /></Pressable>
-      <Text style={styles.topTitle}>Nạp CHƯƠNG Xu</Text>
+      <Text style={styles.topTitle}>Nạp Linh Thạch</Text>
       <View style={styles.iconButton} />
     </View>
 
@@ -58,8 +58,8 @@ export default function WalletStoreScreen() {
     >
       <View style={styles.hero}>
         <Text style={styles.kicker}>CHƯƠNG XU</Text>
-        <Text style={styles.title}>Chọn gói Xu</Text>
-        <Text style={styles.subtitle}>Xu dùng để mở khóa truyện và chương VIP. Giá tiền thật sẽ do Google Play hoặc App Store hiển thị theo cửa hàng của người dùng.</Text>
+        <Text style={styles.title}>Chọn gói Linh Thạch</Text>
+        <Text style={styles.subtitle}>Linh Thạch dùng để mở khóa truyện và chương VIP. Giá tiền thật sẽ do Google Play hoặc App Store hiển thị theo cửa hàng của người dùng.</Text>
       </View>
 
       {isWeb ? <View style={styles.webNotice}>
@@ -74,7 +74,7 @@ export default function WalletStoreScreen() {
           const productId = productIdForPlatform(item);
           return <View key={item.id} style={styles.card}>
             <View style={styles.coinCircle}><Ionicons name="diamond-outline" size={23} color="#8F1D3F" /></View>
-            <Text style={styles.coins}>{formatCoins(item.coins)} Xu</Text>
+            <Text style={styles.coins}>{formatCoins(item.coins)} Linh Thạch</Text>
             <Text style={styles.productId}>{productId || 'Chưa cấu hình product ID'}</Text>
             <Pressable disabled style={styles.disabledButton}>
               <Text style={styles.disabledButtonText}>{provider ? 'Đang chờ native billing' : 'Chỉ khả dụng trên Android/iOS'}</Text>
@@ -83,16 +83,16 @@ export default function WalletStoreScreen() {
         })}
       </View>
 
-      {!items.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>Chưa có gói Xu đang hoạt động</Text><Text style={styles.emptyBody}>Quản trị cần cấu hình product catalog trước khi phát hành.</Text></View> : null}
+      {!items.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>Chưa có gói Linh Thạch đang hoạt động</Text><Text style={styles.emptyBody}>Quản trị cần cấu hình product catalog trước khi phát hành.</Text></View> : null}
 
       <View style={styles.safety}>
         <Ionicons name="shield-checkmark-outline" size={21} color="#8F1D3F" />
-        <Text style={styles.safetyText}>App không tự cộng Xu sau khi bấm mua. Receipt phải được xác minh phía server trước; cùng một transaction không thể được cộng hai lần.</Text>
+        <Text style={styles.safetyText}>App không tự cộng Linh Thạch sau khi bấm mua. Receipt phải được xác minh phía server trước; cùng một transaction không thể được cộng hai lần.</Text>
       </View>
 
       <View style={styles.safety}>
         <Ionicons name="return-down-back-outline" size={21} color="#8F1D3F" />
-        <Text style={styles.safetyText}>Nếu cửa hàng hoàn/hủy giao dịch sau này, hệ thống có cơ chế thu hồi Xu và ghi nhận phần thiếu thành nợ Xu thay vì cho số dư âm.</Text>
+        <Text style={styles.safetyText}>Nếu cửa hàng hoàn/hủy giao dịch sau này, hệ thống có cơ chế thu hồi Linh Thạch và ghi nhận phần thiếu thành nợ Linh Thạch thay vì cho số dư âm.</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;
