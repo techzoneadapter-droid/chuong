@@ -132,7 +132,7 @@ export interface ChapterInput {
 }
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
-export type DataMode = 'supabase' | 'demo';
+export type DataMode = 'supabase' | 'demo' | 'offline';
 
 export type ReaderFont = 'default' | 'serif' | 'sans';
 export type ReaderSpacing = 'compact' | 'normal' | 'relaxed';
