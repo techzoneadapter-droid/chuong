@@ -22,7 +22,8 @@ export function mapBook(row: BookRow, author?: AuthorRow, genres: string[] = [])
     authorUserId: author?.user_id,
     title: row.title,
     slug: row.slug,
-    author: author?.pen_name ?? 'Tác giả CHƯƠNG',
+    author: row.credited_author_name?.trim() || author?.pen_name || 'Tác giả CHƯƠNG',
+    creditedAuthorName: row.credited_author_name,
     authorFollowers: compactNumber(author?.followers_count ?? 0),
     authorAvatarUrl: author?.avatar_url,
     cover: '#6D2E46',
@@ -163,7 +164,7 @@ export async function createBook(authorId: string, input: AuthorBookInput): Prom
     const slug = `${slugify(input.title) || 'truyen'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
     const { data, error } = await client.from('books').insert({
       author_id: authorId, title: input.title.trim(), slug, description: input.description.trim(), cover_url: input.coverUrl,
-      language: input.language, source_type: input.sourceType, status: 'draft', visibility: 'private', tags: input.tags
+      language: input.language, source_type: input.sourceType, status: 'draft', visibility: 'private', tags: input.tags, credited_author_name: input.creditedAuthorName?.trim() || null
     }).select('*').single();
     if (error) throw error;
     if (input.genre.trim()) {
