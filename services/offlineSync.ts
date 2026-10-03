@@ -5,38 +5,36 @@ import { isInternetReachable } from './connectivity';
 
 const QUEUE_KEY = 'chuong:offline-sync-queue:v1';
 const MAX_QUEUE = 500;
+const MAX_ATTEMPTS = 8;
 
-type ProgressOperation = {
+type SyncMeta = {
   id: string;
+  attempts: number;
+  createdAt: string;
+  nextAttemptAt?: string;
+};
+
+type ProgressOperation = SyncMeta & {
   type: 'progress';
   userId: string;
   bookId: string;
   payload: Omit<ReadingProgress, 'updatedAt'> & { updatedAt: string };
-  attempts: number;
-  createdAt: string;
 };
 
-type LibrarySetOperation = {
-  id: string;
+type LibrarySetOperation = SyncMeta & {
   type: 'library-set';
   userId: string;
   bookId: string;
   payload: { status: LibraryStatus; addedAt: string };
-  attempts: number;
-  createdAt: string;
 };
 
-type LibraryRemoveOperation = {
-  id: string;
+type LibraryRemoveOperation = SyncMeta & {
   type: 'library-remove';
   userId: string;
   bookId: string;
-  attempts: number;
-  createdAt: string;
 };
 
-type BookmarkOperation = {
-  id: string;
+type BookmarkOperation = SyncMeta & {
   type: 'bookmark-set';
   userId: string;
   bookId: string;
@@ -47,18 +45,13 @@ type BookmarkOperation = {
     position: number;
     note?: string | null;
   };
-  attempts: number;
-  createdAt: string;
 };
 
-type BookmarkDeleteIdOperation = {
-  id: string;
+type BookmarkDeleteIdOperation = SyncMeta & {
   type: 'bookmark-delete-id';
   userId: string;
   bookId: string;
   payload: { bookmarkId: string };
-  attempts: number;
-  createdAt: string;
 };
 
 export type OfflineSyncOperation =
@@ -270,11 +263,27 @@ export async function flushOfflineSyncQueue(userId?: string) {
       continue;
     }
 
+    if (operation.attempts >= MAX_ATTEMPTS) {
+      remaining.push(operation);
+      continue;
+    }
+
+    if (operation.nextAttemptAt && Date.parse(operation.nextAttemptAt) > Date.now()) {
+      remaining.push(operation);
+      continue;
+    }
+
     try {
       await applyOperation(operation);
       synced += 1;
     } catch {
-      remaining.push({ ...operation, attempts: operation.attempts + 1 });
+      const attempts = operation.attempts + 1;
+      const delayMs = Math.min(30 * 60_000, 15_000 * 2 ** Math.max(0, attempts - 1));
+      remaining.push({
+        ...operation,
+        attempts,
+        nextAttemptAt: new Date(Date.now() + delayMs).toISOString(),
+      });
     }
   }
 
@@ -288,6 +297,14 @@ export async function flushOfflineSyncQueue(userId?: string) {
 export async function getPendingOfflineSyncCount(userId?: string) {
   const queue = await readQueue();
   return queue.filter((item) => !userId || item.userId === userId).length;
+}
+
+export async function getOfflineSyncQueueStats(userId?: string) {
+  const queue = (await readQueue()).filter((item) => !userId || item.userId === userId);
+  return {
+    pending: queue.length,
+    stalled: queue.filter((item) => item.attempts >= MAX_ATTEMPTS).length,
+  };
 }
 
 export async function clearOfflineSyncQueue(userId?: string) {
