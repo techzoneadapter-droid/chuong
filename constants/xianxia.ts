@@ -1,0 +1,17 @@
+export const xianxia = {
+  ink: '#1E2826',
+  inkSoft: '#40504C',
+  jade: '#315E54',
+  jadeDeep: '#22453E',
+  jadeMist: '#DDE8E1',
+  cinnabar: '#9B4034',
+  gold: '#C49A50',
+  goldSoft: '#E5D1A3',
+  paper: '#F5EFE4',
+  paperDeep: '#E9DFD0',
+  card: '#FFFDF7',
+  line: '#D8CCB9',
+  muted: '#766F66',
+  white: '#FFFDF8',
+  danger: '#A84545',
+} as const;
