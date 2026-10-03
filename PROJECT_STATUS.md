@@ -927,8 +927,11 @@ Production verification:
 - server kept the newer 80% / 1800 state
 - temporary test account/data were removed
 
-Migration:
+Migrations:
 - `202610030031_phase4h_progress_sync.sql`
+- `202610030032_phase4h_progress_sync_invoker.sql`
+
+Progress sync runs under normal owner RLS (`SECURITY INVOKER`).
 
 Docs:
 - `docs/OFFLINE_READING.md`
