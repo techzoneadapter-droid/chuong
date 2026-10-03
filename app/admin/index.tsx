@@ -65,6 +65,11 @@ export default function AdminHomeScreen() {
         <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Thanh toán tác giả</Text><Text style={styles.secondaryBody}>Duyệt yêu cầu rút, KYC/thuế và ghi nhận mã thanh toán thực tế.</Text></View>
         <Ionicons name="chevron-forward" size={20} color="#8F1D3F" />
       </Pressable>
+      <Pressable style={styles.secondaryCard} onPress={() => router.push('/admin/push')}>
+        <Ionicons name="notifications-outline" size={21} color="#8F1D3F" />
+        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Hệ thống Push</Text><Text style={styles.secondaryBody}>Thiết bị, hàng đợi gửi, token lỗi, Expo ticket/receipt và worker tự động.</Text></View>
+        <Ionicons name="chevron-forward" size={20} color="#8F1D3F" />
+      </Pressable>
       <View style={styles.notice}><Ionicons name="information-circle-outline" size={20} color="#8F1D3F" /><Text style={styles.noticeText}>Mọi thao tác ẩn, từ chối hoặc khôi phục nội dung đều được ghi vào nhật ký kiểm duyệt trong database.</Text></View>
     </ScrollView>
   </SafeAreaView>;
