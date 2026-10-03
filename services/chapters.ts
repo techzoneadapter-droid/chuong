@@ -5,6 +5,7 @@ import { Chapter, ChapterInput, ServiceResult } from '../types';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
 import {
+  getOfflineBookRecords,
   getOfflineBookSnapshot,
   getOfflineChapter,
   OfflineLicenseExpiredError,
@@ -53,7 +54,17 @@ function demoChapter(bookId: string, chapterNumber: number): Chapter | null {
 }
 
 export async function getChaptersByBook(bookId: string): Promise<ServiceResult<Chapter[]>> {
-  if (!supabase) return { data: getDemoBook(bookId).chapters, mode: 'demo' };
+  if (!supabase) {
+    const records = await getOfflineBookRecords(bookId).catch(() => []);
+    const downloaded = new Set(records.map((item) => item.chapterNumber));
+    return {
+      data: getDemoBook(bookId).chapters.map((chapter) => ({
+        ...chapter,
+        isDownloaded: downloaded.has(chapter.number),
+      })),
+      mode: 'demo',
+    };
+  }
   try {
     const chapters: Chapter[] = [];
     for (let offset = 0; ; offset += 500) {
@@ -68,7 +79,15 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
       chapters.push(...(data ?? []).map(mapChapter));
       if (!data || data.length < 500) break;
     }
-    return { data: chapters, mode: 'supabase' };
+    const records = await getOfflineBookRecords(bookId).catch(() => []);
+    const downloaded = new Set(records.map((item) => item.chapterNumber));
+    return {
+      data: chapters.map((chapter) => ({
+        ...chapter,
+        isDownloaded: downloaded.has(chapter.number),
+      })),
+      mode: 'supabase',
+    };
   } catch (error) {
     const offline = await getOfflineBookSnapshot(bookId).catch(() => null);
     if (offline) return { data: offline.chapters, mode: 'offline' };
