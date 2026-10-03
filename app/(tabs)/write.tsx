@@ -1,50 +1,220 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
+import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
+import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAuthorForUser, getMyBooks } from '../../services/authors';
 import { Author, Book } from '../../types';
 
 export default function WriteScreen() {
-  const router = useRouter(); const { user, configured } = useAuth(); const [author, setAuthor] = useState<Author | null>(null); const [books, setBooks] = useState<Book[]>([]); const [loading, setLoading] = useState(Boolean(user)); const [error, setError] = useState('');
+  const router = useRouter();
+  const { user, configured } = useAuth();
+  const [author, setAuthor] = useState<Author | null>(null);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(Boolean(user));
+  const [error, setError] = useState('');
+
   const load = useCallback(async () => {
-    if (!user) { setLoading(false); setAuthor(null); setBooks([]); return; } setLoading(true); setError('');
-    try { const profile = await getAuthorForUser(user.id); setAuthor(profile); setBooks(profile ? await getMyBooks(profile.id) : []); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể tải studio.'); }
-    finally { setLoading(false); }
+    if (!user) { setLoading(false); setAuthor(null); setBooks([]); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const profile = await getAuthorForUser(user.id);
+      setAuthor(profile);
+      setBooks(profile ? await getMyBooks(profile.id) : []);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Không thể tải studio.');
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
-  if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang mở Author Studio…" /></SafeAreaView>;
-  if (!user) return <SafeAreaView style={styles.safe}><View style={styles.page}><Text style={styles.kicker}>AUTHOR STUDIO</Text><Text style={styles.title}>Viết câu chuyện của bạn.</Text><Text style={styles.body}>Đăng nhập để tạo truyện, quản lý bản nháp và theo dõi độc giả.</Text><Pressable style={styles.button} onPress={() => router.push('/auth/login')}><Ionicons name="log-in-outline" size={20} color="#FFFFFF" /><Text style={styles.buttonText}>Đăng nhập / Đăng ký</Text></Pressable>{!configured && __DEV__ ? <Text style={styles.demo}>Demo · Bạn có thể xem biểu mẫu và trình soạn thảo; Supabase cần được cấu hình để lưu.</Text> : null}{!configured ? <View><Pressable onPress={() => router.push('/author/onboarding')}><Text style={styles.link}>Xem đăng ký tác giả</Text></Pressable><Pressable onPress={() => router.push('/author/books/new')}><Text style={styles.link}>Xem tạo truyện</Text></Pressable><Pressable onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId: 'demo', chapterId: 'new' } })}><Text style={styles.link}>Xem trình soạn thảo</Text></Pressable></View> : null}</View></SafeAreaView>;
-  if (error) return <SafeAreaView style={styles.safe}><RetryState detail={error} onRetry={load} /></SafeAreaView>;
-  if (!author) return <SafeAreaView style={styles.safe}><View style={styles.page}><Text style={styles.kicker}>AUTHOR STUDIO</Text><Text style={styles.title}>Trở thành tác giả CHƯƠNG.</Text><Text style={styles.body}>Tạo bút danh, giới thiệu bản thân và xác nhận quyền sử dụng nội dung trước khi xuất bản.</Text><Pressable style={styles.button} onPress={() => router.push('/author/onboarding')}><Ionicons name="create-outline" size={20} color="#FFFFFF" /><Text style={styles.buttonText}>Trở thành tác giả</Text></Pressable></View></SafeAreaView>;
-  const views = books.reduce((sum, book) => sum + (book.viewsCount ?? 0), 0); const followers = books.reduce((sum, book) => sum + (book.followersCount ?? 0), 0); const chapters = books.reduce((sum, book) => sum + book.totalChapters, 0); const drafts = books.filter((book) => book.backendStatus === 'draft').length; const published = books.filter((book) => book.backendStatus === 'ongoing').length;
-  return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.page}>
-    <View style={styles.headRow}><View><Text style={styles.kicker}>AUTHOR STUDIO</Text><Text style={styles.penName}>{author.penName}</Text></View><Pressable style={styles.add} onPress={() => router.push('/author/books/new')}><Ionicons name="add" size={20} color="#FFFFFF" /></Pressable></View>
-    <Text style={styles.note}>Lượt đọc bên dưới được ghi nhận từ phiên đọc thật. Phân tích chi tiết được tổng hợp khoảng mỗi 5 phút để giảm tải khi có nhiều độc giả cùng lúc.</Text>
-    <Pressable style={styles.revenueCard} onPress={() => router.push('/author/revenue')}>
-      <View style={styles.revenueIcon}><Ionicons name="wallet-outline" size={21} color="#8F1D3F" /></View>
-      <View style={{ flex: 1 }}><Text style={styles.revenueTitle}>Doanh thu tác giả</Text><Text style={styles.revenueBody}>Doanh thu Linh Thạch · Hoàn tiền · Đối soát</Text></View>
-      <Ionicons name="chevron-forward" size={18} color="#8F1D3F" />
-    </Pressable>
-    <Pressable style={styles.revenueCard} onPress={() => router.push('/author/reviews')}>
-      <View style={styles.revenueIcon}><Ionicons name="star-outline" size={21} color="#8F1D3F" /></View>
-      <View style={{ flex: 1 }}><Text style={styles.revenueTitle}>Đánh giá độc giả</Text><Text style={styles.revenueBody}>Điểm sao · Cảm nhận · Phản hồi theo từng truyện</Text></View>
-      <Ionicons name="chevron-forward" size={18} color="#8F1D3F" />
-    </Pressable>
-    <Pressable style={styles.revenueCard} onPress={() => router.push('/author/analytics')}>
-      <View style={styles.revenueIcon}><Ionicons name="analytics-outline" size={21} color="#8F1D3F" /></View>
-      <View style={{ flex: 1 }}><Text style={styles.revenueTitle}>Phân tích độc giả</Text><Text style={styles.revenueBody}>Phiên đọc · Hoàn thành · Quay lại · Thời gian đọc</Text></View>
-      <Ionicons name="chevron-forward" size={18} color="#8F1D3F" />
-    </Pressable>
-    <View style={styles.metrics}>{[[String(views), 'Lượt đọc'], [String(followers), 'Theo dõi'], [String(chapters), 'Tổng chương'], [String(books.reduce((sum, book) => sum + (book.draftChapters ?? 0), 0)), 'Chương nháp'], [String(drafts), 'Bản nháp'], [String(published), 'Đang xuất bản'], [String(books.filter((book) => book.backendStatus === 'completed').length), 'Đã hoàn thành'], [String(author.followersCount), 'Theo dõi tác giả']].map(([value, label]) => <View style={styles.metric} key={label}><Text style={styles.value}>{value}</Text><Text style={styles.label}>{label}</Text></View>)}</View>
-    <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Truyện của tôi</Text><Pressable onPress={() => router.push('/author/books/new')}><Text style={styles.link}>Tạo truyện</Text></Pressable></View>
-    {error ? <EmptyState title="Không tải được studio" detail={error} /> : books.length === 0 ? <EmptyState title="Chưa có truyện" detail="Tạo truyện đầu tiên để bắt đầu viết chương." /> : books.map((book) => <View style={styles.bookRow} key={book.id}><View style={[styles.cover, { backgroundColor: book.cover }]}><Text style={styles.coverLetter}>{book.title[0]}</Text></View><Pressable style={styles.bookInfo} onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters', params: { bookId: book.id } })}><Text numberOfLines={1} style={styles.bookTitle}>{book.title}</Text><Text style={styles.bookMeta}>{book.status} · {book.publishedChapters ?? book.totalChapters} đã xuất bản · {book.draftChapters ?? 0} nháp</Text><Text style={styles.bookMeta}>{book.views} lượt đọc · {book.followers} theo dõi</Text></Pressable><Pressable onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId: book.id, chapterId: 'new' } })} style={styles.write}><Ionicons name="create-outline" size={17} color="#8F1D3F" /><Text style={styles.writeText}>Viết</Text></Pressable></View>)}
-    <Pressable style={styles.button} onPress={() => router.push('/author/books/new')}><Ionicons name="add-circle-outline" size={20} color="#FFFFFF" /><Text style={styles.buttonText}>Tạo truyện</Text></Pressable>
-  </ScrollView></SafeAreaView>;
+
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  if (loading) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang mở Văn Các…" /></SafeAreaView>;
+  if (error) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={error} onRetry={load} /></SafeAreaView>;
+
+  if (!user) return <SafeAreaView style={styles.safe}>
+    <XianxiaBackdrop />
+    <View style={styles.centerPage}>
+      <View style={styles.sealLarge}><Text style={styles.sealLargeText}>笔</Text></View>
+      <Text style={styles.kicker}>VĂN CÁC · AUTHOR STUDIO</Text>
+      <Text style={styles.title}>Viết câu chuyện của bạn.</Text>
+      <Text style={styles.body}>Tạo thế giới, đăng từng chương và xây cộng đồng độc giả trên CHƯƠNG.</Text>
+      <Pressable style={styles.primaryButton} onPress={() => router.push('/auth/login')}>
+        <Ionicons name="log-in-outline" size={18} color={xianxia.goldSoft} />
+        <Text style={styles.primaryButtonText}>Đăng nhập / Đăng ký</Text>
+        <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
+      </Pressable>
+      {!configured && __DEV__ ? <Text style={styles.demo}>Demo · Supabase chưa được cấu hình để lưu dữ liệu.</Text> : null}
+      {!configured ? <View style={styles.previewLinks}>
+        <Pressable onPress={() => router.push('/author/onboarding')}><Text style={styles.link}>Xem đăng ký tác giả</Text></Pressable>
+        <Pressable onPress={() => router.push('/author/books/new')}><Text style={styles.link}>Xem tạo truyện</Text></Pressable>
+        <Pressable onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId: 'demo', chapterId: 'new' } })}><Text style={styles.link}>Xem trình soạn thảo</Text></Pressable>
+      </View> : null}
+    </View>
+  </SafeAreaView>;
+
+  if (!author) return <SafeAreaView style={styles.safe}>
+    <XianxiaBackdrop />
+    <View style={styles.centerPage}>
+      <View style={styles.sealLarge}><Text style={styles.sealLargeText}>道</Text></View>
+      <Text style={styles.kicker}>KHAI BÚT NHẬP ĐẠO</Text>
+      <Text style={styles.title}>Trở thành tác giả CHƯƠNG.</Text>
+      <Text style={styles.body}>Tạo bút danh, giới thiệu bản thân và xác nhận quyền sử dụng nội dung trước khi xuất bản.</Text>
+      <Pressable style={styles.primaryButton} onPress={() => router.push('/author/onboarding')}>
+        <Ionicons name="brush-outline" size={18} color={xianxia.goldSoft} />
+        <Text style={styles.primaryButtonText}>Trở thành tác giả</Text>
+        <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
+      </Pressable>
+    </View>
+  </SafeAreaView>;
+
+  const views = books.reduce((sum, book) => sum + (book.viewsCount ?? 0), 0);
+  const followers = books.reduce((sum, book) => sum + (book.followersCount ?? 0), 0);
+  const chapters = books.reduce((sum, book) => sum + book.totalChapters, 0);
+  const drafts = books.filter((book) => book.backendStatus === 'draft').length;
+  const published = books.filter((book) => book.backendStatus === 'ongoing').length;
+
+  return <SafeAreaView style={styles.safe} edges={['top']}>
+    <XianxiaBackdrop />
+    <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+      <View style={styles.headRow}>
+        <View>
+          <Text style={styles.kicker}>VĂN CÁC · AUTHOR STUDIO</Text>
+          <Text style={styles.penName}>{author.penName}</Text>
+          <Text style={styles.subhead}>Viết · xuất bản · theo dõi hành trình độc giả.</Text>
+        </View>
+        <Pressable style={styles.add} onPress={() => router.push('/author/books/new')}>
+          <Ionicons name="add" size={21} color={xianxia.goldSoft} />
+        </Pressable>
+      </View>
+
+      <View style={styles.hero}>
+        <XianxiaCoverArt />
+        <View style={styles.heroSeal}><Text style={styles.heroSealText}>文</Text></View>
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroTitle}>Mỗi chương là một bước trên tiên lộ.</Text>
+          <Text style={styles.heroBody}>Lượt đọc được ghi nhận từ phiên đọc thật. Phân tích được tổng hợp định kỳ để giữ hệ thống ổn định khi lượng độc giả tăng cao.</Text>
+        </View>
+      </View>
+
+      <View style={styles.quickGrid}>
+        {[
+          ['wallet-outline', 'Doanh thu tác giả', 'Linh Thạch · hoàn tiền · đối soát', '/author/revenue'],
+          ['star-outline', 'Đánh giá độc giả', 'Điểm sao · cảm nhận · phản hồi', '/author/reviews'],
+          ['analytics-outline', 'Phân tích độc giả', 'Phiên đọc · hoàn thành · quay lại', '/author/analytics'],
+        ].map(([icon, title, body, href]) => <Pressable key={href} style={styles.quickCard} onPress={() => router.push(href as never)}>
+          <View style={styles.quickIcon}><Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={19} color={xianxia.jadeDeep} /></View>
+          <View style={{ flex: 1 }}><Text style={styles.quickTitle}>{title}</Text><Text style={styles.quickBody}>{body}</Text></View>
+          <Ionicons name="chevron-forward" size={17} color={xianxia.jade} />
+        </Pressable>)}
+      </View>
+
+      <View style={styles.metrics}>
+        {[
+          [String(views), 'Lượt đọc'],
+          [String(followers), 'Theo dõi truyện'],
+          [String(chapters), 'Tổng chương'],
+          [String(books.reduce((sum, book) => sum + (book.draftChapters ?? 0), 0)), 'Chương nháp'],
+          [String(drafts), 'Truyện nháp'],
+          [String(published), 'Đang xuất bản'],
+          [String(books.filter((book) => book.backendStatus === 'completed').length), 'Đã hoàn thành'],
+          [String(author.followersCount), 'Theo dõi tác giả'],
+        ].map(([value, label]) => <View style={styles.metric} key={label}><Text style={styles.value}>{value}</Text><Text style={styles.label}>{label}</Text></View>)}
+      </View>
+
+      <View style={styles.sectionHead}>
+        <View><Text style={styles.sectionKicker}>LINH QUYỂN CỦA TA</Text><Text style={styles.sectionTitle}>Truyện của tôi</Text></View>
+        <Pressable style={styles.createMini} onPress={() => router.push('/author/books/new')}><Ionicons name="add" size={15} color={xianxia.goldSoft} /><Text style={styles.createMiniText}>Tạo truyện</Text></Pressable>
+      </View>
+
+      {books.length === 0 ? <EmptyState title="Chưa có truyện" detail="Tạo linh quyển đầu tiên để bắt đầu viết chương." /> : <View style={styles.bookList}>
+        {books.map((book) => <View style={styles.bookRow} key={book.id}>
+          <View style={styles.coverFrame}>
+            <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
+              <XianxiaCoverArt compact />
+              {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text numberOfLines={3} style={styles.coverText}>{book.title}</Text>}
+              <View style={styles.coverSeal}><Text style={styles.coverSealText}>作</Text></View>
+            </View>
+          </View>
+          <Pressable style={styles.bookInfo} onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters', params: { bookId: book.id } })}>
+            <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
+            <Text style={styles.bookMeta}>{book.status} · {book.publishedChapters ?? book.totalChapters} đã xuất bản · {book.draftChapters ?? 0} nháp</Text>
+            <Text style={styles.bookMeta}>{book.views} lượt đọc · {book.followers} theo dõi</Text>
+            <View style={styles.statusPill}><Text style={styles.statusPillText}>{book.visibility === 'public' && book.backendStatus !== 'draft' ? 'CÔNG KHAI' : 'RIÊNG TƯ'}</Text></View>
+          </Pressable>
+          <Pressable onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId: book.id, chapterId: 'new' } })} style={styles.write}>
+            <Ionicons name="brush-outline" size={16} color={xianxia.goldSoft} />
+            <Text style={styles.writeText}>Viết</Text>
+          </Pressable>
+        </View>)}
+      </View>
+
+      <Pressable style={styles.primaryButton} onPress={() => router.push('/author/books/new')}>
+        <Ionicons name="add-circle-outline" size={18} color={xianxia.goldSoft} />
+        <Text style={styles.primaryButtonText}>Tạo truyện mới</Text>
+        <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
+      </Pressable>
+    </ScrollView>
+  </SafeAreaView>;
 }
 
-const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: '#F8F2E9' }, page: { padding: 16, paddingBottom: 42, width: '100%', maxWidth: 720, alignSelf: 'center' }, kicker: { color: '#8F1D3F', fontSize: 11, fontWeight: '900', letterSpacing: 1.3, marginTop: 10 }, title: { color: '#221A1D', fontSize: 31, lineHeight: 38, fontWeight: '900', marginTop: 8, maxWidth: 330 }, body: { color: '#756B6F', fontSize: 14, lineHeight: 21, marginTop: 9, maxWidth: 420 }, demo: { color: '#9A8E93', fontSize: 10, marginTop: 12 }, headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, penName: { color: '#221A1D', fontSize: 27, fontWeight: '900', marginTop: 5 }, add: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center' }, note: { color: '#81757A', fontSize: 10, lineHeight: 15, marginTop: 12 }, revenueCard: { marginTop: 14, minHeight: 68, borderRadius: 16, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E9DDD6', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11 }, revenueIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' }, revenueTitle: { color: '#2D2327', fontSize: 13, fontWeight: '900' }, revenueBody: { color: '#796D72', fontSize: 10, marginTop: 3 }, metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 19 }, metric: { width: '48%', flexGrow: 1, padding: 16, backgroundColor: '#FFFDFC', borderRadius: 16, borderWidth: 1, borderColor: '#E9DDD6' }, value: { color: '#221A1D', fontSize: 20, fontWeight: '900' }, label: { color: '#756B6F', fontSize: 12, marginTop: 3 }, sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 25, marginBottom: 8 }, sectionTitle: { color: '#221A1D', fontSize: 19, fontWeight: '900' }, link: { color: '#8F1D3F', fontSize: 11, fontWeight: '900' }, bookRow: { minHeight: 91, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DDD0C9', paddingVertical: 10 }, cover: { width: 52, height: 70, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, coverLetter: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' }, bookInfo: { flex: 1 }, bookTitle: { color: '#2D2327', fontSize: 14, fontWeight: '900' }, bookMeta: { color: '#81757A', fontSize: 10, marginTop: 4 }, write: { alignItems: 'center', padding: 7 }, writeText: { color: '#8F1D3F', fontSize: 9, fontWeight: '900', marginTop: 2 }, button: { marginTop: 20, height: 52, borderRadius: 16, backgroundColor: '#8F1D3F', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' }, buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' } });
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: xianxia.paper },
+  page: { padding: 16, paddingBottom: 44, width: '100%', maxWidth: 740, alignSelf: 'center' },
+  centerPage: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', justifyContent: 'center', padding: 24 },
+  sealLarge: { width: 60, height: 60, borderRadius: 18, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center' },
+  sealLargeText: { color: '#F4DDA8', fontSize: 28, fontWeight: '900' },
+  kicker: { color: xianxia.cinnabar, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.4, marginTop: 10 },
+  title: { color: xianxia.ink, fontSize: 31, lineHeight: 38, fontWeight: '900', marginTop: 8, maxWidth: 360 },
+  body: { color: xianxia.muted, fontSize: 13, lineHeight: 21, marginTop: 9, maxWidth: 430 },
+  demo: { color: xianxia.muted, fontSize: 9, marginTop: 12 },
+  previewLinks: { gap: 9, marginTop: 14 },
+  link: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900' },
+  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  penName: { color: xianxia.ink, fontSize: 27, fontWeight: '900', marginTop: 5 },
+  subhead: { color: xianxia.muted, fontSize: 9, marginTop: 4 },
+  add: { width: 43, height: 43, borderRadius: 14, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', alignItems: 'center', justifyContent: 'center' },
+  hero: { marginTop: 16, minHeight: 126, borderRadius: 20, padding: 16, backgroundColor: '#27423B', borderWidth: 1, borderColor: '#496A61', flexDirection: 'row', alignItems: 'center', gap: 14, overflow: 'hidden' },
+  heroSeal: { width: 50, height: 50, borderRadius: 15, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  heroSealText: { color: '#F4DDA8', fontSize: 23, fontWeight: '900' },
+  heroCopy: { flex: 1, zIndex: 2 },
+  heroTitle: { color: xianxia.white, fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  heroBody: { color: 'rgba(255,253,248,.64)', fontSize: 8.5, lineHeight: 13, marginTop: 5 },
+  quickGrid: { gap: 9, marginTop: 13 },
+  quickCard: { minHeight: 68, borderRadius: 16, backgroundColor: 'rgba(255,253,247,.89)', borderWidth: 1, borderColor: xianxia.line, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  quickIcon: { width: 39, height: 39, borderRadius: 12, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#BCD0C1', alignItems: 'center', justifyContent: 'center' },
+  quickTitle: { color: xianxia.ink, fontSize: 11, fontWeight: '900' },
+  quickBody: { color: xianxia.muted, fontSize: 8, marginTop: 3 },
+  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 16 },
+  metric: { width: '47%', flexGrow: 1, minHeight: 78, padding: 13, backgroundColor: 'rgba(255,253,247,.88)', borderRadius: 15, borderWidth: 1, borderColor: xianxia.line, justifyContent: 'center' },
+  value: { color: xianxia.jadeDeep, fontSize: 21, fontWeight: '900' },
+  label: { color: xianxia.muted, fontSize: 9, marginTop: 3, fontWeight: '800' },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 25, marginBottom: 8 },
+  sectionKicker: { color: xianxia.cinnabar, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.1 },
+  sectionTitle: { color: xianxia.ink, fontSize: 18, fontWeight: '900', marginTop: 2 },
+  createMini: { minHeight: 36, borderRadius: 11, paddingHorizontal: 10, backgroundColor: xianxia.jadeDeep, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  createMiniText: { color: xianxia.white, fontSize: 8.5, fontWeight: '900' },
+  bookList: { gap: 9 },
+  bookRow: { minHeight: 132, borderRadius: 18, backgroundColor: 'rgba(255,253,247,.90)', borderWidth: 1, borderColor: xianxia.line, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  coverFrame: { padding: 2, borderRadius: 13, backgroundColor: xianxia.goldSoft },
+  cover: { width: 67, height: 100, borderRadius: 11, overflow: 'hidden', justifyContent: 'center', padding: 7 },
+  coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  coverText: { color: xianxia.white, fontSize: 9, lineHeight: 12, fontWeight: '900', textAlign: 'center', zIndex: 2 },
+  coverSeal: { position: 'absolute', right: 4, top: 4, width: 18, height: 18, borderRadius: 5, backgroundColor: 'rgba(132,50,41,.82)', borderWidth: 1, borderColor: 'rgba(229,209,163,.7)', alignItems: 'center', justifyContent: 'center' },
+  coverSealText: { color: '#F3D99D', fontSize: 7.5, fontWeight: '900' },
+  bookInfo: { flex: 1 },
+  bookTitle: { color: xianxia.ink, fontSize: 13, lineHeight: 17, fontWeight: '900' },
+  bookMeta: { color: xianxia.muted, fontSize: 8, marginTop: 4 },
+  statusPill: { alignSelf: 'flex-start', marginTop: 7, borderRadius: 99, backgroundColor: xianxia.jadeMist, paddingHorizontal: 7, paddingVertical: 4 },
+  statusPillText: { color: xianxia.jadeDeep, fontSize: 6.8, fontWeight: '900' },
+  write: { minWidth: 48, minHeight: 50, borderRadius: 12, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
+  writeText: { color: xianxia.white, fontSize: 8, fontWeight: '900', marginTop: 2 },
+  primaryButton: { marginTop: 20, minHeight: 53, borderRadius: 16, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', paddingHorizontal: 15, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center' },
+  primaryButtonText: { flex: 1, color: xianxia.white, fontSize: 12, fontWeight: '900', textAlign: 'center' },
+});
