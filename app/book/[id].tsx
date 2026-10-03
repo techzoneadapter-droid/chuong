@@ -144,7 +144,7 @@ export default function BookDetailScreen() {
           <View style={styles.hero}>
             <View style={styles.coverFrame}>
               <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-                <XianxiaCoverArt />
+                <XianxiaCoverArt seed={book.id} />
                 {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <>
                   <Text style={styles.coverBrand}>CHƯƠNG</Text>
                   <Text numberOfLines={4} style={styles.coverTitle}>{book.title}</Text>

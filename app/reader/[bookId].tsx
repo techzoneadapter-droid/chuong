@@ -31,7 +31,7 @@ type Bookmark = { chapter: number; progress: number; updatedAt: string };
 
 const themes: Record<ReaderTheme, { bg: string; text: string; muted: string; bar: string }> = {
   white: { bg: '#FFFFFF', text: '#282326', muted: '#837A7E', bar: '#FFFFFF' },
-  paper: { bg: '#F8F2E9', text: '#302821', muted: '#84766B', bar: '#FFFDFC' },
+  paper: { bg: '#F4EBD8', text: '#2B2A24', muted: '#766F66', bar: '#FFF8EA' },
   night: { bg: '#27282C', text: '#DAD5CD', muted: '#A9A49D', bar: '#211F20' },
   amoled: { bg: '#000000', text: '#D1CDCA', muted: '#8D8986', bar: '#080808' }
 };

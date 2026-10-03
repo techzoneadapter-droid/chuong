@@ -22,7 +22,7 @@ export function BookCard({ book, compact = false }: Props) {
     >
       <View style={[styles.coverFrame, compact && styles.compactFrame]}>
         <View style={[styles.cover, compact && styles.compactCover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-          <XianxiaCoverArt compact={compact} />
+          <XianxiaCoverArt compact={compact} seed={book.id} />
           {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} resizeMode="cover" /> : null}
           {book.coverUrl ? <View pointerEvents="none" style={styles.imageShade} /> : null}
           <View style={styles.coverTop}>

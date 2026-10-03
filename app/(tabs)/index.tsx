@@ -7,6 +7,7 @@ import { BookCard } from '../../components/BookCard';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
 import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
+import { artwork } from '../../constants/artwork';
 import { useAuth } from '../../contexts/AuthContext';
 import { books as demoBooks } from '../../data/books';
 import { getBooks } from '../../services/books';
@@ -107,7 +108,7 @@ export default function HomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.page}>
         <View style={styles.header}>
           <View style={styles.brandRow}>
-            <View style={styles.brandSeal}><Text style={styles.brandSealText}>章</Text></View>
+            <Image source={artwork.icon} accessibilityLabel="Logo CHƯƠNG" style={{ width: 44, height: 44, borderRadius: 8 }} />
             <View>
               <Text style={styles.brand}>CHƯƠNG</Text>
               <Text style={styles.tagline}>Mỗi chương, một thế giới.</Text>
@@ -128,8 +129,8 @@ export default function HomeScreen() {
           style={({ pressed }) => [styles.hero, pressed && styles.pressed]}
           onPress={() => router.push({ pathname: '/book/[id]', params: { id: currentBook.id } })}
         >
-          <XianxiaCoverArt />
-          <View style={styles.heroInkOrb} />
+          <Image source={artwork.banner} resizeMode="cover" style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]} />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(8,25,20,0.72)' }]} />
           <View style={styles.heroCopy}>
             <View style={styles.heroTop}>
               <View style={styles.heroKicker}>
@@ -150,7 +151,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.heroCoverWrap}>
             <View style={[styles.heroCover, { backgroundColor: currentBook.cover || xianxia.jadeDeep }]}>
-              <XianxiaCoverArt compact />
+              <XianxiaCoverArt compact seed={currentBook.id} />
               {currentBook.coverUrl ? <Image source={{ uri: currentBook.coverUrl }} style={styles.heroCoverImage} /> : <Text numberOfLines={4} style={styles.heroCoverTitle}>{currentBook.title}</Text>}
               <View style={styles.heroCoverSeal}><Text style={styles.heroCoverSealText}>仙</Text></View>
             </View>
