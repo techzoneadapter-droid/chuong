@@ -53,6 +53,7 @@ function targetLabel(item: ReportRow) {
   if (item.chapter_id) return 'Chương · ' + item.chapter_id.slice(0, 8);
   if (item.comment_id) return 'Bình luận · ' + item.comment_id.slice(0, 8);
   if (item.author_id) return 'Tác giả · ' + item.author_id.slice(0, 8);
+  if (item.review_id) return 'Đánh giá · ' + item.review_id.slice(0, 8);
   return 'Không xác định';
 }
 
