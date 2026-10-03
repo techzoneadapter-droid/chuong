@@ -1159,6 +1159,143 @@ export type Database = {
         }
         Relationships: []
       }
+      push_deliveries: {
+        Row: {
+          attempts: number
+          created_at: string
+          delivered_at: string | null
+          device_id: string
+          id: string
+          locked_at: string | null
+          next_attempt_at: string
+          notification_id: string
+          receipt_checked_at: string | null
+          receipt_error_code: string | null
+          receipt_error_message: string | null
+          receipt_status: string | null
+          sent_at: string | null
+          status: string
+          ticket_error_code: string | null
+          ticket_error_message: string | null
+          ticket_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          delivered_at?: string | null
+          device_id: string
+          id?: string
+          locked_at?: string | null
+          next_attempt_at?: string
+          notification_id: string
+          receipt_checked_at?: string | null
+          receipt_error_code?: string | null
+          receipt_error_message?: string | null
+          receipt_status?: string | null
+          sent_at?: string | null
+          status?: string
+          ticket_error_code?: string | null
+          ticket_error_message?: string | null
+          ticket_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          delivered_at?: string | null
+          device_id?: string
+          id?: string
+          locked_at?: string | null
+          next_attempt_at?: string
+          notification_id?: string
+          receipt_checked_at?: string | null
+          receipt_error_code?: string | null
+          receipt_error_message?: string | null
+          receipt_status?: string | null
+          sent_at?: string | null
+          status?: string
+          ticket_error_code?: string | null
+          ticket_error_message?: string | null
+          ticket_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_deliveries_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "push_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_deliveries_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_devices: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          device_key: string
+          device_label: string | null
+          enabled: boolean
+          expo_push_token: string
+          id: string
+          invalidated_at: string | null
+          invalidation_reason: string | null
+          last_seen_at: string
+          platform: string
+          project_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          device_key: string
+          device_label?: string | null
+          enabled?: boolean
+          expo_push_token: string
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          last_seen_at?: string
+          platform: string
+          project_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          device_key?: string
+          device_label?: string | null
+          enabled?: boolean
+          expo_push_token?: string
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          last_seen_at?: string
+          platform?: string
+          project_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_devices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reading_progress: {
         Row: {
           book_id: string
@@ -1892,6 +2029,21 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_push_deliveries: {
+        Args: { p_limit?: number }
+        Returns: {
+          action_route: string
+          attempts: number
+          body: string
+          category: string
+          delivery_id: string
+          device_id: string
+          expo_push_token: string
+          notification_id: string
+          title: string
+          user_id: string
+        }[]
+      }
       credit_verified_store_purchase: {
         Args: {
           p_external_transaction_id: string
@@ -1985,6 +2137,38 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      register_push_device: {
+        Args: {
+          p_app_version: string
+          p_device_key: string
+          p_device_label: string
+          p_expo_push_token: string
+          p_platform: string
+          p_project_id: string
+        }
+        Returns: {
+          app_version: string | null
+          created_at: string
+          device_key: string
+          device_label: string | null
+          enabled: boolean
+          expo_push_token: string
+          id: string
+          invalidated_at: string | null
+          invalidation_reason: string | null
+          last_seen_at: string
+          platform: string
+          project_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "push_devices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       restore_revoked_store_purchase: {
         Args: {
           p_external_transaction_id: string
@@ -2068,6 +2252,11 @@ export type Database = {
           price_paid_coins: number
           unlocked: boolean
         }[]
+      }
+      unregister_all_push_devices: { Args: never; Returns: number }
+      unregister_push_device: {
+        Args: { p_device_key: string }
+        Returns: boolean
       }
       update_notification_preferences: {
         Args: {
