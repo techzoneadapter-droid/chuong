@@ -352,7 +352,7 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $
+as $$
   with agg as (
     select
       coalesce(round(avg(r.rating)::numeric,2),0) as average_rating,
@@ -385,7 +385,7 @@ as $
     m.spoiler
   from agg a
   left join mine m on true;
-$;
+$$;
 
 revoke execute on function public.get_book_review_summary(uuid) from public;
 grant execute on function public.get_book_review_summary(uuid) to anon, authenticated;
