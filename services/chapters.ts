@@ -6,13 +6,29 @@ import { Database } from '../types/database';
 import { toServiceError } from './errors';
 
 type ChapterRow = Database['public']['Tables']['chapters']['Row'];
+type ChapterShape = Pick<ChapterRow, 'id' | 'book_id' | 'chapter_number' | 'title' | 'status' | 'is_vip' | 'price_coins' | 'published_at'> & {
+  content?: string | null;
+};
 
-export const mapChapter = (row: Omit<ChapterRow, 'content'> & { content?: string }): Chapter => ({
+export class ContentLockedError extends Error {
+  kind: 'book' | 'chapter';
+  priceCoins: number;
+  chapterId: string;
+  constructor(kind: 'book' | 'chapter', priceCoins: number, chapterId: string) {
+    super(kind === 'book' ? 'Truyện VIP chưa được mở khóa.' : 'Chương VIP chưa được mở khóa.');
+    this.name = 'ContentLockedError';
+    this.kind = kind;
+    this.priceCoins = priceCoins;
+    this.chapterId = chapterId;
+  }
+}
+
+export const mapChapter = (row: ChapterShape): Chapter => ({
   id: row.id,
   bookId: row.book_id,
   number: row.chapter_number,
   title: row.title,
-  content: row.content,
+  content: row.content ?? undefined,
   date: row.published_at ? new Date(row.published_at).toLocaleDateString('vi-VN') : 'Bản nháp',
   relativeDate: row.published_at ? new Date(row.published_at).toLocaleDateString('vi-VN') : 'Chưa xuất bản',
   access: row.is_vip ? 'vip' : 'free',
@@ -33,22 +49,41 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
   try {
     const chapters: Chapter[] = [];
     for (let offset = 0; ; offset += 500) {
-      const { data, error } = await supabase.from('chapters').select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at,created_at,updated_at').eq('book_id', bookId).eq('status', 'published').order('chapter_number').range(offset, offset + 499);
+      const { data, error } = await supabase
+        .from('chapters')
+        .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at')
+        .eq('book_id', bookId)
+        .eq('status', 'published')
+        .order('chapter_number')
+        .range(offset, offset + 499);
       if (error) throw error;
       chapters.push(...(data ?? []).map(mapChapter));
       if (!data || data.length < 500) break;
     }
     return { data: chapters, mode: 'supabase' };
-  } catch (error) { throw toServiceError(error, 'Không thể tải danh sách chương.'); }
+  } catch (error) {
+    throw toServiceError(error, 'Không thể tải danh sách chương.');
+  }
 }
 
 export async function getChapter(bookId: string, chapterNumber: number): Promise<ServiceResult<Chapter | null>> {
   if (!supabase) return { data: demoChapter(bookId, chapterNumber), mode: 'demo' };
   try {
-    const { data, error } = await supabase.from('chapters').select('*').eq('book_id', bookId).eq('chapter_number', chapterNumber).eq('status', 'published').maybeSingle();
+    const { data, error } = await supabase.rpc('get_chapter_for_reading', {
+      p_book_id: bookId,
+      p_chapter_number: chapterNumber,
+    });
     if (error) throw error;
-    return { data: data ? mapChapter(data) : null, mode: 'supabase' };
-  } catch (error) { throw toServiceError(error, 'Không thể tải nội dung chương.'); }
+    const row = data?.[0];
+    if (!row) return { data: null, mode: 'supabase' };
+    if (row.lock_kind === 'book' || row.lock_kind === 'chapter') {
+      throw new ContentLockedError(row.lock_kind, row.lock_price_coins ?? row.price_coins ?? 0, row.id);
+    }
+    return { data: mapChapter(row), mode: 'supabase' };
+  } catch (error) {
+    if (error instanceof ContentLockedError) throw error;
+    throw toServiceError(error, 'Không thể tải nội dung chương.');
+  }
 }
 
 export async function getPreviousChapter(bookId: string, chapterNumber: number) {
@@ -66,27 +101,37 @@ export async function getLatestChapter(bookId: string) {
   return { ...result, data: result.data[result.data.length - 1] ?? null };
 }
 
-
 export const getChapters = getChaptersByBook;
+
 export async function createChapter(input: Omit<ChapterInput, 'id'>) {
   const { saveChapter } = await import('./authors');
   return saveChapter(input);
 }
+
 export async function updateChapter(input: ChapterInput & { id: string }) {
   const { saveChapter } = await import('./authors');
   return saveChapter(input);
 }
+
 export async function saveDraft(input: ChapterInput) {
   const { saveChapter } = await import('./authors');
   return saveChapter({ ...input, status: 'draft' });
 }
+
 async function setChapterStatus(id: string, status: 'draft' | 'published') {
-  const { data, error } = await requireSupabase().from('chapters').update({ status }).eq('id', id).select('*').single();
+  const { data, error } = await requireSupabase()
+    .from('chapters')
+    .update({ status })
+    .eq('id', id)
+    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at')
+    .single();
   if (error) throw toServiceError(error, 'Không thể thay đổi trạng thái chương. Kiểm tra tiêu đề và nội dung.');
   return mapChapter(data);
 }
+
 export const publishChapter = (id: string) => setChapterStatus(id, 'published');
 export const unpublishChapter = (id: string) => setChapterStatus(id, 'draft');
+
 export async function deleteDraftChapter(id: string) {
   const { data, error } = await requireSupabase().from('chapters').delete().eq('id', id).eq('status', 'draft').select('id');
   if (error) throw toServiceError(error, 'Không thể xóa chương.');
