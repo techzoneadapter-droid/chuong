@@ -11,6 +11,13 @@ import {
   NotificationPreferences,
   saveNotificationPreferences,
 } from '../../services/notifications';
+import {
+  getPushCapability,
+  getRegisteredPushDevices,
+  PushCapability,
+  registerCurrentDeviceForPush,
+  unregisterCurrentPushDevice,
+} from '../../services/pushNotifications';
 
 export default function NotificationSettingsScreen() {
   const router = useRouter();
@@ -20,6 +27,8 @@ export default function NotificationSettingsScreen() {
   const [savingKey, setSavingKey] = useState('');
   const [error, setError] = useState('');
   const [saved, setSaved] = useState('');
+  const [pushCapability, setPushCapability] = useState<PushCapability | null>(null);
+  const [registeredDevices, setRegisteredDevices] = useState(0);
 
   const load = useCallback(async () => {
     if (authLoading) return;
@@ -30,7 +39,17 @@ export default function NotificationSettingsScreen() {
     setLoading(true);
     setError('');
     try {
-      setPrefs(await getNotificationPreferences());
+      const [nextPrefs, capability] = await Promise.all([
+        getNotificationPreferences(),
+        getPushCapability(),
+      ]);
+      setPrefs(nextPrefs);
+      setPushCapability(capability);
+      if (capability.supported) {
+        setRegisteredDevices((await getRegisteredPushDevices()).length);
+      } else {
+        setRegisteredDevices(0);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể tải cài đặt thông báo.');
     } finally {
@@ -54,6 +73,39 @@ export default function NotificationSettingsScreen() {
     } catch (cause) {
       setPrefs(prefs);
       setError(cause instanceof Error ? cause.message : 'Không thể lưu cài đặt.');
+    } finally {
+      setSavingKey('');
+    }
+  };
+
+  const updatePush = async (value: boolean) => {
+    const previous = prefs;
+    setSavingKey('pushEnabled');
+    setError('');
+    setSaved('');
+    try {
+      if (value) {
+        if (!pushCapability?.supported) {
+          throw new Error(pushCapability?.reason || 'Build hiện tại chưa hỗ trợ push.');
+        }
+        await registerCurrentDeviceForPush({ requestPermission: true });
+        const next = { ...prefs, inAppEnabled: true, pushEnabled: true };
+        await saveNotificationPreferences(next);
+        setPrefs(next);
+        setSaved('Đã bật push trên thiết bị này.');
+      } else {
+        const next = { ...prefs, pushEnabled: false };
+        await saveNotificationPreferences(next);
+        setPrefs(next);
+        await unregisterCurrentPushDevice().catch(() => false);
+        setSaved('Đã tắt push.');
+      }
+      const capability = await getPushCapability();
+      setPushCapability(capability);
+      setRegisteredDevices(capability.supported ? (await getRegisteredPushDevices()).length : 0);
+    } catch (cause) {
+      setPrefs(previous);
+      setError(cause instanceof Error ? cause.message : 'Không thể thay đổi push notification.');
     } finally {
       setSavingKey('');
     }
@@ -106,9 +158,25 @@ export default function NotificationSettingsScreen() {
         <View style={styles.pushIcon}><Ionicons name="phone-portrait-outline" size={22} color="#8F1D3F" /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.pushTitle}>Push notification</Text>
-          <Text style={styles.pushBody}>Nền tảng dữ liệu đã sẵn sàng. Bước native tiếp theo sẽ đăng ký device token và gửi FCM/APNs. Hiện chưa bật để tránh hiển thị một công tắc chưa hoạt động.</Text>
+          <Text style={styles.pushBody}>
+            {pushCapability?.supported
+              ? (prefs.pushEnabled
+                ? 'Đang bật · ' + registeredDevices + ' thiết bị đã đăng ký. Thông báo mới sẽ được gửi qua Expo Push → FCM/APNs.'
+                : 'Build này đã sẵn sàng. Bật để xin quyền hệ thống và đăng ký thiết bị.')
+              : (pushCapability?.reason || 'Đang kiểm tra khả năng push…')}
+          </Text>
         </View>
-        <Switch value={false} disabled trackColor={{ false: '#D7CCCF', true: '#C98DA1' }} thumbColor="#F6F1F2" />
+        <Switch
+          value={prefs.pushEnabled}
+          onValueChange={(value) => { void updatePush(value); }}
+          disabled={!pushCapability?.supported || Boolean(savingKey)}
+          trackColor={{ false: '#D7CCCF', true: '#C98DA1' }}
+          thumbColor={prefs.pushEnabled ? '#8F1D3F' : '#F6F1F2'}
+        />
+      </View>
+      <View style={styles.pushHint}>
+        <Ionicons name="shield-checkmark-outline" size={17} color="#8F1D3F" />
+        <Text style={styles.pushHintText}>Push chỉ được gửi cho sự kiện đã có trong Inbox. Tắt từng nhóm ở trên cũng đồng thời tắt push của nhóm đó.</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;
@@ -170,4 +238,6 @@ const styles = StyleSheet.create({
   pushIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' },
   pushTitle: { color: '#30262A', fontSize: 12, fontWeight: '900' },
   pushBody: { color: '#85787D', fontSize: 9, lineHeight: 14, marginTop: 4 },
+  pushHint: { marginTop: 9, borderRadius: 13, backgroundColor: '#F0E1E5', padding: 11, flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  pushHintText: { flex: 1, color: '#65575D', fontSize: 9, lineHeight: 14 },
 });
