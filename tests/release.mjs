@@ -76,7 +76,8 @@ function walk(dir, files = []) {
       name === '.cache' ||
       rel.startsWith('docs/') ||
       rel.startsWith('tests/') ||
-      rel.startsWith('supabase/migrations/')
+      rel.startsWith('supabase/migrations/') ||
+      rel.startsWith('supabase/functions/')
     ) continue;
     const stat = statSync(path);
     if (stat.isDirectory()) walk(path, files);
