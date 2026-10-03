@@ -1,7 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const jsonHeaders = { "Content-Type": "application/json" };
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const ANDROID_SCOPE = "https://www.googleapis.com/auth/androidpublisher";
 
 type Provider = "google_play" | "app_store";
@@ -318,6 +323,7 @@ async function verifyApplePurchase(input: {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return reply(405, { error: "method_not_allowed" });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
