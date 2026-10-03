@@ -710,6 +710,7 @@ export type Database = {
           author_id: string
           cover_url: string | null
           created_at: string
+          credited_author_name: string | null
           description: string
           engagement_score: number
           engagement_updated_at: string | null
@@ -739,6 +740,7 @@ export type Database = {
           author_id: string
           cover_url?: string | null
           created_at?: string
+          credited_author_name?: string | null
           description?: string
           engagement_score?: number
           engagement_updated_at?: string | null
@@ -768,6 +770,7 @@ export type Database = {
           author_id?: string
           cover_url?: string | null
           created_at?: string
+          credited_author_name?: string | null
           description?: string
           engagement_score?: number
           engagement_updated_at?: string | null
