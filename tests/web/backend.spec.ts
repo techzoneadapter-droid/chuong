@@ -466,7 +466,7 @@ test('community discovery, follow, public profile and privacy settings stay conn
   await page.getByText('Bạn đọc thử nghiệm', { exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/user/${targetUserId}`));
   await expect(page.getByText('Kệ sách công khai', { exact: true })).toBeVisible();
-  await expect(page.getByText('Truyện từ máy chủ', { exact: true })).toBeVisible();
+  await expect(page.getByText('Truyện từ máy chủ', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Một đánh giá công khai để kiểm thử hồ sơ.', { exact: true })).toBeVisible();
 
   await page.goto('/profile/privacy');
