@@ -20,6 +20,7 @@ import { ContentLockedError, getChapter, getChaptersByBook } from '../../service
 import { unlockBook, unlockChapter, UnlockError } from '../../services/entitlements';
 import { getWallet } from '../../services/wallet';
 import { getBookmarks, getReadingProgress, toggleBookmark as persistBookmark } from '../../services/library';
+import { getOfflineBookSnapshot } from '../../services/offlineDownloads';
 import { useAuth } from '../../contexts/AuthContext';
 import { SLEEP_TIMERS, SleepTimer, TTS_SPEEDS, TTS_VOICES, TtsVoice } from '../../services/tts';
 import { Book, Chapter, ReaderFont, ReaderMode, ReaderSettings, ReaderSpacing, ReaderTheme } from '../../types';
@@ -53,6 +54,7 @@ export default function ReaderScreen() {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState('');
+  const [offlineReading, setOfflineReading] = useState(false);
   const [reload, setReload] = useState(0);
   const [progressReady, setProgressReady] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
@@ -68,6 +70,10 @@ export default function ReaderScreen() {
   const sync = useReadingProgressSync({ bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress, scrollPosition: scrollPosition.current }, user?.id, progressReady && Boolean(selectedChapter));
   const exitReader = () => {
     void sync.flush();
+    if (offlineReading) {
+      router.replace('/downloads');
+      return;
+    }
     router.replace({ pathname: '/book/[id]', params: { id: book.id } });
   };
   const content = useMemo(() => chapter.content ? chapter.content.split(/\n\s*\n/).filter(Boolean) : getChapterContent(chapterNumber), [chapter.content, chapterNumber]);
@@ -92,25 +98,36 @@ export default function ReaderScreen() {
 
     const load = async () => {
       try {
-        const result = await getBookById(params.bookId);
-        if (!active) return;
-        if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
+        let hydrated: Book;
+        let localOnly = false;
 
-        const chapters = await getChaptersByBook(result.data.id);
-        if (!active) return;
-        const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length };
-        const saved = await getReadingProgress(hydrated.id, user?.id);
+        try {
+          const result = await getBookById(params.bookId);
+          if (!active) return;
+          if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
+
+          const chapters = await getChaptersByBook(result.data.id);
+          if (!active) return;
+          hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length };
+        } catch (networkOrCatalogError) {
+          const offlineBook = await getOfflineBookSnapshot(params.bookId);
+          if (!offlineBook) throw networkOrCatalogError;
+          hydrated = offlineBook;
+          localOnly = true;
+        }
+
+        const saved = await getReadingProgress(hydrated.id, user?.id).catch(() => null);
         const requested = Number(params.chapter) || saved?.chapterNumber;
-        const targetChapter = requested && chapters.data.some((item) => item.number === requested)
+        const targetChapter = requested && hydrated.chapters.some((item) => item.number === requested)
           ? requested
-          : chapters.data[0]?.number ?? 1;
+          : hydrated.chapters[0]?.number ?? 1;
 
         setBook(hydrated);
         setChapterNumber(targetChapter);
 
         let selected: Awaited<ReturnType<typeof getChapter>> | null = null;
         try {
-          selected = chapters.data.length ? await getChapter(hydrated.id, targetChapter) : null;
+          selected = hydrated.chapters.length ? await getChapter(hydrated.id, targetChapter) : null;
         } catch (cause) {
           if (cause instanceof ContentLockedError) {
             if (!active) return;
@@ -131,8 +148,10 @@ export default function ReaderScreen() {
         }
 
         if (!active) return;
-        if (chapters.data.length && !selected?.data) throw new Error('Chương này chưa được xuất bản hoặc không còn khả dụng.');
+        if (hydrated.chapters.length && !selected?.data) throw new Error('Chương này chưa được xuất bản hoặc không còn khả dụng.');
 
+        localOnly = localOnly || selected?.mode === 'offline';
+        setOfflineReading(localOnly);
         setBook({
           ...hydrated,
           chapters: hydrated.chapters.map((item) =>
@@ -141,7 +160,7 @@ export default function ReaderScreen() {
         });
         setReadingProgress(saved?.chapterNumber === targetChapter ? saved.progressPercent : 0);
         scrollPosition.current = saved?.chapterNumber === targetChapter ? saved.scrollPosition : 0;
-        const marks = await getBookmarks(hydrated.id, user?.id);
+        const marks = await getBookmarks(hydrated.id, user?.id).catch(() => []);
         if (!active) return;
         setBookmarked(marks.some((item) => item.chapterNumber === targetChapter));
         setProgressReady(true);
@@ -292,7 +311,12 @@ export default function ReaderScreen() {
           <Pressable onPress={() => setSheet('chapters')} style={styles.navCenter}><Ionicons name="list" size={19} color="#9C3153" /><Text style={styles.navCenterText}>Danh sách</Text></Pressable>
           <Pressable disabled={nextNumber === undefined} onPress={() => goChapter(nextNumber ?? chapterNumber)} style={[styles.navButton, styles.navRight, nextNumber === undefined && styles.disabled]}><Text style={[styles.navText, { color: palette.text }]}>Chương sau</Text><Ionicons name="chevron-forward" size={16} color={palette.text} /></Pressable>
         </View>
-        <View style={styles.discussion}><Comments bookId={book.id} chapterId={chapter.id} /></View>
+        <View style={styles.discussion}>
+          {offlineReading ? <View style={styles.offlineDiscussion}>
+            <Ionicons name="cloud-offline-outline" size={20} color="#8F1D3F" />
+            <Text style={styles.offlineDiscussionText}>Bình luận sẽ tải lại khi có mạng. Nội dung chương này đang được đọc từ bản lưu trên thiết bị.</Text>
+          </View> : <Comments bookId={book.id} chapterId={chapter.id} />}
+        </View>
       </ScrollView>
 
       {!controlsVisible ? (
@@ -318,7 +342,7 @@ export default function ReaderScreen() {
         <>
           <View style={[styles.topbar, { paddingTop: insets.top, height: 57 + insets.top, backgroundColor: palette.bar, borderBottomColor: dark ? '#3F3B3D' : '#DFD2CB' }]}>
             <Pressable accessibilityRole="button" accessibilityLabel="Quay lại trang truyện" style={styles.topIcon} onPress={exitReader}><Ionicons name="arrow-back" size={22} color={palette.text} /></Pressable>
-            <View style={styles.topCopy}><Text numberOfLines={1} style={[styles.topTitle, { color: palette.text }]}>{book.title}</Text><Text style={[styles.topSubtitle, { color: palette.muted }]}>Chương {chapterNumber} · {readingProgress}%</Text></View>
+            <View style={styles.topCopy}><Text numberOfLines={1} style={[styles.topTitle, { color: palette.text }]}>{book.title}</Text><Text style={[styles.topSubtitle, { color: palette.muted }]}>{offlineReading ? 'Offline · ' : ''}Chương {chapterNumber} · {readingProgress}%</Text></View>
             <Pressable style={styles.topIcon} onPress={toggleBookmark}><Ionicons name={bookmark?.chapter === chapterNumber ? 'bookmark' : 'bookmark-outline'} size={22} color={bookmark?.chapter === chapterNumber ? '#A52C52' : palette.text} /></Pressable>
           </View>
           <View style={styles.toolbar}><ReaderToolbar onSelect={chooseTool} dark={dark} /></View>
@@ -450,6 +474,8 @@ const styles = StyleSheet.create({
   topIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }, topCopy: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 40 }, topTitle: { fontSize: 13, fontWeight: '900', maxWidth: '95%' }, topSubtitle: { fontSize: 9, marginTop: 2 },
   floatingBack: { position: 'absolute', left: 12, zIndex: 30, minWidth: 88, height: 40, borderRadius: 20, borderWidth: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, elevation: 6, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   floatingBackText: { fontSize: 10, fontWeight: '900' },
+  offlineDiscussion: { marginTop: 8, borderRadius: 14, backgroundColor: '#F0E1E5', padding: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  offlineDiscussionText: { flex: 1, color: '#6F6167', fontSize: 9, lineHeight: 14 },
   toolbar: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 }
 });
 
