@@ -199,3 +199,45 @@ Migrations:
 
 Next product step:
 - Phase 4B: chapter/book unlock entitlements using CHƯƠNG Xu, with atomic debit + idempotent unlock + author revenue attribution. No store billing yet.
+
+
+## Phase 4B — VIP entitlements and atomic unlocks
+
+Status: implemented on production Supabase and source.
+
+Completed:
+- `book_entitlements` and `chapter_entitlements` store durable ownership of paid content.
+- Chapter unlock and whole-book unlock are atomic database operations.
+- Wallet rows are locked during purchase to prevent double-spend races.
+- Existing entitlements are checked before any debit, so repeated unlock requests do not charge twice.
+- Wallet idempotency keys remain enforced.
+- Author gross revenue attribution is recorded in `author_revenue_accounts` and `author_revenue_ledger`.
+- No author payout percentage is hard-coded yet; Phase 4B records gross attributed sales only so business terms can be chosen later.
+- VIP chapter bodies are no longer selectable directly through the public `chapters.content` column.
+- Reader chapter bodies are delivered through `get_chapter_for_reading`, which verifies public/moderation state and user entitlement.
+- Author editors retain access to their own full chapter bodies through the owner-only `get_author_chapter_for_editing` RPC.
+- Reader UI now supports a VIP paywall, wallet balance display, login prompt, insufficient-Xu state, and atomic unlock action.
+- Chapter lists show VIP pricing in CHƯƠNG Xu.
+- Author chapter editor copy now reflects real Xu-based access.
+
+Production verification with temporary accounts:
+- direct authenticated SELECT privilege on `chapters.content`: BLOCKED
+- locked VIP metadata visible while content body remains hidden: PASS
+- chapter unlock 10 Xu: PASS
+- duplicate chapter unlock: no second debit
+- whole-book unlock 30 Xu: PASS
+- duplicate book unlock: no second debit
+- test reader balance 100 -> 60 after exactly 40 Xu of unique purchases
+- exactly 2 unlock ledger debits for 2 unique purchases
+- 1 chapter entitlement + 1 book entitlement created
+- author gross attributed sales: 40 Xu
+- author editor retained full body access
+- all temporary Phase 4B users/books/entitlements/revenue test rows cleaned afterward
+
+Migrations:
+- `202610030006_phase4b_entitlements_unlocks.sql`
+- `202610030007_phase4b_index_hardening.sql`
+- `202610030008_phase4b_revenue_history_fix.sql`
+
+Next product step:
+- Phase 4C: author revenue dashboard, configurable revenue-share policy, refund/reversal accounting, and payout ledger. Do not activate real-money payout until legal/tax/payout requirements are finalized.
