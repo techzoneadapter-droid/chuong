@@ -86,11 +86,14 @@ export async function getAdminDashboardCounts() {
 }
 
 export async function adminUpdateReport(id: string, status: ReportStatus, note?: string) {
-  const { error } = await requireSupabase().rpc('admin_update_report', {
-    p_report_id: id,
-    p_status: status,
-    p_resolution_note: note?.trim() || null,
-  });
+  const resolution = note?.trim();
+  const args: {
+    p_report_id: string;
+    p_status: ReportStatus;
+    p_resolution_note?: string;
+  } = { p_report_id: id, p_status: status };
+  if (resolution) args.p_resolution_note = resolution;
+  const { error } = await requireSupabase().rpc('admin_update_report', args);
   if (error) throw toServiceError(error, 'Không thể cập nhật báo cáo.');
 }
 
@@ -101,13 +104,21 @@ export async function adminModerate(
   reason?: string,
   reportId?: string
 ) {
-  const { error } = await requireSupabase().rpc('admin_set_moderation', {
+  const args: {
+    p_target_type: string;
+    p_target_id: string;
+    p_state: ModerationState;
+    p_reason?: string;
+    p_report_id?: string;
+  } = {
     p_target_type: targetType,
     p_target_id: targetId,
     p_state: state,
-    p_reason: reason?.trim() || null,
-    p_report_id: reportId ?? null,
-  });
+  };
+  const cleanReason = reason?.trim();
+  if (cleanReason) args.p_reason = cleanReason;
+  if (reportId) args.p_report_id = reportId;
+  const { error } = await requireSupabase().rpc('admin_set_moderation', args);
   if (error) throw toServiceError(error, 'Không thể cập nhật trạng thái kiểm duyệt.');
 }
 
