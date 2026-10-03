@@ -13,7 +13,7 @@ permissions:
 jobs:
   web-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +24,81 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
+      - name: Expo dependency compatibility
+        run: npx expo install --check
       - name: TypeScript
         run: npm run typecheck
+      - name: Release readiness audit
+        run: npm run test:release
+      - name: Database regression
+        run: npm run test:db
       - name: Web export
         run: npm run build
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Demo-mode browser smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CI=1
+          EXPO_PUBLIC_SUPABASE_MODE=demo npx expo start --web --port 3001 --host localhost --clear > /tmp/chuong-demo.log 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          ready=0
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3001/ >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/chuong-demo.log
+            exit 1
+          fi
+          TEST_BASE_URL=http://127.0.0.1:3001 npx playwright test tests/web/demo.spec.ts
+          cleanup
+          trap - EXIT
+      - name: Mock-backend browser regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CI=1
+          EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321           EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_release_test           npx expo start --web --port 3001 --host localhost --clear > /tmp/chuong-backend.log 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          ready=0
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3001/ >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/chuong-backend.log
+            exit 1
+          fi
+          TEST_BACKEND=1 TEST_BASE_URL=http://127.0.0.1:3001 npx playwright test tests/web/backend.spec.ts
