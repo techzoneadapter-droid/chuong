@@ -204,7 +204,7 @@ export default function ReaderScreen() {
       setReload((value) => value + 1);
     } catch (cause) {
       if (cause instanceof UnlockError && cause.code === 'INSUFFICIENT_COINS') {
-        setUnlockError('Số dư CHƯƠNG Xu không đủ để mở khóa nội dung này.');
+        setUnlockError('Số dư Linh Thạch không đủ để mở khóa nội dung này.');
       } else {
         setUnlockError(messageForError(cause, 'Không thể mở khóa nội dung.'));
       }
@@ -235,8 +235,8 @@ export default function ReaderScreen() {
               ? 'Mở khóa truyện một lần để đọc các nội dung VIP thuộc gói truyện này.'
               : 'Mở khóa chương này một lần. Quyền đọc được lưu vào tài khoản của bạn.'}
           </Text>
-          <View style={styles.pricePill}><Text style={styles.priceText}>{lockedContent.priceCoins} CHƯƠNG Xu</Text></View>
-          {user ? <Text style={styles.balanceText}>Số dư hiện tại: {walletBalance === null ? 'Đang cập nhật…' : `${walletBalance} Xu`}</Text> : <Text style={styles.balanceText}>Đăng nhập để đồng bộ quyền đọc trên các thiết bị.</Text>}
+          <View style={styles.pricePill}><Text style={styles.priceText}>{lockedContent.priceCoins} Linh Thạch</Text></View>
+          {user ? <Text style={styles.balanceText}>Số dư hiện tại: {walletBalance === null ? 'Đang cập nhật…' : `${walletBalance} Linh Thạch`}</Text> : <Text style={styles.balanceText}>Đăng nhập để đồng bộ quyền đọc trên các thiết bị.</Text>}
           {unlockError ? <Text style={styles.unlockError}>{unlockError}</Text> : null}
           {!user ? (
             <Pressable style={styles.unlockButton} onPress={() => router.push('/auth/login')}>
@@ -244,14 +244,14 @@ export default function ReaderScreen() {
             </Pressable>
           ) : !enough ? (
             <Pressable style={styles.unlockButton} onPress={() => router.push('/wallet')}>
-              <Text style={styles.unlockButtonText}>Không đủ Xu · Xem Ví CHƯƠNG</Text>
+              <Text style={styles.unlockButtonText}>Không đủ Linh Thạch · Xem Ví CHƯƠNG</Text>
             </Pressable>
           ) : (
             <Pressable style={[styles.unlockButton, unlocking && styles.unlockDisabled]} disabled={unlocking} onPress={unlockCurrent}>
               <Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa · ${lockedContent.priceCoins} Xu`}</Text>
             </Pressable>
           )}
-          <Text style={styles.paywallSafety}>Mỗi lần mở khóa được xử lý nguyên tử: Xu chỉ bị trừ khi quyền đọc được cấp thành công.</Text>
+          <Text style={styles.paywallSafety}>Mỗi lần mở khóa được xử lý nguyên tử: Linh Thạch chỉ bị trừ khi quyền đọc được cấp thành công.</Text>
         </View>
       </View>
     );
