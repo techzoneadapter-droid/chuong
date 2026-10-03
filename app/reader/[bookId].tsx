@@ -6,6 +6,7 @@ import { Alert, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LoadingState, EmptyState, RetryState } from '../../components/States';
 import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
+import { useReadingAnalytics } from '../../hooks/useReadingAnalytics';
 import { messageForError } from '../../services/errors';
 import { Comments } from '../../components/Comments';
 import { BottomSheet } from '../../components/BottomSheet';
@@ -68,8 +69,13 @@ export default function ReaderScreen() {
   const previousNumber = book.chapters[chapterIndex - 1]?.number;
   const nextNumber = book.chapters[chapterIndex + 1]?.number;
   const sync = useReadingProgressSync({ bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress, scrollPosition: scrollPosition.current }, user?.id, progressReady && Boolean(selectedChapter));
+  const analytics = useReadingAnalytics(
+    { bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress },
+    progressReady && Boolean(selectedChapter?.id) && !offlineReading && !lockedContent
+  );
   const exitReader = () => {
     void sync.flush();
+    void analytics.flush();
     if (offlineReading) {
       router.replace('/downloads');
       return;
@@ -181,6 +187,7 @@ export default function ReaderScreen() {
   const goChapter = (number: number) => {
     if (!book.chapters.some((item) => item.number === number)) return;
     void sync.flush();
+    void analytics.flush();
     setProgressReady(false);
     const next = number;
     setChapterNumber(next);
