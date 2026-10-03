@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, DimensionValue, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -165,7 +165,7 @@ export function BookReviews({ bookId, authorUserId }: { bookId: string; authorUs
         {([5, 4, 3, 2, 1] as const).map((star) => <View style={styles.distRow} key={star}>
           <Text style={styles.distLabel}>{star}</Text>
           <Ionicons name="star" size={10} color="#B9842E" />
-          <View style={styles.distTrack}><View style={[styles.distFill, { width: String(summary.distribution[star] / distributionMax * 100) + '%' }]} /></View>
+          <View style={styles.distTrack}><View style={[styles.distFill, { width: (String(summary.distribution[star] / distributionMax * 100) + '%') as DimensionValue }]} /></View>
           <Text style={styles.distCount}>{summary.distribution[star]}</Text>
         </View>)}
       </View>
