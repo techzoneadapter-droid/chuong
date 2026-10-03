@@ -2311,6 +2311,31 @@ export type Database = {
         Args: { p_book_id: string; p_hidden?: boolean }
         Returns: boolean
       }
+      sync_reading_progress: {
+        Args: {
+          p_book_id: string
+          p_chapter_id: string
+          p_chapter_number: number
+          p_progress_percent: number
+          p_scroll_position: number
+          p_updated_at: string
+        }
+        Returns: {
+          book_id: string
+          chapter_id: string | null
+          chapter_number: number
+          progress_percent: number
+          scroll_position: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "reading_progress"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       unlock_book: {
         Args: { p_book_id: string; p_idempotency_key: string }
         Returns: {
