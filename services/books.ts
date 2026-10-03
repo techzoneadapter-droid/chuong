@@ -19,6 +19,7 @@ export function mapBook(row: BookRow, author?: AuthorRow, genres: string[] = [])
   return {
     id: row.id,
     authorId: row.author_id,
+    authorUserId: author?.user_id,
     title: row.title,
     slug: row.slug,
     author: author?.pen_name ?? 'Tác giả CHƯƠNG',
