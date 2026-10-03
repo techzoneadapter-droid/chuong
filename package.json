@@ -14,7 +14,9 @@
     "test:db": "node tests/database.mjs",
     "test:web": "playwright test",
     "native:android": "expo run:android",
-    "native:ios": "expo run:ios"
+    "native:ios": "expo run:ios",
+    "test:release": "node tests/release.mjs",
+    "verify": "npm run typecheck && npm run test:release && npm run test:db && npm run build"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
