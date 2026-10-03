@@ -353,6 +353,11 @@ Deno.serve(async (req: Request) => {
     return reply(200, {
       google_play: providerReady("google_play"),
       app_store: providerReady("app_store"),
+      google_pubsub: Boolean(
+        Deno.env.get("GOOGLE_PUBSUB_AUDIENCE") &&
+        Deno.env.get("GOOGLE_PUBSUB_SERVICE_ACCOUNT_EMAIL")
+      ),
+      apple_notifications: providerReady("app_store"),
     });
   }
 
