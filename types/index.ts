@@ -36,6 +36,7 @@ export interface Book {
   coverUrl?: string | null;
   genre: string;
   rating: number;
+  ratingCount?: number;
   views: string;
   viewsCount?: number;
   followers: string;
