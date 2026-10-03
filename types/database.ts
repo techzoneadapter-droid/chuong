@@ -571,6 +571,7 @@ export type Database = {
           moderation_state: Database["public"]["Enums"]["moderation_state"]
           price_coins: number
           rating: number
+          search_text: string
           slug: string
           source_type: Database["public"]["Enums"]["source_type"]
           status: Database["public"]["Enums"]["book_status"]
@@ -596,6 +597,7 @@ export type Database = {
           moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           rating?: number
+          search_text?: string
           slug: string
           source_type?: Database["public"]["Enums"]["source_type"]
           status?: Database["public"]["Enums"]["book_status"]
@@ -621,6 +623,7 @@ export type Database = {
           moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           rating?: number
+          search_text?: string
           slug?: string
           source_type?: Database["public"]["Enums"]["source_type"]
           status?: Database["public"]["Enums"]["book_status"]
