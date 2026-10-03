@@ -1004,11 +1004,107 @@ CI:
 - Phase 4I source passed TypeScript and web-export validation after the React Native review-distribution width fix.
 - Later Phase 4I backend/migration commits also passed CI; final documentation/moderation-preview commit should be verified before handoff.
 
+## Phase 4J — reader analytics, retention and engagement ranking
+
+Status: implemented on production Supabase and source. Reader tracking, five-minute rollups, author analytics and engagement-aware discovery/recommendations are live.
+
+Completed:
+- Added privacy-preserving reader session tracking for public/published chapters.
+- Reader sends:
+  - initial session open
+  - 30-second best-effort heartbeats
+  - foreground active time
+  - monotonic progress
+  - flush on background/navigation/chapter change
+- Reader analytics is fail-open and never blocks reading.
+- Offline-only downloaded reading is not uploaded as analytics.
+- Server hashes account/install identity and session IDs before storage.
+- One book view is deduplicated to one pseudonymous reader/book/day.
+- Chapter completion is recorded at >=90% progress.
+- Active-time credit is bounded by real elapsed session time and a six-hour session ceiling.
+- Added scalable per-session/daily architecture:
+  - `reader_engagement_sessions`
+  - `reader_book_days`
+  - `reader_chapter_days`
+  - `book_engagement_daily`
+  - `chapter_engagement_daily`
+- Hot reader heartbeats update per-session rows instead of one shared book aggregate row.
+- `pg_cron` rollup runs every five minutes.
+- Raw/pseudonymous detail retention:
+  - sessions: 180 days
+  - reader-day detail: 400 days
+  - compact daily aggregates remain for long-term metrics
+- `books.views_count` is now based on real deduplicated reader-days.
+- Added system-managed recent engagement score with time decay.
+- Popular discovery and personalized recommendations now use real recent reading engagement.
+- Analytics/follower/rating metric churn no longer changes editorial `books.updated_at`.
+- Added Author Studio -> `Phân tích độc giả`:
+  - 7/30/90 day ranges
+  - distinct readers
+  - returning readers and return rate
+  - sessions
+  - chapter completion rate
+  - active reading time
+  - average active minutes/session
+  - daily trend
+  - per-book engagement
+- Author analytics is aggregate-only; authors cannot access installation IDs, account IDs, actor hashes or individual reading histories.
+- Non-owner author analytics access is denied.
+- Explicit system-only RLS policies added for pseudonymous analytics detail tables.
+- Added missing chapter-engagement FK covering index.
+
+Production verification:
+- repeated same anonymous session did not create duplicate session/view rows
+- one test session reached 95% and recorded exactly one completion
+- elapsed-time validation credited 120 active seconds
+- three readers produced three reader-days for the test date
+- seeded prior-day activity produced one returning reader
+- test-day rollup:
+  - 3 unique readers
+  - 2 new readers
+  - 1 returning reader
+  - 3 sessions
+  - 3 chapter starts
+  - 1 completion
+  - 120 active seconds
+- author summary:
+  - 3 distinct readers
+  - 1 returning reader
+  - 33.33% return rate
+  - 33.33% completion rate
+  - 0.67 average active minutes/session
+- cumulative test-book views became 4 reader-days over two dates
+- recent engagement score became positive
+- popular discovery ranked the engaged test book above zero-engagement starter books
+- book editorial `updated_at` remained unchanged during analytics rollup
+- unauthorized reader analytics access was blocked
+- all temporary Phase 4J users/books/chapters/sessions/reader-day/aggregate data was deleted afterward
+
+Migrations:
+- `202610030036_phase4j_reader_analytics.sql`
+- `202610030037_phase4j_engagement_ranking.sql`
+- `202610030038_phase4j_rollup_uuid_fix.sql`
+- `202610030039_phase4j_advisor_hardening.sql`
+
+Docs:
+- `docs/READING_ANALYTICS.md`
+
+CI:
+- all Phase 4J source/migration commits through production rollup fixes passed TypeScript and web-export CI; final docs/status commits should be verified before handoff.
+
+Remaining release QA:
+- physical Android/iOS long reading sessions
+- app background/foreground timing
+- intermittent-network heartbeat recovery
+- fast chapter completion + exit
+- account switching/multi-device reading
+- offline downloaded reading behavior
+
 Next:
-- Phase 4J: reading analytics and retention signals:
-  - real book/chapter view events without double-count spam
-  - chapter completion and reading-session metrics
-  - reader retention/continue-reading signals
-  - author-facing readership analytics
-  - privacy-safe aggregate dashboards
-  - stronger trending/recommendation signals from real engagement
+- Phase 4K: social/community engagement:
+  - reader profiles and public shelves
+  - follow-reader relationships
+  - review/comment activity feed
+  - safer block/mute controls
+  - privacy controls for public profile activity
+  - community-driven discovery without exposing private reading history
