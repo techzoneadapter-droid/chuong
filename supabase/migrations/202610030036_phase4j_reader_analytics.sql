@@ -452,7 +452,7 @@ begin
     select
       d.metric_date,
       d.chapter_id,
-      max(d.book_id) as book_id,
+      min(d.book_id::text)::uuid as book_id,
       max(d.chapter_number) as chapter_number,
       count(*)::bigint as unique_readers
     from public.reader_chapter_days d
@@ -463,7 +463,7 @@ begin
     select
       s.started_date as metric_date,
       s.chapter_id,
-      max(s.book_id) as book_id,
+      min(s.book_id::text)::uuid as book_id,
       max(s.chapter_number) as chapter_number,
       count(*)::bigint as sessions,
       count(*) filter (where s.completed)::bigint as completions,
