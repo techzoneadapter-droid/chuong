@@ -66,6 +66,10 @@ export default function ReaderScreen() {
   const previousNumber = book.chapters[chapterIndex - 1]?.number;
   const nextNumber = book.chapters[chapterIndex + 1]?.number;
   const sync = useReadingProgressSync({ bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress, scrollPosition: scrollPosition.current }, user?.id, progressReady && Boolean(selectedChapter));
+  const exitReader = () => {
+    void sync.flush();
+    router.replace({ pathname: '/book/[id]', params: { id: book.id } });
+  };
   const content = useMemo(() => chapter.content ? chapter.content.split(/\n\s*\n/).filter(Boolean) : getChapterContent(chapterNumber), [chapter.content, chapterNumber]);
   const bookmark: Bookmark | null = bookmarked ? { chapter: chapterNumber, progress: readingProgress, updatedAt: new Date().toISOString() } : null;
   const palette = themes[settings.theme];
@@ -222,7 +226,7 @@ export default function ReaderScreen() {
       <View style={[styles.root, styles.paywallRoot, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 16 }]}>
         <StatusBar style="dark" />
         <View style={styles.paywallTop}>
-          <Pressable style={styles.topIcon} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Quay lại trang truyện" style={styles.topIcon} onPress={exitReader}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable>
           <Text style={styles.paywallTopTitle}>{book.title}</Text>
           <View style={styles.topIcon} />
         </View>
@@ -257,7 +261,7 @@ export default function ReaderScreen() {
     );
   }
 
-  if (!selectedChapter) return <View style={styles.root}><EmptyState title="Chưa có chương xuất bản" /><Pressable onPress={() => router.back()}><Text style={{ textAlign: 'center', color: '#8F1D3F' }}>Quay lại</Text></Pressable></View>;
+  if (!selectedChapter) return <View style={styles.root}><EmptyState title="Chưa có chương xuất bản" /><Pressable accessibilityRole="button" accessibilityLabel="Quay lại trang truyện" onPress={exitReader}><Text style={{ textAlign: 'center', color: '#8F1D3F' }}>Quay lại</Text></Pressable></View>;
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg }]}>
@@ -291,10 +295,29 @@ export default function ReaderScreen() {
         <View style={styles.discussion}><Comments bookId={book.id} chapterId={chapter.id} /></View>
       </ScrollView>
 
+      {!controlsVisible ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Quay lại trang truyện"
+          onPress={exitReader}
+          style={[
+            styles.floatingBack,
+            {
+              top: insets.top + 10,
+              backgroundColor: dark ? 'rgba(18,18,18,0.92)' : 'rgba(255,253,252,0.94)',
+              borderColor: dark ? '#4B4548' : '#E0D4CD',
+            },
+          ]}
+        >
+          <Ionicons name="arrow-back" size={20} color={palette.text} />
+          <Text style={[styles.floatingBackText, { color: palette.text }]}>Quay lại</Text>
+        </Pressable>
+      ) : null}
+
       {controlsVisible ? (
         <>
           <View style={[styles.topbar, { paddingTop: insets.top, height: 57 + insets.top, backgroundColor: palette.bar, borderBottomColor: dark ? '#3F3B3D' : '#DFD2CB' }]}>
-            <Pressable style={styles.topIcon} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color={palette.text} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Quay lại trang truyện" style={styles.topIcon} onPress={exitReader}><Ionicons name="arrow-back" size={22} color={palette.text} /></Pressable>
             <View style={styles.topCopy}><Text numberOfLines={1} style={[styles.topTitle, { color: palette.text }]}>{book.title}</Text><Text style={[styles.topSubtitle, { color: palette.muted }]}>Chương {chapterNumber} · {readingProgress}%</Text></View>
             <Pressable style={styles.topIcon} onPress={toggleBookmark}><Ionicons name={bookmark?.chapter === chapterNumber ? 'bookmark' : 'bookmark-outline'} size={22} color={bookmark?.chapter === chapterNumber ? '#A52C52' : palette.text} /></Pressable>
           </View>
@@ -423,9 +446,11 @@ const styles = StyleSheet.create({
   navText: { fontSize: 11, fontWeight: '800' }, navCenter: { alignItems: 'center', paddingHorizontal: 8 }, navCenterText: { color: '#9C3153', fontSize: 9, fontWeight: '900', marginTop: 3 },
   discussion: { marginTop: 28 }, discussionTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }, discussionHeading: { fontSize: 16, fontWeight: '900' },
   miniComment: { flexDirection: 'row', gap: 9, paddingVertical: 12 }, miniAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#E7D7DC', alignItems: 'center', justifyContent: 'center' }, miniAvatarText: { color: '#852545', fontSize: 9, fontWeight: '900' }, miniName: { fontSize: 11, fontWeight: '900' }, miniBody: { fontSize: 11, lineHeight: 17, marginTop: 3 },
-  topbar: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  topbar: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 20 },
   topIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }, topCopy: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 40 }, topTitle: { fontSize: 13, fontWeight: '900', maxWidth: '95%' }, topSubtitle: { fontSize: 9, marginTop: 2 },
-  toolbar: { position: 'absolute', left: 0, right: 0, bottom: 0 }
+  floatingBack: { position: 'absolute', left: 12, zIndex: 30, minWidth: 88, height: 40, borderRadius: 20, borderWidth: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, elevation: 6, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  floatingBackText: { fontSize: 10, fontWeight: '900' },
+  toolbar: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 }
 });
 
 const sheetStyles = StyleSheet.create({
