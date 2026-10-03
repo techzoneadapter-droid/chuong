@@ -52,7 +52,7 @@ export default function AdminHomeScreen() {
       </Pressable>
       <Pressable style={styles.secondaryCard} onPress={() => router.push('/admin/monetization')}>
         <Ionicons name="pie-chart-outline" size={21} color="#8F1D3F" />
-        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Chính sách doanh thu</Text><Text style={styles.secondaryBody}>Cấu hình tỷ lệ chia Xu theo phiên bản, không sửa ngược giao dịch cũ.</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Chính sách doanh thu</Text><Text style={styles.secondaryBody}>Cấu hình tỷ lệ chia Linh Thạch theo phiên bản, không sửa ngược giao dịch cũ.</Text></View>
         <Ionicons name="chevron-forward" size={20} color="#8F1D3F" />
       </Pressable>
       <View style={styles.notice}><Ionicons name="information-circle-outline" size={20} color="#8F1D3F" /><Text style={styles.noticeText}>Mọi thao tác ẩn, từ chối hoặc khôi phục nội dung đều được ghi vào nhật ký kiểm duyệt trong database.</Text></View>
