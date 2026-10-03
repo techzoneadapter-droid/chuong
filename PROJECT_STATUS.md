@@ -1100,11 +1100,92 @@ Remaining release QA:
 - account switching/multi-device reading
 - offline downloaded reading behavior
 
+## Phase 4K — reader community and social privacy
+
+Status: implemented on production Supabase and source. Transactional production verification passed; physical multi-account mobile QA remains before store release.
+
+Completed:
+- Added public reader profile screens with:
+  - display name / username / avatar / bio
+  - follower and following counts
+  - privacy-filtered public shelf
+  - privacy-filtered recent review/comment activity
+- Added reader discovery/search and a signed-in community feed.
+- Reviews and comments now link to the reviewer's/commenter's reader profile.
+- Added reader-to-reader follow/unfollow.
+- Added private mute controls:
+  - muted readers stay followed
+  - muted readers disappear from the viewer's community feed
+- Added block/unblock:
+  - blocking removes follows in both directions
+  - clears the blocker's mute row for that target
+  - prevents new follows
+  - hides shelf/activity across the blocked relationship
+- Added profile privacy controls:
+  - public profile
+  - public shelf aggregation
+  - review aggregation
+  - comment aggregation
+  - allow follows
+- Privacy-safe defaults:
+  - public profile identity remains on because profiles were already public before Phase 4K
+  - follows remain allowed by default
+  - shelf/review/comment aggregation is opt-in
+- Public shelf is intentionally limited to:
+  - favorites
+  - completed books
+- Public shelf never exposes:
+  - reading status
+  - chapter progress
+  - scroll position
+  - bookmarks
+  - reading history
+  - download/offline state
+- Added RLS-protected social tables:
+  - reader_privacy
+  - reader_follows
+  - reader_blocks
+  - reader_mutes
+- Anonymous execution was explicitly removed from authenticated-only community/privacy/mutation RPCs.
+- Four public read RPCs intentionally remain anonymous SECURITY DEFINER endpoints so they can enforce private block/privacy state while returning only filtered public data.
+
+Production verification:
+- transaction-only test with two existing profiles passed and was rolled back
+- follow creation passed
+- mute creation passed
+- block removed follow relationships
+- block cleared the actor's mute relationship
+- private/disabled-follow target rejected a new follow
+- public shelf returned no reading rows
+- function ACL check confirms anon cannot execute authenticated-only social RPCs
+- production testing found and fixed an ambiguous PL/pgSQL privacy upsert identifier
+- Supabase Security Advisor now reports only the four intentional anonymous Phase 4K public-read SECURITY DEFINER endpoints; the six authenticated-only Phase 4K endpoints are no longer anonymously executable
+
+Migrations:
+- `202610030040_phase4k_social_community.sql`
+- `202610030041_phase4k_acl_hardening.sql`
+- `202610030042_phase4k_privacy_rpc_fix.sql`
+- `202610030043_phase4k_privacy_safe_defaults.sql`
+
+Docs:
+- `docs/COMMUNITY_SOCIAL.md`
+
+CI:
+- Phase 4K application/UI changes through the privacy-RPC fix passed TypeScript + web export.
+- Final privacy-default/docs/status commits should be verified before handoff.
+
+Remaining release QA:
+- physical Android/iOS profile and community navigation
+- two real accounts following/unfollowing each other
+- mute feed filtering
+- block/unblock from both sides
+- privacy switches after restart
+- private-profile behavior while another account is viewing
+- long review/comment rendering in feed
+
 Next:
-- Phase 4K: social/community engagement:
-  - reader profiles and public shelves
-  - follow-reader relationships
-  - review/comment activity feed
-  - safer block/mute controls
-  - privacy controls for public profile activity
-  - community-driven discovery without exposing private reading history
+- Phase 4L: release-readiness pass:
+  - end-to-end multi-account QA across reader/community/review flows
+  - physical Android/iOS offline + push + analytics regression
+  - performance checks on feed/discovery with larger data
+  - final store-release checklist and remaining production hardening
