@@ -18,7 +18,7 @@ import {
   removeOfflineBook,
   setOfflineQuotaBytes,
 } from '../services/offlineDownloads';
-import { flushOfflineSyncQueue, getPendingOfflineSyncCount } from '../services/offlineSync';
+import { flushOfflineSyncQueue, getOfflineSyncQueueStats } from '../services/offlineSync';
 
 const quotaOptions = [
   { label: '100 MB', bytes: 100 * 1024 * 1024 },
@@ -34,6 +34,7 @@ export default function DownloadsScreen() {
   const [stats, setStats] = useState<OfflineStorageStats | null>(null);
   const [online, setOnline] = useState(true);
   const [pendingSync, setPendingSync] = useState(0);
+  const [stalledSync, setStalledSync] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -46,12 +47,13 @@ export default function DownloadsScreen() {
         listOfflineBooks(),
         getOfflineStorageStats(),
         getConnectivityState(),
-        getPendingOfflineSyncCount(user?.id),
+        getOfflineSyncQueueStats(user?.id),
       ]);
       setBooks(items);
       setStats(storage);
       setOnline(connectivity.reachable);
-      setPendingSync(pending);
+      setPendingSync(pending.pending);
+      setStalledSync(pending.stalled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể tải danh sách offline.');
     } finally {
@@ -172,7 +174,13 @@ export default function DownloadsScreen() {
         <Ionicons name="sync-outline" size={21} color="#8F1D3F" />
         <View style={{ flex: 1 }}>
           <Text style={styles.syncTitle}>{pendingSync} thay đổi đang chờ đồng bộ</Text>
-          <Text style={styles.syncBody}>{online ? 'Có mạng. Bạn có thể đồng bộ ngay.' : 'CHƯƠNG sẽ tự đồng bộ tiến độ, tủ sách và dấu trang khi có mạng.'}</Text>
+          <Text style={styles.syncBody}>
+            {stalledSync
+              ? `${stalledSync} thay đổi đã tạm dừng sau nhiều lần lỗi. Thao tác mới cùng mục sẽ tự thay thế và thử lại.`
+              : online
+                ? 'Có mạng. Bạn có thể đồng bộ ngay.'
+                : 'CHƯƠNG sẽ tự đồng bộ tiến độ, tủ sách và dấu trang khi có mạng.'}
+          </Text>
         </View>
         {online ? <Pressable onPress={() => {
           void flushOfflineSyncQueue(user?.id).then(() => load());
