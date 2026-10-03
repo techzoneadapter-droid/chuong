@@ -60,7 +60,7 @@ export default function DownloadsScreen() {
 
   const openBook = async (book: OfflineBookSummary) => {
     const records = await getOfflineBookRecords(book.bookId);
-    const first = records.find((item) => item.expiredVipCount === undefined) ?? records[0];
+    const first = records[0];
     if (!first) return;
     router.push({ pathname: '/reader/[bookId]', params: { bookId: book.bookId, chapter: first.chapterNumber } });
   };
