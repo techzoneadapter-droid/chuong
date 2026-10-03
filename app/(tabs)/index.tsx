@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookCard } from '../../components/BookCard';
@@ -9,6 +9,7 @@ import { books as demoBooks } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBooks } from '../../services/books';
 import { getReadingProgress } from '../../services/library';
+import { getUnreadNotificationCount } from '../../services/notifications';
 import { Book, ReadingProgress } from '../../types';
 
 export default function HomeScreen() {
@@ -19,6 +20,16 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const [loadError, setLoadError] = useState('');
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (!user) {
+      setUnreadNotifications(0);
+      return () => { active = false; };
+    }
+    void getUnreadNotificationCount().then((count) => { if (active) setUnreadNotifications(count); });
+    return () => { active = false; };
+  }, [user]));
   useEffect(() => {
     let active = true; setLoading(true); setLoadError('');
     getBooks().then(async (result) => {
@@ -46,8 +57,9 @@ export default function HomeScreen() {
             <Pressable style={styles.iconButton} onPress={() => router.push('/discover')}>
               <Ionicons name="search" size={21} color="#221A1D" />
             </Pressable>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/profile')}>
+            <Pressable style={styles.iconButton} onPress={() => router.push('/notifications')}>
               <Ionicons name="notifications-outline" size={21} color="#221A1D" />
+              {unreadNotifications > 0 ? <View style={styles.headerBadge}><Text style={styles.headerBadgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text></View> : null}
             </Pressable>
           </View>
         </View>
@@ -133,8 +145,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E9DDD6'
+    borderColor: '#E9DDD6',
+    position: 'relative'
   },
+  headerBadge: { position: 'absolute', right: -3, top: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#8F1D3F', paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#F8F2E9' },
+  headerBadgeText: { color: '#FFF', fontSize: 7, fontWeight: '900' },
   hero: {
     marginHorizontal: 16,
     backgroundColor: '#66152F',
