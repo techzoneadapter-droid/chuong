@@ -389,6 +389,53 @@ export type Database = {
           },
         ]
       }
+      book_engagement_daily: {
+        Row: {
+          active_seconds: number
+          book_id: string
+          chapter_completions: number
+          chapter_starts: number
+          metric_date: string
+          new_readers: number
+          returning_readers: number
+          sessions: number
+          unique_readers: number
+          updated_at: string
+        }
+        Insert: {
+          active_seconds?: number
+          book_id: string
+          chapter_completions?: number
+          chapter_starts?: number
+          metric_date: string
+          new_readers?: number
+          returning_readers?: number
+          sessions?: number
+          unique_readers?: number
+          updated_at?: string
+        }
+        Update: {
+          active_seconds?: number
+          book_id?: string
+          chapter_completions?: number
+          chapter_starts?: number
+          metric_date?: string
+          new_readers?: number
+          returning_readers?: number
+          sessions?: number
+          unique_readers?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_engagement_daily_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_entitlements: {
         Row: {
           book_id: string
@@ -664,6 +711,8 @@ export type Database = {
           cover_url: string | null
           created_at: string
           description: string
+          engagement_score: number
+          engagement_updated_at: string | null
           followers_count: number
           id: string
           is_vip: boolean
@@ -691,6 +740,8 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           description?: string
+          engagement_score?: number
+          engagement_updated_at?: string | null
           followers_count?: number
           id?: string
           is_vip?: boolean
@@ -718,6 +769,8 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           description?: string
+          engagement_score?: number
+          engagement_updated_at?: string | null
           followers_count?: number
           id?: string
           is_vip?: boolean
@@ -753,6 +806,57 @@ export type Database = {
             columns: ["moderated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chapter_engagement_daily: {
+        Row: {
+          active_seconds: number
+          book_id: string
+          chapter_id: string
+          chapter_number: number
+          completions: number
+          metric_date: string
+          sessions: number
+          unique_readers: number
+          updated_at: string
+        }
+        Insert: {
+          active_seconds?: number
+          book_id: string
+          chapter_id: string
+          chapter_number: number
+          completions?: number
+          metric_date: string
+          sessions?: number
+          unique_readers?: number
+          updated_at?: string
+        }
+        Update: {
+          active_seconds?: number
+          book_id?: string
+          chapter_id?: string
+          chapter_number?: number
+          completions?: number
+          metric_date?: string
+          sessions?: number
+          unique_readers?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_engagement_daily_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_engagement_daily_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
         ]
@@ -1401,6 +1505,146 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reader_book_days: {
+        Row: {
+          actor_hash: string
+          book_id: string
+          first_seen_at: string
+          last_seen_at: string
+          metric_date: string
+        }
+        Insert: {
+          actor_hash: string
+          book_id: string
+          first_seen_at?: string
+          last_seen_at?: string
+          metric_date: string
+        }
+        Update: {
+          actor_hash?: string
+          book_id?: string
+          first_seen_at?: string
+          last_seen_at?: string
+          metric_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reader_book_days_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reader_chapter_days: {
+        Row: {
+          actor_hash: string
+          book_id: string
+          chapter_id: string
+          chapter_number: number
+          first_seen_at: string
+          last_seen_at: string
+          metric_date: string
+        }
+        Insert: {
+          actor_hash: string
+          book_id: string
+          chapter_id: string
+          chapter_number: number
+          first_seen_at?: string
+          last_seen_at?: string
+          metric_date: string
+        }
+        Update: {
+          actor_hash?: string
+          book_id?: string
+          chapter_id?: string
+          chapter_number?: number
+          first_seen_at?: string
+          last_seen_at?: string
+          metric_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reader_chapter_days_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reader_chapter_days_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reader_engagement_sessions: {
+        Row: {
+          active_seconds: number
+          actor_hash: string
+          book_id: string
+          chapter_id: string
+          chapter_number: number
+          completed: boolean
+          completed_at: string | null
+          id: string
+          last_seen_at: string
+          max_progress: number
+          session_hash: string
+          started_at: string
+          started_date: string
+        }
+        Insert: {
+          active_seconds?: number
+          actor_hash: string
+          book_id: string
+          chapter_id: string
+          chapter_number: number
+          completed?: boolean
+          completed_at?: string | null
+          id?: string
+          last_seen_at?: string
+          max_progress?: number
+          session_hash: string
+          started_at?: string
+          started_date: string
+        }
+        Update: {
+          active_seconds?: number
+          actor_hash?: string
+          book_id?: string
+          chapter_id?: string
+          chapter_number?: number
+          completed?: boolean
+          completed_at?: string | null
+          id?: string
+          last_seen_at?: string
+          max_progress?: number
+          session_hash?: string
+          started_at?: string
+          started_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reader_engagement_sessions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reader_engagement_sessions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
         ]
@@ -2234,6 +2478,18 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_author_book_engagement: {
+        Args: { p_author_id: string; p_days?: number }
+        Returns: {
+          active_seconds: number
+          book_id: string
+          chapter_completions: number
+          completion_rate: number
+          sessions: number
+          title: string
+          unique_reader_days: number
+        }[]
+      }
       get_author_chapter_for_editing: {
         Args: { p_book_id: string; p_chapter_id: string }
         Returns: {
@@ -2248,6 +2504,32 @@ export type Database = {
           status: Database["public"]["Enums"]["chapter_status"]
           title: string
           updated_at: string
+        }[]
+      }
+      get_author_engagement_daily: {
+        Args: { p_author_id: string; p_days?: number }
+        Returns: {
+          active_seconds: number
+          chapter_completions: number
+          metric_date: string
+          new_readers: number
+          returning_readers: number
+          sessions: number
+          unique_readers: number
+        }[]
+      }
+      get_author_engagement_summary: {
+        Args: { p_author_id: string; p_days?: number }
+        Returns: {
+          active_seconds: number
+          avg_session_minutes: number
+          chapter_completions: number
+          chapter_starts: number
+          completion_rate: number
+          reader_count: number
+          return_rate: number
+          returning_readers: number
+          sessions: number
         }[]
       }
       get_book_review_summary: {
@@ -2326,6 +2608,22 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      record_reader_engagement: {
+        Args: {
+          p_active_seconds?: number
+          p_book_id: string
+          p_chapter_id: string
+          p_chapter_number: number
+          p_install_id: string
+          p_progress?: number
+          p_session_id: string
+        }
+        Returns: {
+          accepted: boolean
+          new_reader_day: boolean
+          session_completed: boolean
+        }[]
       }
       register_push_device: {
         Args: {
