@@ -47,6 +47,120 @@ export type Database = {
           },
         ]
       }
+      author_revenue_accounts: {
+        Row: {
+          author_id: string
+          gross_sales_coins: number
+          refunded_coins: number
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          gross_sales_coins?: number
+          refunded_coins?: number
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          gross_sales_coins?: number
+          refunded_coins?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_revenue_accounts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: true
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      author_revenue_ledger: {
+        Row: {
+          author_id: string
+          book_entitlement_id: string | null
+          book_id: string
+          chapter_entitlement_id: string | null
+          chapter_id: string | null
+          created_at: string
+          description: string | null
+          gross_coins: number
+          id: string
+          type: Database["public"]["Enums"]["author_revenue_type"]
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          author_id: string
+          book_entitlement_id?: string | null
+          book_id: string
+          chapter_entitlement_id?: string | null
+          chapter_id?: string | null
+          created_at?: string
+          description?: string | null
+          gross_coins: number
+          id?: string
+          type: Database["public"]["Enums"]["author_revenue_type"]
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          author_id?: string
+          book_entitlement_id?: string | null
+          book_id?: string
+          chapter_entitlement_id?: string | null
+          chapter_id?: string | null
+          created_at?: string
+          description?: string | null
+          gross_coins?: number
+          id?: string
+          type?: Database["public"]["Enums"]["author_revenue_type"]
+          wallet_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_revenue_ledger_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_revenue_ledger_book_entitlement_id_fkey"
+            columns: ["book_entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "book_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_revenue_ledger_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_revenue_ledger_chapter_entitlement_id_fkey"
+            columns: ["chapter_entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "chapter_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_revenue_ledger_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_revenue_ledger_wallet_transaction_id_fkey"
+            columns: ["wallet_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       authors: {
         Row: {
           avatar_url: string | null
@@ -103,6 +217,61 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_entitlements: {
+        Row: {
+          book_id: string
+          granted_at: string
+          id: string
+          price_paid_coins: number
+          revoked_at: string | null
+          source: Database["public"]["Enums"]["entitlement_source"]
+          user_id: string
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          book_id: string
+          granted_at?: string
+          id?: string
+          price_paid_coins?: number
+          revoked_at?: string | null
+          source?: Database["public"]["Enums"]["entitlement_source"]
+          user_id: string
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          book_id?: string
+          granted_at?: string
+          id?: string
+          price_paid_coins?: number
+          revoked_at?: string | null
+          source?: Database["public"]["Enums"]["entitlement_source"]
+          user_id?: string
+          wallet_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_entitlements_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_entitlements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_entitlements_wallet_transaction_id_fkey"
+            columns: ["wallet_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -307,6 +476,71 @@ export type Database = {
             columns: ["moderated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chapter_entitlements: {
+        Row: {
+          book_id: string
+          chapter_id: string
+          granted_at: string
+          id: string
+          price_paid_coins: number
+          revoked_at: string | null
+          source: Database["public"]["Enums"]["entitlement_source"]
+          user_id: string
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          book_id: string
+          chapter_id: string
+          granted_at?: string
+          id?: string
+          price_paid_coins?: number
+          revoked_at?: string | null
+          source?: Database["public"]["Enums"]["entitlement_source"]
+          user_id: string
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          book_id?: string
+          chapter_id?: string
+          granted_at?: string
+          id?: string
+          price_paid_coins?: number
+          revoked_at?: string | null
+          source?: Database["public"]["Enums"]["entitlement_source"]
+          user_id?: string
+          wallet_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_entitlements_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_entitlements_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_entitlements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_entitlements_wallet_transaction_id_fkey"
+            columns: ["wallet_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -914,11 +1148,71 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_author_chapter_for_editing: {
+        Args: { p_book_id: string; p_chapter_id: string }
+        Returns: {
+          book_id: string
+          chapter_number: number
+          content: string
+          created_at: string
+          id: string
+          is_vip: boolean
+          price_coins: number
+          published_at: string
+          status: Database["public"]["Enums"]["chapter_status"]
+          title: string
+          updated_at: string
+        }[]
+      }
+      get_chapter_for_reading: {
+        Args: { p_book_id: string; p_chapter_number: number }
+        Returns: {
+          book_id: string
+          chapter_number: number
+          content: string
+          created_at: string
+          id: string
+          is_vip: boolean
+          lock_kind: string
+          lock_price_coins: number
+          price_coins: number
+          published_at: string
+          status: Database["public"]["Enums"]["chapter_status"]
+          title: string
+          updated_at: string
+        }[]
+      }
+      unlock_book: {
+        Args: { p_book_id: string; p_idempotency_key: string }
+        Returns: {
+          already_unlocked: boolean
+          balance_coins: number
+          entitlement_id: string
+          price_paid_coins: number
+          unlocked: boolean
+        }[]
+      }
+      unlock_chapter: {
+        Args: { p_chapter_id: string; p_idempotency_key: string }
+        Returns: {
+          already_unlocked: boolean
+          balance_coins: number
+          entitlement_id: string
+          price_paid_coins: number
+          unlocked: boolean
+        }[]
+      }
     }
     Enums: {
+      author_revenue_type: "sale" | "refund" | "adjustment"
       book_status: "draft" | "ongoing" | "completed" | "paused"
       book_visibility: "public" | "private" | "unlisted"
       chapter_status: "draft" | "published"
+      entitlement_source:
+        | "coin_unlock"
+        | "admin_grant"
+        | "promo"
+        | "refund_restore"
       library_status: "reading" | "favorite" | "completed"
       moderation_state: "approved" | "hidden" | "rejected"
       report_reason:
@@ -1067,9 +1361,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      author_revenue_type: ["sale", "refund", "adjustment"],
       book_status: ["draft", "ongoing", "completed", "paused"],
       book_visibility: ["public", "private", "unlisted"],
       chapter_status: ["draft", "published"],
+      entitlement_source: [
+        "coin_unlock",
+        "admin_grant",
+        "promo",
+        "refund_restore",
+      ],
       library_status: ["reading", "favorite", "completed"],
       moderation_state: ["approved", "hidden", "rejected"],
       report_reason: [
