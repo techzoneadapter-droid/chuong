@@ -31,6 +31,7 @@ export interface Book {
   title: string;
   slug?: string;
   author: string;
+  creditedAuthorName?: string | null;
   authorFollowers: string;
   authorAvatarUrl?: string | null;
   cover: string;
@@ -119,6 +120,7 @@ export interface AuthorBookInput {
   language: string;
   status: BookStatus;
   coverUrl: string | null;
+  creditedAuthorName?: string | null;
   sourceType: SourceType;
 }
 
