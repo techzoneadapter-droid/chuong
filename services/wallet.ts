@@ -67,6 +67,7 @@ export function walletTransactionLabel(type: WalletTransaction['type']) {
     admin_debit: 'Điều chỉnh trừ Linh Thạch',
     author_payout_debit: 'Thanh toán doanh thu',
     purchase_reversal_debit: 'Thu hồi Linh Thạch do hoàn giao dịch',
+    refund_reversal_credit: 'Khôi phục Linh Thạch do đảo hoàn tiền',
   } as const)[type];
 }
 
