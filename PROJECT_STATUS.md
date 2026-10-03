@@ -112,3 +112,37 @@ Review the working tree, then perform the live two-account Supabase/device verif
   - non-owner book update was blocked by RLS
   - published chapter counter updated correctly
 - All temporary test users/content were deleted after verification; production database remains clean.
+
+
+## Phase 3B — moderation & admin
+
+Status: implemented on production backend and source.
+
+Completed:
+- User reports for books/comments.
+- Copyright/plagiarism/spam/harassment/inappropriate/impersonation report reasons.
+- Reports queue with open/reviewing/resolved/rejected workflow.
+- Admin Center screens: dashboard, report queue, report detail.
+- Moderation state for authors, books, chapters and comments.
+- Approved/hidden/rejected content states.
+- Admin approve/hide/reject actions.
+- Public RLS excludes hidden/rejected content.
+- Authors retain access to their own moderated content.
+- Moderation audit trail in `moderation_actions`.
+- Client role escalation is blocked; admin role remains management-controlled.
+- Moderation RPCs use SECURITY INVOKER + admin-only RLS.
+- Book and comment UI now link to the reporting flow.
+- Profile shows Admin Center only for `profile.role = 'admin'`.
+- Live production verification passed for report creation, admin handling, content hiding, audit logs and non-admin denial.
+- Temporary moderation test data cleaned up.
+- Supabase Security Advisor: 0 security lints after hardening.
+
+Migrations:
+- `202610030001_phase3b_moderation.sql`
+- `202610030002_phase3b_security_hardening.sql`
+
+Manual next step:
+- Create the owner's real CHƯƠNG account, then promote that exact profile to `admin` through trusted management tooling.
+
+Exact next product phase:
+- Phase 4 monetization design and implementation: CHƯƠNG Xu + compliant Google Play Billing / Apple IAP + author revenue ledger. Do not bypass platform billing.
