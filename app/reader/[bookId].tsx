@@ -16,7 +16,9 @@ import { getChapterContent } from '../../data/readerContent';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { defaultReaderSettings } from '../../services/storage';
 import { getBookById } from '../../services/books';
-import { getChapter, getChaptersByBook } from '../../services/chapters';
+import { ContentLockedError, getChapter, getChaptersByBook } from '../../services/chapters';
+import { unlockBook, unlockChapter, UnlockError } from '../../services/entitlements';
+import { getWallet } from '../../services/wallet';
 import { getBookmarks, getReadingProgress, toggleBookmark as persistBookmark } from '../../services/library';
 import { useAuth } from '../../contexts/AuthContext';
 import { SLEEP_TIMERS, SleepTimer, TTS_SPEEDS, TTS_VOICES, TtsVoice } from '../../services/tts';
@@ -47,6 +49,10 @@ export default function ReaderScreen() {
   const [readingProgress, setReadingProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [lockedContent, setLockedContent] = useState<ContentLockedError | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState('');
   const [reload, setReload] = useState(0);
   const [progressReady, setProgressReady] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
@@ -73,29 +79,80 @@ export default function ReaderScreen() {
   }, [book.chapters, book.totalChapters, chapterNumber, chapterSearch]);
 
   useEffect(() => {
-    let active = true; setProgressReady(false); setLoading(true); setLoadError('');
+    let active = true;
+    setProgressReady(false);
+    setLoading(true);
+    setLoadError('');
+    setLockedContent(null);
+    setUnlockError('');
+
     const load = async () => {
       try {
-        const result = await getBookById(params.bookId); if (!active) return; if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
-        const chapters = await getChaptersByBook(result.data.id); if (!active) return;
+        const result = await getBookById(params.bookId);
+        if (!active) return;
+        if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
+
+        const chapters = await getChaptersByBook(result.data.id);
+        if (!active) return;
         const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length };
         const saved = await getReadingProgress(hydrated.id, user?.id);
         const requested = Number(params.chapter) || saved?.chapterNumber;
-        const targetChapter = requested && chapters.data.some((item) => item.number === requested) ? requested : chapters.data[0]?.number ?? 1;
-        const selected = chapters.data.length ? await getChapter(hydrated.id, targetChapter) : null;
+        const targetChapter = requested && chapters.data.some((item) => item.number === requested)
+          ? requested
+          : chapters.data[0]?.number ?? 1;
+
+        setBook(hydrated);
+        setChapterNumber(targetChapter);
+
+        let selected: Awaited<ReturnType<typeof getChapter>> | null = null;
+        try {
+          selected = chapters.data.length ? await getChapter(hydrated.id, targetChapter) : null;
+        } catch (cause) {
+          if (cause instanceof ContentLockedError) {
+            if (!active) return;
+            setLockedContent(cause);
+            if (user) {
+              try {
+                const wallet = await getWallet(user.id);
+                if (active) setWalletBalance(wallet.balance_coins);
+              } catch {
+                if (active) setWalletBalance(null);
+              }
+            } else {
+              setWalletBalance(null);
+            }
+            return;
+          }
+          throw cause;
+        }
+
         if (!active) return;
         if (chapters.data.length && !selected?.data) throw new Error('Chương này chưa được xuất bản hoặc không còn khả dụng.');
-        setBook({ ...hydrated, chapters: hydrated.chapters.map((item) => item.number === targetChapter && selected?.data ? selected.data : item) });
-        setChapterNumber(targetChapter);
+
+        setBook({
+          ...hydrated,
+          chapters: hydrated.chapters.map((item) =>
+            item.number === targetChapter && selected?.data ? selected.data : item
+          ),
+        });
         setReadingProgress(saved?.chapterNumber === targetChapter ? saved.progressPercent : 0);
         scrollPosition.current = saved?.chapterNumber === targetChapter ? saved.scrollPosition : 0;
-        const marks = await getBookmarks(hydrated.id, user?.id); if (!active) return;
-        setBookmarked(marks.some((item) => item.chapterNumber === targetChapter)); setProgressReady(true);
-        if (scrollPosition.current > 0) setTimeout(() => scrollRef.current?.scrollTo({ y: scrollPosition.current, animated: false }), 80);
-      } catch (cause) { if (active) setLoadError(messageForError(cause, 'Không thể tải nội dung.')); }
-      finally { if (active) setLoading(false); }
+        const marks = await getBookmarks(hydrated.id, user?.id);
+        if (!active) return;
+        setBookmarked(marks.some((item) => item.chapterNumber === targetChapter));
+        setProgressReady(true);
+        if (scrollPosition.current > 0) {
+          setTimeout(() => scrollRef.current?.scrollTo({ y: scrollPosition.current, animated: false }), 80);
+        }
+      } catch (cause) {
+        if (active) setLoadError(messageForError(cause, 'Không thể tải nội dung.'));
+      } finally {
+        if (active) setLoading(false);
+      }
     };
-    load(); return () => { active = false; };
+
+    load();
+    return () => { active = false; };
   }, [params.bookId, params.chapter, user?.id, reload]);
 
   const goChapter = (number: number) => {
@@ -131,8 +188,75 @@ export default function ReaderScreen() {
     setControlsVisible(true);
   };
 
+  const unlockCurrent = async () => {
+    if (!lockedContent) return;
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+    setUnlocking(true);
+    setUnlockError('');
+    try {
+      const result = lockedContent.kind === 'book'
+        ? await unlockBook(book.id)
+        : await unlockChapter(lockedContent.chapterId);
+      setWalletBalance(result.balanceCoins);
+      setReload((value) => value + 1);
+    } catch (cause) {
+      if (cause instanceof UnlockError && cause.code === 'INSUFFICIENT_COINS') {
+        setUnlockError('Số dư CHƯƠNG Xu không đủ để mở khóa nội dung này.');
+      } else {
+        setUnlockError(messageForError(cause, 'Không thể mở khóa nội dung.'));
+      }
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
   if (loading) return <View style={styles.root}><LoadingState label="Đang tải chương…" /></View>;
   if (loadError) return <View style={styles.root}><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></View>;
+
+  if (lockedContent) {
+    const enough = walletBalance === null || walletBalance >= lockedContent.priceCoins;
+    return (
+      <View style={[styles.root, styles.paywallRoot, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 16 }]}>
+        <StatusBar style="dark" />
+        <View style={styles.paywallTop}>
+          <Pressable style={styles.topIcon} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable>
+          <Text style={styles.paywallTopTitle}>{book.title}</Text>
+          <View style={styles.topIcon} />
+        </View>
+        <View style={styles.paywallCard}>
+          <View style={styles.lockCircle}><Ionicons name="lock-closed" size={28} color="#8F1D3F" /></View>
+          <Text style={styles.paywallKicker}>{lockedContent.kind === 'book' ? 'TRUYỆN VIP' : 'CHƯƠNG VIP'}</Text>
+          <Text style={styles.paywallTitle}>Chương {chapterNumber} · {selectedChapter?.title || 'Nội dung dành cho thành viên'}</Text>
+          <Text style={styles.paywallBody}>
+            {lockedContent.kind === 'book'
+              ? 'Mở khóa truyện một lần để đọc các nội dung VIP thuộc gói truyện này.'
+              : 'Mở khóa chương này một lần. Quyền đọc được lưu vào tài khoản của bạn.'}
+          </Text>
+          <View style={styles.pricePill}><Text style={styles.priceText}>{lockedContent.priceCoins} CHƯƠNG Xu</Text></View>
+          {user ? <Text style={styles.balanceText}>Số dư hiện tại: {walletBalance === null ? 'Đang cập nhật…' : `${walletBalance} Xu`}</Text> : <Text style={styles.balanceText}>Đăng nhập để đồng bộ quyền đọc trên các thiết bị.</Text>}
+          {unlockError ? <Text style={styles.unlockError}>{unlockError}</Text> : null}
+          {!user ? (
+            <Pressable style={styles.unlockButton} onPress={() => router.push('/auth/login')}>
+              <Text style={styles.unlockButtonText}>Đăng nhập để mở khóa</Text>
+            </Pressable>
+          ) : !enough ? (
+            <Pressable style={styles.unlockButton} onPress={() => router.push('/wallet')}>
+              <Text style={styles.unlockButtonText}>Không đủ Xu · Xem Ví CHƯƠNG</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={[styles.unlockButton, unlocking && styles.unlockDisabled]} disabled={unlocking} onPress={unlockCurrent}>
+              <Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa · ${lockedContent.priceCoins} Xu`}</Text>
+            </Pressable>
+          )}
+          <Text style={styles.paywallSafety}>Mỗi lần mở khóa được xử lý nguyên tử: Xu chỉ bị trừ khi quyền đọc được cấp thành công.</Text>
+        </View>
+      </View>
+    );
+  }
+
   if (!selectedChapter) return <View style={styles.root}><EmptyState title="Chưa có chương xuất bản" /><Pressable onPress={() => router.back()}><Text style={{ textAlign: 'center', color: '#8F1D3F' }}>Quay lại</Text></Pressable></View>;
 
   return (
@@ -269,6 +393,22 @@ function MoreSheet({ visible, onClose, bookmark, chapter, onBookmark, onComments
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  paywallRoot: { backgroundColor: '#F8F2E9', paddingHorizontal: 16 },
+  paywallTop: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  paywallTopTitle: { flex: 1, color: '#2D2327', fontSize: 13, fontWeight: '900', textAlign: 'center' },
+  paywallCard: { width: '100%', maxWidth: 520, alignSelf: 'center', marginTop: 38, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D2', borderRadius: 24, padding: 24, alignItems: 'center' },
+  lockCircle: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#F2E1E6', alignItems: 'center', justifyContent: 'center' },
+  paywallKicker: { color: '#8F1D3F', fontSize: 10, fontWeight: '900', letterSpacing: 1.3, marginTop: 16 },
+  paywallTitle: { color: '#251C20', fontSize: 20, lineHeight: 27, fontWeight: '900', textAlign: 'center', marginTop: 7 },
+  paywallBody: { color: '#756A6E', fontSize: 12, lineHeight: 19, textAlign: 'center', marginTop: 10 },
+  pricePill: { marginTop: 18, backgroundColor: '#741632', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
+  priceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  balanceText: { color: '#756A6E', fontSize: 10, marginTop: 13 },
+  unlockError: { color: '#A12B48', fontSize: 10, textAlign: 'center', marginTop: 10 },
+  unlockButton: { width: '100%', minHeight: 50, borderRadius: 14, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center', marginTop: 18, paddingHorizontal: 12 },
+  unlockButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900', textAlign: 'center' },
+  unlockDisabled: { opacity: .55 },
+  paywallSafety: { color: '#95898D', fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 12 },
   readingPage: { width: '100%', maxWidth: 720, alignSelf: 'center' },
   preview: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F0E1E5', padding: 8, borderRadius: 8, marginBottom: 25 },
   previewDark: { backgroundColor: '#41343A' }, previewText: { color: '#7E2845', fontSize: 10, fontWeight: '800' }, previewTextDark: { color: '#E2B7C5' },
