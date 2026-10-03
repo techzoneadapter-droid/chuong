@@ -162,3 +162,40 @@ All content is original demo material created for CHƯƠNG product testing, not 
 Anonymous/public RLS verification passed:
 - 4 public books visible
 - 8 published chapters visible
+
+
+## Phase 4A — CHƯƠNG Xu wallet foundation
+
+Status: implemented on production Supabase and source.
+
+Completed:
+- `wallet_accounts`: one wallet per user with non-negative balance, lifetime credited and lifetime spent.
+- `wallet_transactions`: immutable signed ledger with balance-after snapshots.
+- Unique idempotency keys prevent duplicate credits/debits when the same transaction is retried.
+- New profiles automatically receive a zero-balance wallet.
+- Existing profiles were backfilled with wallets.
+- RLS: users can read only their own wallet/transactions; admins can inspect all wallets.
+- Clients cannot directly mutate wallet balances or transaction history.
+- Admin-only support adjustment RPC is atomic, row-locked and idempotent.
+- Non-admin wallet adjustment attempts are blocked.
+- `services/wallet.ts` added.
+- `/wallet` screen added with balance, lifetime metrics and transaction history.
+- Profile now links to Ví CHƯƠNG.
+- "Nạp Xu" is intentionally disabled until compliant Google Play Billing / Apple IAP receipt verification is implemented.
+
+Production verification:
+- automatic wallet creation: PASS
+- duplicate idempotent credit: PASS (250 Xu credited once)
+- duplicate ledger insertion: PASS (one ledger entry)
+- owner wallet read: PASS
+- non-admin balance adjustment: BLOCKED as expected
+- temporary test accounts and ledger entries were removed after verification
+- real owner/admin account currently has 0 Xu; no fake balance was added
+
+Migrations:
+- `202610030003_phase4a_wallet_foundation.sql`
+- `202610030004_phase4a_wallet_security.sql`
+- `202610030005_phase4a_wallet_rpc_fix.sql`
+
+Next product step:
+- Phase 4B: chapter/book unlock entitlements using CHƯƠNG Xu, with atomic debit + idempotent unlock + author revenue attribution. No store billing yet.
