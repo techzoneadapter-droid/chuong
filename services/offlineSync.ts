@@ -87,7 +87,7 @@ function operationKey(operation: OfflineSyncOperation) {
   if (operation.type === 'library-set' || operation.type === 'library-remove') return `library:${operation.userId}:${operation.bookId}`;
   if (operation.type === 'bookmark-set') return `bookmark:${operation.userId}:${operation.bookId}:${operation.payload.chapterNumber}`;
   if (operation.type === 'bookmark-delete-id') return `bookmark-id:${operation.userId}:${operation.payload.bookmarkId}`;
-  return operation.id;
+  throw new Error('Unknown offline sync operation');
 }
 
 export async function enqueueOfflineSync(operation: OfflineSyncOperation) {
