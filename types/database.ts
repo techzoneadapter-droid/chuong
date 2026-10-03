@@ -1157,24 +1157,173 @@ export type Database = {
           },
         ]
       }
+      store_products: {
+        Row: {
+          active: boolean
+          apple_product_id: string | null
+          coins: number
+          created_at: string
+          google_product_id: string | null
+          id: string
+          metadata: Json
+          sku: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          apple_product_id?: string | null
+          coins: number
+          created_at?: string
+          google_product_id?: string | null
+          id?: string
+          metadata?: Json
+          sku: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          apple_product_id?: string | null
+          coins?: number
+          created_at?: string
+          google_product_id?: string | null
+          id?: string
+          metadata?: Json
+          sku?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      store_purchase_events: {
+        Row: {
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+          purchase_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+          purchase_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          purchase_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_purchase_events_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "store_purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_purchases: {
+        Row: {
+          coins_granted: number
+          coins_to_balance: number
+          coins_to_debt: number
+          created_at: string
+          credited_at: string | null
+          external_transaction_id: string
+          id: string
+          product_id: string
+          provider: Database["public"]["Enums"]["store_provider"]
+          provider_payload: Json
+          receipt_hash: string
+          revoked_at: string | null
+          state: Database["public"]["Enums"]["store_purchase_state"]
+          updated_at: string
+          user_id: string
+          verified_at: string
+        }
+        Insert: {
+          coins_granted?: number
+          coins_to_balance?: number
+          coins_to_debt?: number
+          created_at?: string
+          credited_at?: string | null
+          external_transaction_id: string
+          id?: string
+          product_id: string
+          provider: Database["public"]["Enums"]["store_provider"]
+          provider_payload?: Json
+          receipt_hash: string
+          revoked_at?: string | null
+          state?: Database["public"]["Enums"]["store_purchase_state"]
+          updated_at?: string
+          user_id: string
+          verified_at?: string
+        }
+        Update: {
+          coins_granted?: number
+          coins_to_balance?: number
+          coins_to_debt?: number
+          created_at?: string
+          credited_at?: string | null
+          external_transaction_id?: string
+          id?: string
+          product_id?: string
+          provider?: Database["public"]["Enums"]["store_provider"]
+          provider_payload?: Json
+          receipt_hash?: string
+          revoked_at?: string | null
+          state?: Database["public"]["Enums"]["store_purchase_state"]
+          updated_at?: string
+          user_id?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_accounts: {
         Row: {
           balance_coins: number
+          debt_coins: number
           lifetime_credited: number
+          lifetime_reversed: number
           lifetime_spent: number
           updated_at: string
           user_id: string
         }
         Insert: {
           balance_coins?: number
+          debt_coins?: number
           lifetime_credited?: number
+          lifetime_reversed?: number
           lifetime_spent?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           balance_coins?: number
+          debt_coins?: number
           lifetime_credited?: number
+          lifetime_reversed?: number
           lifetime_spent?: number
           updated_at?: string
           user_id?: string
@@ -1339,6 +1488,40 @@ export type Database = {
         }
         Returns: undefined
       }
+      credit_verified_store_purchase: {
+        Args: {
+          p_external_transaction_id: string
+          p_provider: Database["public"]["Enums"]["store_provider"]
+          p_provider_payload?: Json
+          p_receipt_hash: string
+          p_store_product_id: string
+          p_user_id: string
+        }
+        Returns: {
+          coins_granted: number
+          coins_to_balance: number
+          coins_to_debt: number
+          created_at: string
+          credited_at: string | null
+          external_transaction_id: string
+          id: string
+          product_id: string
+          provider: Database["public"]["Enums"]["store_provider"]
+          provider_payload: Json
+          receipt_hash: string
+          revoked_at: string | null
+          state: Database["public"]["Enums"]["store_purchase_state"]
+          updated_at: string
+          user_id: string
+          verified_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "store_purchases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_author_chapter_for_editing: {
         Args: { p_book_id: string; p_chapter_id: string }
         Returns: {
@@ -1372,6 +1555,38 @@ export type Database = {
           title: string
           updated_at: string
         }[]
+      }
+      revoke_verified_store_purchase: {
+        Args: {
+          p_external_transaction_id: string
+          p_provider: Database["public"]["Enums"]["store_provider"]
+          p_provider_payload?: Json
+          p_reason: string
+        }
+        Returns: {
+          coins_granted: number
+          coins_to_balance: number
+          coins_to_debt: number
+          created_at: string
+          credited_at: string | null
+          external_transaction_id: string
+          id: string
+          product_id: string
+          provider: Database["public"]["Enums"]["store_provider"]
+          provider_payload: Json
+          receipt_hash: string
+          revoked_at: string | null
+          state: Database["public"]["Enums"]["store_purchase_state"]
+          updated_at: string
+          user_id: string
+          verified_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "store_purchases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       unlock_book: {
         Args: { p_book_id: string; p_idempotency_key: string }
@@ -1417,6 +1632,8 @@ export type Database = {
         | "other"
       report_status: "open" | "reviewing" | "resolved" | "rejected"
       source_type: "original" | "licensed_translation" | "authorized"
+      store_provider: "google_play" | "app_store"
+      store_purchase_state: "verified" | "credited" | "revoked" | "rejected"
       user_role: "reader" | "author" | "admin"
       wallet_transaction_type:
         | "purchase_credit"
@@ -1426,6 +1643,7 @@ export type Database = {
         | "admin_credit"
         | "admin_debit"
         | "author_payout_debit"
+        | "purchase_reversal_debit"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1577,6 +1795,8 @@ export const Constants = {
       ],
       report_status: ["open", "reviewing", "resolved", "rejected"],
       source_type: ["original", "licensed_translation", "authorized"],
+      store_provider: ["google_play", "app_store"],
+      store_purchase_state: ["verified", "credited", "revoked", "rejected"],
       user_role: ["reader", "author", "admin"],
       wallet_transaction_type: [
         "purchase_credit",
@@ -1586,6 +1806,7 @@ export const Constants = {
         "admin_credit",
         "admin_debit",
         "author_payout_debit",
+        "purchase_reversal_debit",
       ],
     },
   },
