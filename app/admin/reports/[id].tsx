@@ -5,13 +5,14 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState, RetryState } from '../../../components/States';
 import { useAuth } from '../../../contexts/AuthContext';
-import { adminModerate, adminUpdateReport, getAdminReport, getReportTarget, ModerationState, ReportRow, reportReasonLabel, reportStatusLabel } from '../../../services/moderation';
+import { adminModerate, adminUpdateReport, getAdminReport, getAdminReviewPreview, getReportTarget, ModerationState, ReportRow, reportReasonLabel, reportStatusLabel, ReviewModerationPreview } from '../../../services/moderation';
 
 export default function AdminReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { profile } = useAuth();
   const [report, setReport] = useState<ReportRow | null>(null);
+  const [reviewPreview, setReviewPreview] = useState<ReviewModerationPreview | null>(null);
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -20,7 +21,13 @@ export default function AdminReportDetailScreen() {
 
   const load = async () => {
     setLoading(true); setError('');
-    try { const data = await getAdminReport(id); setReport(data); setNote(data.resolution_note ?? ''); }
+    try {
+      const data = await getAdminReport(id);
+      const nextTarget = getReportTarget(data);
+      setReport(data);
+      setNote(data.resolution_note ?? '');
+      setReviewPreview(nextTarget?.type === 'review' ? await getAdminReviewPreview(nextTarget.id) : null);
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể tải báo cáo.'); }
     finally { setLoading(false); }
   };
@@ -55,6 +62,11 @@ export default function AdminReportDetailScreen() {
       <View style={styles.badges}><Text style={styles.reason}>{reportReasonLabel(report.reason)}</Text><Text style={styles.status}>{reportStatusLabel(report.status)}</Text></View>
       <Text style={styles.label}>Đối tượng</Text><Text style={styles.value}>{target ? `${target.type} · ${target.id}` : 'Không xác định'}</Text>
       <Text style={styles.label}>Nội dung báo cáo</Text><Text style={styles.body}>{report.details || 'Không có mô tả bổ sung.'}</Text>
+      {reviewPreview ? <View style={styles.preview}>
+        <View style={styles.previewTop}><Text style={styles.previewTitle}>{reviewPreview.bookTitle}</Text><Text style={styles.previewStars}>{'★'.repeat(reviewPreview.rating)}{'☆'.repeat(5 - reviewPreview.rating)}</Text></View>
+        <Text style={styles.previewMeta}>{reviewPreview.userName} · {reviewPreview.spoiler ? 'Có spoiler' : 'Không spoiler'} · {reviewPreview.moderationState}</Text>
+        <Text style={styles.previewBody}>{reviewPreview.reviewText || 'Chỉ chấm điểm, không có nội dung nhận xét.'}</Text>
+      </View> : null}
       <Text style={styles.label}>Ghi chú xử lý</Text>
       <TextInput value={note} onChangeText={setNote} multiline maxLength={5000} placeholder="Ghi lý do, kết luận hoặc thông tin cần lưu…" placeholderTextColor="#9C9094" style={styles.input} />
       <Text style={styles.section}>Kiểm duyệt nội dung</Text>
@@ -86,6 +98,12 @@ const styles = StyleSheet.create({
   label: { color: '#8A7D82', fontSize: 10, fontWeight: '900', letterSpacing: .7, marginTop: 20, textTransform: 'uppercase' },
   value: { color: '#33282D', fontSize: 13, lineHeight: 20, marginTop: 5 },
   body: { color: '#5D5156', fontSize: 13, lineHeight: 21, marginTop: 6 },
+  preview: { marginTop: 14, borderRadius: 14, borderWidth: 1, borderColor: '#E1D3CC', backgroundColor: '#FFFDFC', padding: 13 },
+  previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  previewTitle: { flex: 1, color: '#33282D', fontSize: 12, fontWeight: '900' },
+  previewStars: { color: '#B9842E', fontSize: 13, letterSpacing: 1 },
+  previewMeta: { color: '#8A7D82', fontSize: 9, marginTop: 5 },
+  previewBody: { color: '#5D5156', fontSize: 12, lineHeight: 19, marginTop: 9 },
   input: { minHeight: 110, marginTop: 8, borderWidth: 1, borderColor: '#D9CCC5', backgroundColor: '#FFFDFC', borderRadius: 14, padding: 13, color: '#33282D', textAlignVertical: 'top' },
   section: { color: '#221A1D', fontSize: 15, fontWeight: '900', marginTop: 24, marginBottom: 10 },
   actionGrid: { gap: 9 },
