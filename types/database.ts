@@ -797,11 +797,105 @@ export type Database = {
           },
         ]
       }
+      wallet_accounts: {
+        Row: {
+          balance_coins: number
+          lifetime_credited: number
+          lifetime_spent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_coins?: number
+          lifetime_credited?: number
+          lifetime_spent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_coins?: number
+          lifetime_credited?: number
+          lifetime_spent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_transactions: {
+        Row: {
+          amount_coins: number
+          balance_after: number
+          created_at: string
+          description: string | null
+          id: string
+          idempotency_key: string | null
+          metadata: Json
+          reference_id: string | null
+          reference_type: string | null
+          type: Database["public"]["Enums"]["wallet_transaction_type"]
+          user_id: string
+        }
+        Insert: {
+          amount_coins: number
+          balance_after: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json
+          reference_id?: string | null
+          reference_type?: string | null
+          type: Database["public"]["Enums"]["wallet_transaction_type"]
+          user_id: string
+        }
+        Update: {
+          amount_coins?: number
+          balance_after?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: Database["public"]["Enums"]["wallet_transaction_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      admin_adjust_wallet: {
+        Args: {
+          p_amount: number
+          p_idempotency_key?: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: {
+          balance_coins: number
+          transaction_id: string
+        }[]
+      }
       admin_set_moderation: {
         Args: {
           p_reason?: string
@@ -838,6 +932,14 @@ export type Database = {
       report_status: "open" | "reviewing" | "resolved" | "rejected"
       source_type: "original" | "licensed_translation" | "authorized"
       user_role: "reader" | "author" | "admin"
+      wallet_transaction_type:
+        | "purchase_credit"
+        | "unlock_debit"
+        | "refund_credit"
+        | "promo_credit"
+        | "admin_credit"
+        | "admin_debit"
+        | "author_payout_debit"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -982,6 +1084,15 @@ export const Constants = {
       report_status: ["open", "reviewing", "resolved", "rejected"],
       source_type: ["original", "licensed_translation", "authorized"],
       user_role: ["reader", "author", "admin"],
+      wallet_transaction_type: [
+        "purchase_credit",
+        "unlock_debit",
+        "refund_credit",
+        "promo_credit",
+        "admin_credit",
+        "admin_debit",
+        "author_payout_debit",
+      ],
     },
   },
 } as const
