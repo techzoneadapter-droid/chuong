@@ -500,6 +500,109 @@ export type Database = {
           },
         ]
       }
+      book_review_helpful: {
+        Row: {
+          created_at: string
+          review_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          review_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          review_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_review_helpful_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "book_reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_review_helpful_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_reviews: {
+        Row: {
+          book_id: string
+          created_at: string
+          helpful_count: number
+          id: string
+          moderated_at: string | null
+          moderated_by: string | null
+          moderation_note: string | null
+          moderation_state: Database["public"]["Enums"]["moderation_state"]
+          rating: number
+          review_text: string
+          spoiler: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          helpful_count?: number
+          id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
+          rating: number
+          review_text?: string
+          spoiler?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          helpful_count?: number
+          id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
+          moderation_state?: Database["public"]["Enums"]["moderation_state"]
+          rating?: number
+          review_text?: string
+          spoiler?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_reviews_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_reviews_moderated_by_fkey"
+            columns: ["moderated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookmarks: {
         Row: {
           book_id: string
@@ -571,6 +674,7 @@ export type Database = {
           moderation_state: Database["public"]["Enums"]["moderation_state"]
           price_coins: number
           rating: number
+          rating_count: number
           search_text: string
           slug: string
           source_type: Database["public"]["Enums"]["source_type"]
@@ -597,6 +701,7 @@ export type Database = {
           moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           rating?: number
+          rating_count?: number
           search_text?: string
           slug: string
           source_type?: Database["public"]["Enums"]["source_type"]
@@ -623,6 +728,7 @@ export type Database = {
           moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           rating?: number
+          rating_count?: number
           search_text?: string
           slug?: string
           source_type?: Database["public"]["Enums"]["source_type"]
@@ -1400,6 +1506,7 @@ export type Database = {
           reason: Database["public"]["Enums"]["report_reason"]
           reporter_id: string | null
           resolution_note: string | null
+          review_id: string | null
           status: Database["public"]["Enums"]["report_status"]
           updated_at: string
         }
@@ -1415,6 +1522,7 @@ export type Database = {
           reason: Database["public"]["Enums"]["report_reason"]
           reporter_id?: string | null
           resolution_note?: string | null
+          review_id?: string | null
           status?: Database["public"]["Enums"]["report_status"]
           updated_at?: string
         }
@@ -1430,6 +1538,7 @@ export type Database = {
           reason?: Database["public"]["Enums"]["report_reason"]
           reporter_id?: string | null
           resolution_note?: string | null
+          review_id?: string | null
           status?: Database["public"]["Enums"]["report_status"]
           updated_at?: string
         }
@@ -1474,6 +1583,13 @@ export type Database = {
             columns: ["reporter_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "book_reviews"
             referencedColumns: ["id"]
           },
         ]
@@ -2132,6 +2248,22 @@ export type Database = {
           status: Database["public"]["Enums"]["chapter_status"]
           title: string
           updated_at: string
+        }[]
+      }
+      get_book_review_summary: {
+        Args: { p_book_id: string }
+        Returns: {
+          average_rating: number
+          my_rating: number
+          my_review_id: string
+          my_review_text: string
+          my_spoiler: boolean
+          rating_count: number
+          star_1: number
+          star_2: number
+          star_3: number
+          star_4: number
+          star_5: number
         }[]
       }
       get_chapter_for_reading: {
