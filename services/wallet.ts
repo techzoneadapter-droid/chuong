@@ -66,6 +66,7 @@ export function walletTransactionLabel(type: WalletTransaction['type']) {
     admin_credit: 'Điều chỉnh cộng Xu',
     admin_debit: 'Điều chỉnh trừ Xu',
     author_payout_debit: 'Thanh toán doanh thu',
+    purchase_reversal_debit: 'Thu hồi Xu do hoàn giao dịch',
   } as const)[type];
 }
 
