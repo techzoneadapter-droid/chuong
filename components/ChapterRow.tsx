@@ -11,7 +11,7 @@ export function ChapterRow({ chapter, onPress, showDate = true }: Props) {
       <View style={styles.main}>
         <View style={styles.titleLine}>
           <Text numberOfLines={1} style={[styles.title, chapter.isRead && styles.read]}>Chương {chapter.number} · {chapter.title}</Text>
-          {chapter.access === 'vip' ? <View style={styles.vip}><Ionicons name="lock-closed" size={9} color="#8F1D3F" /><Text style={styles.vipText}>VIP{chapter.priceCoins ? ` · ${chapter.priceCoins} Xu` : ''}</Text></View> : null}
+          {chapter.access === 'vip' ? <View style={styles.vip}><Ionicons name="lock-closed" size={9} color="#8F1D3F" /><Text style={styles.vipText}>VIP{chapter.priceCoins ? ` · ${chapter.priceCoins} Linh Thạch` : ''}</Text></View> : null}
         </View>
         {showDate ? <Text style={styles.date}>{chapter.relativeDate}{chapter.isRead ? ' · Đã đọc' : ''}</Text> : null}
       </View>
