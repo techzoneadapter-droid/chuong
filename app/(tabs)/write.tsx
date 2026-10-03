@@ -27,7 +27,7 @@ export default function WriteScreen() {
     <Text style={styles.note}>Số liệu bên dưới được tổng hợp từ dữ liệu truyện hiện có; chưa phải hệ thống analytics thời gian thực.</Text>
     <Pressable style={styles.revenueCard} onPress={() => router.push('/author/revenue')}>
       <View style={styles.revenueIcon}><Ionicons name="wallet-outline" size={21} color="#8F1D3F" /></View>
-      <View style={{ flex: 1 }}><Text style={styles.revenueTitle}>Doanh thu tác giả</Text><Text style={styles.revenueBody}>Doanh thu Xu · Hoàn tiền · Đối soát</Text></View>
+      <View style={{ flex: 1 }}><Text style={styles.revenueTitle}>Doanh thu tác giả</Text><Text style={styles.revenueBody}>Doanh thu Linh Thạch · Hoàn tiền · Đối soát</Text></View>
       <Ionicons name="chevron-forward" size={18} color="#8F1D3F" />
     </Pressable>
     <View style={styles.metrics}>{[[String(views), 'Lượt đọc'], [String(followers), 'Theo dõi'], [String(chapters), 'Tổng chương'], [String(books.reduce((sum, book) => sum + (book.draftChapters ?? 0), 0)), 'Chương nháp'], [String(drafts), 'Bản nháp'], [String(published), 'Đang xuất bản'], [String(books.filter((book) => book.backendStatus === 'completed').length), 'Đã hoàn thành'], [String(author.followersCount), 'Theo dõi tác giả']].map(([value, label]) => <View style={styles.metric} key={label}><Text style={styles.value}>{value}</Text><Text style={styles.label}>{label}</Text></View>)}</View>
