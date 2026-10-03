@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookCard } from '../../components/BookCard';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
-import { books as demoBooks } from '../../data/books';
+import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
+import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
+import { books as demoBooks } from '../../data/books';
 import { getBooks } from '../../services/books';
 import { getLatestReadingProgress } from '../../services/library';
 import { getUnreadNotificationCount } from '../../services/notifications';
@@ -17,6 +19,19 @@ import {
   recommendationReasonText,
 } from '../../services/recommendations';
 import { Book, ReadingProgress } from '../../types';
+
+function SectionTitle({ title, action, onPress, subtitle }: { title: string; action?: string; onPress?: () => void; subtitle?: string }) {
+  return <View style={styles.sectionHead}>
+    <View style={styles.sectionTitleWrap}>
+      <View style={styles.sectionMark}><View style={styles.sectionMarkDot} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.sectionSub}>{subtitle}</Text> : null}
+      </View>
+    </View>
+    {action ? <Pressable hitSlop={10} onPress={onPress}><Text style={styles.seeAll}>{action}</Text></Pressable> : null}
+  </View>;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -29,6 +44,7 @@ export default function HomeScreen() {
   const [reload, setReload] = useState(0);
   const [loadError, setLoadError] = useState('');
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+
   useFocusEffect(useCallback(() => {
     let active = true;
     if (!user) {
@@ -38,6 +54,7 @@ export default function HomeScreen() {
     void getUnreadNotificationCount().then((count) => { if (active) setUnreadNotifications(count); });
     return () => { active = false; };
   }, [user]));
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -64,68 +81,113 @@ export default function HomeScreen() {
 
     return () => { active = false; };
   }, [user?.id, reload]);
-  if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải truyện…" /></SafeAreaView>;
-  if (loadError) return <SafeAreaView style={styles.safe}><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;
+
+  if (loading) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang mở sơn môn…" /></SafeAreaView>;
+  if (loadError) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;
+
   const currentBook = books.find((book) => book.id === savedProgress?.bookId) ?? books[0];
-  if (!currentBook) return <SafeAreaView style={styles.safe} edges={['top']}><View style={styles.emptyHome}><Text style={styles.brand}>CHƯƠNG</Text><EmptyState title="Chưa có truyện công khai" detail={loadError || 'Nội dung sẽ xuất hiện sau khi tác giả xuất bản truyện.'} /></View></SafeAreaView>;
+  if (!currentBook) {
+    return <SafeAreaView style={styles.safe} edges={['top']}>
+      <XianxiaBackdrop />
+      <View style={styles.emptyHome}>
+        <Text style={styles.brand}>CHƯƠNG</Text>
+        <Text style={styles.tagline}>Mỗi chương, một thế giới.</Text>
+        <EmptyState title="Chưa có truyện công khai" detail="Kho truyện sẽ xuất hiện sau khi tác giả hoặc quản trị viên công khai nội dung." />
+      </View>
+    </SafeAreaView>;
+  }
+
   const currentProgress = savedProgress?.bookId === currentBook.id ? savedProgress : null;
   const currentPercent = currentProgress?.progressPercent ?? currentBook.progress;
   const currentChapter = currentProgress?.chapterNumber ?? Math.max(1, Math.floor(currentBook.totalChapters * currentBook.progress / 100));
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <XianxiaBackdrop />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.page}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.brand}>CHƯƠNG</Text>
-            <Text style={styles.tagline}>Mỗi chương, một thế giới.</Text>
+          <View style={styles.brandRow}>
+            <View style={styles.brandSeal}><Text style={styles.brandSealText}>章</Text></View>
+            <View>
+              <Text style={styles.brand}>CHƯƠNG</Text>
+              <Text style={styles.tagline}>Mỗi chương, một thế giới.</Text>
+            </View>
           </View>
           <View style={styles.headerActions}>
             <Pressable style={styles.iconButton} onPress={() => router.push('/discover')}>
-              <Ionicons name="search" size={21} color="#221A1D" />
+              <Ionicons name="search" size={20} color={xianxia.ink} />
             </Pressable>
             <Pressable style={styles.iconButton} onPress={() => router.push('/notifications')}>
-              <Ionicons name="notifications-outline" size={21} color="#221A1D" />
+              <Ionicons name="notifications-outline" size={20} color={xianxia.ink} />
               {unreadNotifications > 0 ? <View style={styles.headerBadge}><Text style={styles.headerBadgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text></View> : null}
             </Pressable>
           </View>
         </View>
 
-        <Pressable style={({ pressed }) => [styles.hero, pressed && styles.pressed]} onPress={() => router.push({ pathname: '/book/[id]', params: { id: currentBook.id } })}>
-          <View style={styles.heroTop}>
-            <Text style={styles.heroEyebrow}>{currentProgress ? 'ĐANG ĐỌC GẦN NHẤT' : 'NỔI BẬT'}</Text>
-            <Text style={styles.heroPercent}>{Math.round(currentPercent)}%</Text>
+        <Pressable
+          style={({ pressed }) => [styles.hero, pressed && styles.pressed]}
+          onPress={() => router.push({ pathname: '/book/[id]', params: { id: currentBook.id } })}
+        >
+          <XianxiaCoverArt />
+          <View style={styles.heroInkOrb} />
+          <View style={styles.heroCopy}>
+            <View style={styles.heroTop}>
+              <View style={styles.heroKicker}>
+                <Ionicons name={currentProgress ? 'bookmark' : 'sparkles'} size={12} color={xianxia.goldSoft} />
+                <Text style={styles.heroEyebrow}>{currentProgress ? 'TIẾP TỤC TU HÀNH' : 'TIÊN ĐỀ CỬ HÔM NAY'}</Text>
+              </View>
+              <Text style={styles.heroPercent}>{Math.round(currentPercent)}%</Text>
+            </View>
+            <Text numberOfLines={2} style={styles.heroTitle}>{currentBook.title}</Text>
+            <Text numberOfLines={1} style={styles.heroAuthor}>{currentBook.author}</Text>
+            <Text style={styles.heroSub}>Chương {currentChapter} / {Math.max(1, currentBook.totalChapters)} · {currentBook.genre}</Text>
+            <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, Math.max(0, currentPercent))}%` }]} /></View>
+            <Pressable style={styles.continueButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: currentBook.id, chapter: currentChapter } })}>
+              <View style={styles.continueGlyph}><Ionicons name="book-outline" size={16} color={xianxia.goldSoft} /></View>
+              <Text style={styles.continueText}>{currentProgress ? 'Đọc tiếp' : 'Bắt đầu đọc'}</Text>
+              <Ionicons name="arrow-forward" size={15} color={xianxia.white} />
+            </Pressable>
           </View>
-          <Text style={styles.heroTitle}>{currentBook.title}</Text>
-          <Text style={styles.heroSub}>{currentBook.author} · Chương {currentChapter} / {currentBook.totalChapters}</Text>
-          <View style={styles.track}>
-            <View style={[styles.fill, { width: `${currentPercent}%` }]} />
+          <View style={styles.heroCoverWrap}>
+            <View style={[styles.heroCover, { backgroundColor: currentBook.cover || xianxia.jadeDeep }]}>
+              <XianxiaCoverArt compact />
+              {currentBook.coverUrl ? <Image source={{ uri: currentBook.coverUrl }} style={styles.heroCoverImage} /> : <Text numberOfLines={4} style={styles.heroCoverTitle}>{currentBook.title}</Text>}
+              <View style={styles.heroCoverSeal}><Text style={styles.heroCoverSealText}>仙</Text></View>
+            </View>
           </View>
-          <Pressable style={styles.continueButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: currentBook.id, chapter: currentChapter } })}>
-            <Ionicons name="book-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.continueText}>{currentProgress ? 'Đọc tiếp' : 'Bắt đầu đọc'}</Text>
-          </Pressable>
         </Pressable>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>🔥 Hot hôm nay</Text>
-          <Text style={styles.seeAll} onPress={() => router.push('/discover')}>Xem tất cả</Text>
+        <View style={styles.quickRealm}>
+          <Pressable style={styles.quickItem} onPress={() => router.push('/discover')}>
+            <View style={styles.quickIcon}><Ionicons name="compass-outline" size={19} color={xianxia.jadeDeep} /></View>
+            <Text style={styles.quickTitle}>Tàng Kinh Các</Text>
+            <Text style={styles.quickMeta}>Khám phá kho truyện</Text>
+          </Pressable>
+          <View style={styles.quickDivider} />
+          <Pressable style={styles.quickItem} onPress={() => router.push('/library')}>
+            <View style={styles.quickIcon}><Ionicons name="library-outline" size={19} color={xianxia.jadeDeep} /></View>
+            <Text style={styles.quickTitle}>Tủ Linh Thư</Text>
+            <Text style={styles.quickMeta}>Truyện đang theo dõi</Text>
+          </Pressable>
+          <View style={styles.quickDivider} />
+          <Pressable style={styles.quickItem} onPress={() => router.push('/recommendations')}>
+            <View style={styles.quickIcon}><Ionicons name="sparkles-outline" size={19} color={xianxia.jadeDeep} /></View>
+            <Text style={styles.quickTitle}>Cơ Duyên</Text>
+            <Text style={styles.quickMeta}>Đề cử hợp gu</Text>
+          </Pressable>
         </View>
 
+        <SectionTitle title="Đang thịnh hành" action="Xem tất cả" onPress={() => router.push('/discover')} subtitle="Các đạo hữu đang đọc nhiều nhất hôm nay" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-          {books.slice(0, 6).map((book) => <BookCard book={book} key={book.id} />)}
+          {books.slice(0, 8).map((book) => <BookCard book={book} key={book.id} />)}
         </ScrollView>
 
-        <View style={styles.sectionHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Dành cho bạn</Text>
-            <Text style={styles.sectionSub}>
-              {recommendations.some((item) => item.personalized)
-                ? 'Dựa trên truyện, thể loại và tác giả bạn thực sự tương tác.'
-                : 'Đề xuất nổi bật. Đọc và theo dõi thêm để CHƯƠNG hiểu gu của bạn.'}
-            </Text>
-          </View>
-          <Text style={styles.seeAll} onPress={() => router.push('/recommendations')}>Xem tất cả</Text>
-        </View>
+        <SectionTitle
+          title="Cơ duyên dành cho bạn"
+          action="Xem tất cả"
+          onPress={() => router.push('/recommendations')}
+          subtitle={recommendations.some((item) => item.personalized) ? 'Dựa trên hành trình đọc của bạn' : 'Đọc thêm để CHƯƠNG hiểu gu của bạn'}
+        />
 
         {recommendError ? <View style={styles.recommendError}>
           <Text style={styles.recommendErrorText}>{recommendError}</Text>
@@ -138,7 +200,7 @@ export default function HomeScreen() {
               <View style={styles.recommendItem} key={item.book.id}>
                 <BookCard book={item.book} />
                 <View style={styles.reasonRow}>
-                  <Ionicons name={item.personalized ? 'sparkles' : 'flame-outline'} size={12} color="#8F1D3F" />
+                  <Ionicons name={item.personalized ? 'sparkles' : 'flame-outline'} size={11} color={xianxia.cinnabar} />
                   <Text numberOfLines={2} style={styles.reasonText}>{recommendationReasonText(item)}</Text>
                   {user ? <Pressable
                     accessibilityRole="button"
@@ -153,36 +215,33 @@ export default function HomeScreen() {
                       }
                     }}
                     style={styles.hideRecommend}
-                  >
-                    <Ionicons name="close" size={14} color="#9B8E93" />
-                  </Pressable> : null}
+                  ><Ionicons name="close" size={13} color={xianxia.muted} /></Pressable> : null}
                 </View>
               </View>
             ))}
           </ScrollView>
         ) : !recommendError ? (
-          <View style={styles.recommend}>
-            <View style={styles.recommendText}>
-              <Text style={styles.recommendKicker}>TUYỂN CHỌN RIÊNG</Text>
-              <Text style={styles.recommendTitle}>CHƯƠNG đang học gu đọc của bạn.</Text>
-              <Text style={styles.recommendBody}>Đọc, thêm vào tủ sách hoặc theo dõi tác giả để nhận đề xuất chính xác hơn.</Text>
+          <View style={styles.recommendEmpty}>
+            <View style={styles.recommendEmblem}><Text style={styles.recommendEmblemText}>缘</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recommendTitle}>Cơ duyên chưa hiện rõ</Text>
+              <Text style={styles.recommendBody}>Hãy đọc, lưu và theo dõi vài bộ truyện. CHƯƠNG sẽ dần mở ra đề cử đúng khẩu vị của bạn.</Text>
             </View>
-            <Ionicons name="sparkles" size={36} color="#8F1D3F" />
           </View>
         ) : null}
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Tác giả Việt</Text>
-          <Text style={styles.seeAll} onPress={() => router.push('/write')}>Xem thêm</Text>
-        </View>
-
+        <SectionTitle title="Khai bút nhập đạo" subtitle="Viết truyện, xây độc giả và mở con đường của riêng bạn" />
         <View style={styles.authorBox}>
-          <Text style={styles.authorTitle}>Viết câu chuyện của riêng bạn</Text>
-          <Text style={styles.authorBody}>Đăng truyện, theo dõi độc giả và xây dựng cộng đồng người đọc.</Text>
-          <Pressable style={styles.authorButton} onPress={() => router.push('/write')}>
-            <Text style={styles.authorButtonText}>Bắt đầu viết</Text>
-            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-          </Pressable>
+          <XianxiaCoverArt />
+          <View style={styles.authorSeal}><Text style={styles.authorSealText}>笔</Text></View>
+          <View style={styles.authorCopy}>
+            <Text style={styles.authorTitle}>Một thế giới mới bắt đầu từ chương đầu tiên.</Text>
+            <Text style={styles.authorBody}>Tác giả có thể đăng truyện, quản lý chương, xem phân tích độc giả và kiếm Linh Thạch.</Text>
+            <Pressable style={styles.authorButton} onPress={() => router.push('/write')}>
+              <Text style={styles.authorButtonText}>Bắt đầu viết</Text>
+              <Ionicons name="arrow-forward" size={15} color={xianxia.white} />
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -190,113 +249,81 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F2E9' },
-  page: { paddingBottom: 36 },
+  safe: { flex: 1, backgroundColor: xianxia.paper },
+  page: { paddingBottom: 38 },
+  emptyHome: { flex: 1, paddingTop: 42 },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 8,
     paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
   },
-  brand: { color: '#8F1D3F', fontSize: 25, fontWeight: '900', letterSpacing: 1.3 },
-  tagline: { color: '#756B6F', fontSize: 12, marginTop: 2 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandSeal: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, borderColor: xianxia.gold, backgroundColor: xianxia.cinnabar, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-3deg' }] },
+  brandSealText: { color: '#F7E6BA', fontSize: 17, fontWeight: '900' },
+  brand: { color: xianxia.ink, fontSize: 23, fontWeight: '900', letterSpacing: 2.1 },
+  tagline: { color: xianxia.muted, fontSize: 10, marginTop: 2, letterSpacing: .2 },
   headerActions: { flexDirection: 'row', gap: 8 },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFDFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E9DDD6',
-    position: 'relative'
-  },
-  headerBadge: { position: 'absolute', right: -3, top: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#8F1D3F', paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#F8F2E9' },
-  headerBadgeText: { color: '#FFF', fontSize: 7, fontWeight: '900' },
-  hero: {
-    marginHorizontal: 16,
-    backgroundColor: '#66152F',
-    borderRadius: 24,
-    padding: 20,
-    minHeight: 196
-  },
-  pressed: { opacity: 0.9 },
-  heroTop: { flexDirection: 'row', justifyContent: 'space-between' },
-  heroEyebrow: { color: '#E9C6D1', fontSize: 11, fontWeight: '900', letterSpacing: 1.1 },
-  heroPercent: { color: '#E9C6D1', fontSize: 12, fontWeight: '800' },
-  heroTitle: { color: '#FFFFFF', fontSize: 27, fontWeight: '900', marginTop: 22 },
-  heroSub: { color: '#E9C6D1', fontSize: 13, marginTop: 5 },
-  track: { height: 5, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 20 },
-  fill: { height: 5, borderRadius: 99, backgroundColor: '#FFFFFF' },
-  continueButton: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
-    backgroundColor: '#8F1D3F',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999
-  },
-  continueText: { color: '#FFFFFF', fontWeight: '800' },
-  sectionHeader: {
-    marginTop: 28,
-    paddingHorizontal: 16,
-    marginBottom: 13,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  sectionTitle: { color: '#221A1D', fontSize: 20, fontWeight: '900' },
-  sectionSub: { color: '#82757B', fontSize: 9, lineHeight: 13, marginTop: 3, paddingRight: 10 },
-  seeAll: { color: '#8F1D3F', fontSize: 12, fontWeight: '800' },
-  row: { paddingLeft: 16, paddingRight: 4 },
-  recommendRow: { paddingLeft: 16, paddingRight: 4 },
-  recommendItem: { width: 154 },
-  reasonRow: { width: 140, minHeight: 36, flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 5, paddingRight: 2 },
-  reasonText: { flex: 1, color: '#786B70', fontSize: 8, lineHeight: 12, fontWeight: '700' },
-  hideRecommend: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2EAE6', marginTop: -3 },
-  recommendError: { marginHorizontal: 16, borderRadius: 14, backgroundColor: '#F8E7EC', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  recommendErrorText: { flex: 1, color: '#8F1D3F', fontSize: 10, lineHeight: 14 },
-  retryText: { color: '#8F1D3F', fontSize: 10, fontWeight: '900' },
-  recommend: {
-    marginHorizontal: 16,
-    backgroundColor: '#F0E1E5',
-    borderRadius: 22,
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14
-  },
-  recommendText: { flex: 1 },
-  recommendKicker: { color: '#8F1D3F', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  recommendTitle: { color: '#221A1D', fontSize: 18, lineHeight: 24, fontWeight: '900', marginTop: 6 },
-  recommendBody: { color: '#756B6F', fontSize: 12, lineHeight: 18, marginTop: 5 },
-  authorBox: {
-    marginHorizontal: 16,
-    padding: 20,
-    borderRadius: 22,
-    backgroundColor: '#FFFDFC',
-    borderWidth: 1,
-    borderColor: '#E9DDD6'
-  },
-  authorTitle: { color: '#221A1D', fontSize: 19, fontWeight: '900' },
-  authorBody: { color: '#756B6F', fontSize: 13, lineHeight: 20, marginTop: 6 },
-  authorButton: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    marginTop: 15,
-    backgroundColor: '#8F1D3F',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12
-  },
-  authorButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 }
-  ,emptyHome: { flex: 1, padding: 20 }
+  iconButton: { width: 40, height: 40, borderRadius: 13, backgroundColor: 'rgba(255,253,247,.82)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: xianxia.line, position: 'relative' },
+  headerBadge: { position: 'absolute', right: -4, top: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: xianxia.cinnabar, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: xianxia.paper },
+  headerBadgeText: { color: xianxia.white, fontSize: 7, fontWeight: '900' },
+  hero: { marginHorizontal: 16, minHeight: 244, borderRadius: 26, backgroundColor: xianxia.jadeDeep, overflow: 'hidden', borderWidth: 1, borderColor: '#496C63', flexDirection: 'row', padding: 19, shadowColor: '#17231F', shadowOpacity: .18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
+  pressed: { opacity: .93, transform: [{ scale: .994 }] },
+  heroInkOrb: { position: 'absolute', width: 180, height: 180, borderRadius: 90, left: -82, top: -42, backgroundColor: 'rgba(255,255,255,.025)' },
+  heroCopy: { flex: 1, zIndex: 3, paddingRight: 8 },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroKicker: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  heroEyebrow: { color: xianxia.goldSoft, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  heroPercent: { color: 'rgba(255,253,248,.72)', fontSize: 10, fontWeight: '900' },
+  heroTitle: { color: xianxia.white, fontSize: 26, lineHeight: 31, fontWeight: '900', marginTop: 24, textShadowColor: 'rgba(0,0,0,.2)', textShadowRadius: 6 },
+  heroAuthor: { color: xianxia.goldSoft, fontSize: 12, fontWeight: '800', marginTop: 6 },
+  heroSub: { color: 'rgba(255,253,248,.70)', fontSize: 10, marginTop: 4 },
+  track: { height: 4, borderRadius: 99, backgroundColor: 'rgba(255,255,255,.13)', marginTop: 18, overflow: 'hidden' },
+  fill: { height: 4, borderRadius: 99, backgroundColor: xianxia.goldSoft },
+  continueButton: { alignSelf: 'flex-start', minHeight: 42, marginTop: 16, paddingHorizontal: 14, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(229,209,163,.48)', backgroundColor: 'rgba(16,34,30,.74)', flexDirection: 'row', alignItems: 'center', gap: 7 },
+  continueGlyph: { width: 27, height: 27, borderRadius: 9, backgroundColor: 'rgba(229,209,163,.10)', alignItems: 'center', justifyContent: 'center' },
+  continueText: { color: xianxia.white, fontSize: 12, fontWeight: '900' },
+  heroCoverWrap: { width: 105, alignItems: 'flex-end', justifyContent: 'center', zIndex: 3 },
+  heroCover: { width: 92, height: 138, borderRadius: 15, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(229,209,163,.65)', shadowColor: '#000', shadowOpacity: .3, shadowRadius: 9, shadowOffset: { width: 0, height: 6 }, elevation: 7, justifyContent: 'center', padding: 10 },
+  heroCoverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  heroCoverTitle: { color: xianxia.white, fontSize: 14, lineHeight: 18, fontWeight: '900', textAlign: 'center' },
+  heroCoverSeal: { position: 'absolute', right: 7, top: 7, width: 22, height: 22, borderRadius: 6, backgroundColor: 'rgba(122,43,34,.84)', borderWidth: 1, borderColor: 'rgba(229,209,163,.7)', alignItems: 'center', justifyContent: 'center' },
+  heroCoverSealText: { color: '#F6DDA2', fontSize: 11, fontWeight: '900' },
+  quickRealm: { marginHorizontal: 16, marginTop: 13, borderRadius: 20, backgroundColor: 'rgba(255,253,247,.86)', borderWidth: 1, borderColor: xianxia.line, paddingVertical: 13, flexDirection: 'row', shadowColor: '#675C4F', shadowOpacity: .06, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  quickItem: { flex: 1, alignItems: 'center', paddingHorizontal: 5 },
+  quickIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: xianxia.jadeMist, alignItems: 'center', justifyContent: 'center' },
+  quickTitle: { color: xianxia.ink, fontSize: 10, fontWeight: '900', marginTop: 7 },
+  quickMeta: { color: xianxia.muted, fontSize: 7.5, marginTop: 2, textAlign: 'center' },
+  quickDivider: { width: StyleSheet.hairlineWidth, backgroundColor: xianxia.line, marginVertical: 6 },
+  sectionHead: { marginTop: 28, marginBottom: 13, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  sectionTitleWrap: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, flex: 1, paddingRight: 10 },
+  sectionMark: { width: 18, height: 24, borderLeftWidth: 1, borderRightWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  sectionMarkDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: xianxia.cinnabar },
+  sectionTitle: { color: xianxia.ink, fontSize: 18, fontWeight: '900' },
+  sectionSub: { color: xianxia.muted, fontSize: 9, lineHeight: 13, marginTop: 3 },
+  seeAll: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900' },
+  row: { paddingLeft: 16, paddingRight: 2, paddingBottom: 6 },
+  recommendRow: { paddingLeft: 16, paddingRight: 2, paddingBottom: 5 },
+  recommendItem: { width: 146, marginRight: 14 },
+  reasonRow: { marginTop: 7, minHeight: 30, flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
+  reasonText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 12, flex: 1 },
+  hideRecommend: { padding: 2 },
+  recommendError: { marginHorizontal: 16, backgroundColor: '#F5E6E1', borderWidth: 1, borderColor: '#E5C5BA', borderRadius: 15, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' },
+  recommendErrorText: { color: xianxia.cinnabar, fontSize: 10, flex: 1 },
+  retryText: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900' },
+  recommendEmpty: { marginHorizontal: 16, borderRadius: 20, backgroundColor: 'rgba(255,253,247,.88)', borderWidth: 1, borderColor: xianxia.line, padding: 16, flexDirection: 'row', gap: 13, alignItems: 'center' },
+  recommendEmblem: { width: 46, height: 46, borderRadius: 15, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', alignItems: 'center', justifyContent: 'center' },
+  recommendEmblemText: { color: xianxia.jadeDeep, fontSize: 22, fontWeight: '900' },
+  recommendTitle: { color: xianxia.ink, fontSize: 13, fontWeight: '900' },
+  recommendBody: { color: xianxia.muted, fontSize: 9, lineHeight: 14, marginTop: 4 },
+  authorBox: { marginHorizontal: 16, minHeight: 160, borderRadius: 22, backgroundColor: '#263E38', overflow: 'hidden', padding: 18, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#47655D' },
+  authorSeal: { width: 54, height: 54, borderRadius: 16, borderWidth: 1, borderColor: xianxia.gold, backgroundColor: 'rgba(142,58,49,.84)', alignItems: 'center', justifyContent: 'center', zIndex: 2, marginRight: 15 },
+  authorSealText: { color: '#F7E5B8', fontSize: 26, fontWeight: '900' },
+  authorCopy: { flex: 1, zIndex: 2 },
+  authorTitle: { color: xianxia.white, fontSize: 15, lineHeight: 20, fontWeight: '900' },
+  authorBody: { color: 'rgba(255,253,248,.68)', fontSize: 9, lineHeight: 14, marginTop: 5 },
+  authorButton: { alignSelf: 'flex-start', marginTop: 12, minHeight: 38, paddingHorizontal: 13, borderRadius: 12, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: '#B36C60', flexDirection: 'row', alignItems: 'center', gap: 7 },
+  authorButtonText: { color: xianxia.white, fontSize: 10, fontWeight: '900' },
 });
