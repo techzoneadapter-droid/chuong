@@ -2235,6 +2235,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      search_public_book_ids: {
+        Args: {
+          p_access?: string
+          p_genre?: string
+          p_limit?: number
+          p_offset?: number
+          p_query?: string
+          p_sort?: string
+          p_status?: string
+        }
+        Returns: {
+          book_id: string
+          relevance: number
+          total_count: number
+        }[]
+      }
       unlock_book: {
         Args: { p_book_id: string; p_idempotency_key: string }
         Returns: {
