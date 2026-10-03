@@ -223,15 +223,14 @@ export async function saveReadingProgress(progress: Omit<ReadingProgress, 'updat
     return;
   }
 
-  const { error } = await supabase.from('reading_progress').upsert({
-    user_id: userId,
-    book_id: progress.bookId,
-    chapter_id: progress.chapterId ?? null,
-    chapter_number: progress.chapterNumber,
-    progress_percent: progress.progressPercent,
-    scroll_position: progress.scrollPosition,
-    updated_at: updatedAt,
-  }, { onConflict: 'user_id,book_id' });
+  const { error } = await supabase.rpc('sync_reading_progress', {
+    p_book_id: progress.bookId,
+    p_chapter_id: (progress.chapterId ?? null) as unknown as string,
+    p_chapter_number: progress.chapterNumber,
+    p_progress_percent: progress.progressPercent,
+    p_scroll_position: progress.scrollPosition,
+    p_updated_at: updatedAt,
+  });
 
   if (error) {
     await enqueueOfflineSync(makeProgressOperation(userId, progress, updatedAt));
