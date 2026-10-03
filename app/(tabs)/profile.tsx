@@ -57,7 +57,17 @@ export default function ProfileScreen() {
         {unreadNotifications > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text></View> : null}
         <Ionicons name="chevron-forward" size={17} color="#B2A6AB" />
       </Pressable>
-      {menu.map(([icon, label, value]) => <View style={styles.row} key={label}><Ionicons name={icon} size={21} color="#8F1D3F" /><Text style={styles.rowLabel}>{label}</Text>{value ? <Text style={styles.rowValue}>{value}</Text> : null}<Ionicons name="chevron-forward" size={17} color="#B2A6AB" /></View>)}
+      {menu.map(([icon, label, value]) => <Pressable
+        style={styles.row}
+        key={label}
+        disabled={label !== 'Tải xuống'}
+        onPress={() => label === 'Tải xuống' && router.push('/downloads')}
+      >
+        <Ionicons name={icon} size={21} color="#8F1D3F" />
+        <Text style={styles.rowLabel}>{label}</Text>
+        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+        <Ionicons name="chevron-forward" size={17} color="#B2A6AB" />
+      </Pressable>)}
     </View>
     {user ? <Pressable style={styles.logout} onPress={() => logout().catch((cause) => Alert.alert('Không thể đăng xuất', cause instanceof Error ? cause.message : 'Vui lòng thử lại.'))}><Ionicons name="log-out-outline" size={18} color="#8F1D3F" /><Text style={styles.logoutText}>Đăng xuất</Text></Pressable> : null}
   </ScrollView></SafeAreaView>;
