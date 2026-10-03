@@ -112,7 +112,7 @@ export default function LibraryScreen() {
           return <Pressable onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })} style={({ pressed }) => [styles.row, pressed && styles.pressed]} key={entry.bookId}>
             <View style={styles.coverFrame}>
               <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-                <XianxiaCoverArt compact />
+                <XianxiaCoverArt compact seed={book.id} />
                 {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text style={styles.coverText}>{book.title.slice(0, 1).toUpperCase()}</Text>}
                 <View style={styles.coverSeal}><Text style={styles.coverSealText}>藏</Text></View>
               </View>

@@ -2,6 +2,7 @@
   "expo": {
     "name": "CHƯƠNG",
     "slug": "chuong",
+    "icon": "./assets/xianxia/icon.png",
     "scheme": "chuong",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -26,6 +27,7 @@
       "package": "vn.chuong.app"
     },
     "web": {
+      "favicon": "./assets/xianxia/icon.png",
       "bundler": "metro"
     },
     "experiments": {

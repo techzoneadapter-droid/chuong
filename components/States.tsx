@@ -1,13 +1,14 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { xianxia } from '../constants/xianxia';
+import { artwork } from '../constants/artwork';
 
 export function LoadingState({ label = 'Đang tải…' }: { label?: string }) {
   return <View style={styles.state}><View style={styles.emblem}><ActivityIndicator color={xianxia.jadeDeep} /></View><Text style={styles.text}>{label}</Text></View>;
 }
 
 export function EmptyState({ title, detail }: { title: string; detail?: string }) {
-  return <View style={styles.state}><View style={styles.emblem}><Ionicons name="leaf-outline" size={25} color={xianxia.jadeDeep} /></View><Text style={styles.title}>{title}</Text>{detail ? <Text style={styles.text}>{detail}</Text> : null}</View>;
+  return <View style={styles.state}><Image source={artwork.emptyLibrary} accessible={false} style={{ width: 148, height: 120, borderRadius: 8 }} /><Text style={styles.title}>{title}</Text>{detail ? <Text style={styles.text}>{detail}</Text> : null}</View>;
 }
 
 export function RetryState({ title = 'Không thể tải dữ liệu', detail, onRetry }: { title?: string; detail?: string; onRetry: () => void }) {
