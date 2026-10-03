@@ -248,7 +248,7 @@ export default function ReaderScreen() {
             </Pressable>
           ) : (
             <Pressable style={[styles.unlockButton, unlocking && styles.unlockDisabled]} disabled={unlocking} onPress={unlockCurrent}>
-              <Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa · ${lockedContent.priceCoins} Xu`}</Text>
+              <Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa · ${lockedContent.priceCoins} Linh Thạch`}</Text>
             </Pressable>
           )}
           <Text style={styles.paywallSafety}>Mỗi lần mở khóa được xử lý nguyên tử: Linh Thạch chỉ bị trừ khi quyền đọc được cấp thành công.</Text>
