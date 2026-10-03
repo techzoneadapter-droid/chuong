@@ -11,6 +11,8 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { BottomSheet } from '../../components/BottomSheet';
 import { ChapterRow } from '../../components/ChapterRow';
 import { SectionHeader } from '../../components/SectionHeader';
+import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
+import { xianxia } from '../../constants/xianxia';
 import { getBook as getDemoBook } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBookById, getBooks } from '../../services/books';
@@ -124,35 +126,46 @@ export default function BookDetailScreen() {
     try { await setFollowState(kind, targetId, !current, user?.id); } catch (error) { setter(current); Alert.alert('Không thể cập nhật', error instanceof Error ? error.message : 'Vui lòng thử lại.'); }
   };
 
-  if (loading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải truyện…" /></SafeAreaView>;
-  if (loadError) return <SafeAreaView style={styles.safe}><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;
+  if (loading) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang mở linh quyển…" /></SafeAreaView>;
+  if (loadError) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <XianxiaBackdrop />
       <View style={styles.topbar}>
-        <Pressable style={styles.topButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable>
-        <Text style={styles.topTitle} numberOfLines={1}>{book.title}</Text>
-        <Pressable style={styles.topButton} onPress={shareBook}><Ionicons name="share-outline" size={21} color="#2D2327" /></Pressable>
+        <Pressable style={styles.topButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={21} color={xianxia.ink} /></Pressable>
+        <View style={styles.topTitleWrap}><Text style={styles.topKicker}>LINH QUYỂN</Text><Text style={styles.topTitle} numberOfLines={1}>{book.title}</Text></View>
+        <Pressable style={styles.topButton} onPress={shareBook}><Ionicons name="share-outline" size={20} color={xianxia.ink} /></Pressable>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.page}>
         {loadError ? <Pressable onPress={() => setReload((value) => value + 1)}><Text style={styles.loadError}>{loadError} · Chạm để thử lại</Text></Pressable> : null}
-        <View style={styles.hero}>
-          {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.cover} /> : <View style={[styles.cover, { backgroundColor: book.cover }]}> 
-            <Text style={styles.coverBrand}>CHƯƠNG</Text>
-            <Text style={styles.coverTitle}>{book.title}</Text>
-            <Text style={styles.coverAuthor}>{book.author}</Text>
-          </View>}
-          <View style={styles.heroInfo}>
-            <Text style={styles.title}>{book.title}</Text>
-            <Text style={styles.author}>bởi {book.author}</Text>
-            <View style={styles.metrics}>
-              <Metric value={`${book.rating}`} label="Đánh giá" icon="star" />
-              <Metric value={book.views} label="Lượt đọc" icon="eye-outline" />
-              <Metric value={book.followers} label="Theo dõi" icon="people-outline" />
+        <View style={styles.heroCard}>
+          <XianxiaCoverArt />
+          <View style={styles.hero}>
+            <View style={styles.coverFrame}>
+              <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
+                <XianxiaCoverArt />
+                {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <>
+                  <Text style={styles.coverBrand}>CHƯƠNG</Text>
+                  <Text numberOfLines={4} style={styles.coverTitle}>{book.title}</Text>
+                  <Text numberOfLines={1} style={styles.coverAuthor}>{book.author}</Text>
+                </>}
+                <View style={styles.coverSeal}><Text style={styles.coverSealText}>仙</Text></View>
+              </View>
             </View>
-            <View style={styles.statusRow}>
-              <Text style={styles.genre}>{book.genre}</Text>
-              <Text style={styles.status}>{book.status}</Text>
+            <View style={styles.heroInfo}>
+              <Text style={styles.heroEyebrow}>TIÊN HIỆP · LINH THƯ</Text>
+              <Text style={styles.title}>{book.title}</Text>
+              <Text style={styles.author}>bởi {book.author}</Text>
+              <View style={styles.metrics}>
+                <Metric value={`${book.rating}`} label="Đánh giá" icon="star" />
+                <Metric value={book.views} label="Lượt đọc" icon="eye-outline" />
+                <Metric value={book.followers} label="Theo dõi" icon="people-outline" />
+              </View>
+              <View style={styles.statusRow}>
+                <Text style={styles.genre}>{book.genre}</Text>
+                <Text style={styles.status}>{book.status}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -162,8 +175,9 @@ export default function BookDetailScreen() {
         <Pressable onPress={() => setExpanded((value) => !value)}><Text style={styles.more}>{expanded ? 'Thu gọn' : 'Xem thêm'}</Text></Pressable>
 
         <Pressable style={styles.primary} onPress={() => openReader()}>
-          <Ionicons name="book" size={19} color="#FFFFFF" />
-          <Text style={styles.primaryText}>{book.totalChapters === 0 ? 'Chưa có chương' : progress || book.progress > 0 ? `Đọc tiếp · Chương ${currentChapter}` : 'Đọc ngay'}</Text>
+          <View style={styles.primaryGlyph}><Ionicons name="book" size={17} color={xianxia.goldSoft} /></View>
+          <Text style={styles.primaryText}>{book.totalChapters === 0 ? 'Chưa có chương' : progress || book.progress > 0 ? `Đọc tiếp · Chương ${currentChapter}` : 'Mở linh quyển'}</Text>
+          <Ionicons name="arrow-forward" size={17} color={xianxia.white} />
         </Pressable>
         <View style={styles.actions}>
           <Action icon={inLibrary ? 'checkmark' : 'add'} label={inLibrary ? 'Đã lưu' : 'Tủ sách'} onPress={toggleLibrary} active={inLibrary} />
@@ -173,9 +187,10 @@ export default function BookDetailScreen() {
         </View>
 
         <View style={styles.authorSection}>
+          <View style={styles.authorSeal}><Text style={styles.authorSealText}>作</Text></View>
           <View style={styles.avatar}><Text style={styles.avatarText}>{book.author.split(' ').map((part) => part[0]).join('').slice(0, 2)}</Text></View>
-          <View style={styles.authorCopy}><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></View>
-          <Pressable style={[styles.follow, following && styles.following]} onPress={() => toggleFollow('author')}><Text style={[styles.followText, following && styles.followingText]}>{following ? 'Đang theo dõi' : 'Theo dõi tác giả'}</Text></Pressable>
+          <View style={styles.authorCopy}><Text style={styles.authorKicker}>TÁC GIẢ</Text><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></View>
+          <Pressable style={[styles.follow, following && styles.following]} onPress={() => toggleFollow('author')}><Text style={[styles.followText, following && styles.followingText]}>{following ? 'Đang theo dõi' : 'Theo dõi'}</Text></Pressable>
         </View>
 
         <SectionHeader title="Danh sách chương" action={`${book.totalChapters} chương`} onPress={() => router.push({ pathname: '/book/[id]/chapters', params: { id: book.id } })} />
@@ -183,7 +198,7 @@ export default function BookDetailScreen() {
           {newest.map((chapter) => <ChapterRow key={chapter.number} chapter={chapter} onPress={() => openReader(chapter.number)} />)}
         </View>
         <Pressable style={styles.outline} onPress={() => router.push({ pathname: '/book/[id]/chapters', params: { id: book.id } })}>
-          <Text style={styles.outlineText}>Xem toàn bộ chương</Text><Ionicons name="arrow-forward" size={16} color="#8F1D3F" />
+          <Text style={styles.outlineText}>Xem toàn bộ chương</Text><Ionicons name="arrow-forward" size={16} color={xianxia.jadeDeep} />
         </Pressable>
 
         <BookReviews bookId={book.id} authorUserId={book.authorUserId} />
@@ -234,83 +249,95 @@ export default function BookDetailScreen() {
 }
 
 function Metric({ value, label, icon }: { value: string; label: string; icon: keyof typeof Ionicons.glyphMap }) {
-  return <View style={styles.metric}><Ionicons name={icon} size={14} color="#8F1D3F" /><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
+  return <View style={styles.metric}><Ionicons name={icon} size={13} color={xianxia.gold} /><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
 }
 
 function Action({ icon, label, onPress, active }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; active?: boolean }) {
-  return <Pressable style={styles.action} onPress={onPress}><View style={[styles.actionIcon, active && styles.actionActive]}><Ionicons name={icon} size={20} color={active ? '#FFFFFF' : '#8F1D3F'} /></View><Text style={styles.actionText}>{label}</Text></Pressable>;
+  return <Pressable style={styles.action} onPress={onPress}><View style={[styles.actionIcon, active && styles.actionActive]}><Ionicons name={icon} size={19} color={active ? xianxia.goldSoft : xianxia.jadeDeep} /></View><Text style={styles.actionText}>{label}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F2E9' },
-  topbar: { height: 55, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
-  topButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFDFC', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E9DDD6' },
-  topTitle: { flex: 1, textAlign: 'center', color: '#3D3136', fontSize: 14, fontWeight: '800', marginHorizontal: 8 },
+  safe: { flex: 1, backgroundColor: xianxia.paper },
+  topbar: { minHeight: 58, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(245,239,228,.86)' },
+  topButton: { width: 40, height: 40, borderRadius: 13, backgroundColor: 'rgba(255,253,247,.90)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: xianxia.line },
+  topTitleWrap: { flex: 1, marginHorizontal: 10, alignItems: 'center' },
+  topKicker: { color: xianxia.cinnabar, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
+  topTitle: { maxWidth: '100%', textAlign: 'center', color: xianxia.ink, fontSize: 13, fontWeight: '900', marginTop: 2 },
   page: { paddingHorizontal: 16, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  hero: { flexDirection: 'row', paddingTop: 14, gap: 18 },
-  cover: { width: 132, height: 190, borderRadius: 15, padding: 14, justifyContent: 'space-between' },
-  coverBrand: { color: 'rgba(255,255,255,.7)', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
-  coverTitle: { color: '#FFFFFF', fontSize: 19, lineHeight: 24, fontWeight: '900' },
-  coverAuthor: { color: 'rgba(255,255,255,.75)', fontSize: 10, fontWeight: '700' },
+  heroCard: { marginTop: 14, borderRadius: 23, backgroundColor: '#27423B', borderWidth: 1, borderColor: '#4A685F', overflow: 'hidden', padding: 15, shadowColor: '#17231F', shadowOpacity: .14, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  hero: { flexDirection: 'row', gap: 17, zIndex: 2 },
+  coverFrame: { borderRadius: 17, padding: 2, backgroundColor: xianxia.goldSoft, alignSelf: 'flex-start' },
+  cover: { width: 126, height: 188, borderRadius: 15, padding: 12, justifyContent: 'space-between', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,.12)' },
+  coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  coverBrand: { color: 'rgba(255,253,248,.78)', fontSize: 8, fontWeight: '900', letterSpacing: 1.2, zIndex: 2 },
+  coverTitle: { color: xianxia.white, fontSize: 18, lineHeight: 23, fontWeight: '900', zIndex: 2, textShadowColor: 'rgba(0,0,0,.25)', textShadowRadius: 5 },
+  coverAuthor: { color: 'rgba(255,253,248,.72)', fontSize: 9, fontWeight: '700', zIndex: 2 },
+  coverSeal: { position: 'absolute', right: 7, top: 7, width: 23, height: 23, borderRadius: 7, backgroundColor: 'rgba(132,50,41,.84)', borderWidth: 1, borderColor: 'rgba(229,209,163,.72)', alignItems: 'center', justifyContent: 'center', zIndex: 3 },
+  coverSealText: { color: '#F3D99D', fontSize: 10, fontWeight: '900' },
   heroInfo: { flex: 1, paddingVertical: 4 },
-  title: { color: '#21191C', fontSize: 24, lineHeight: 29, fontWeight: '900' },
-  author: { color: '#8F1D3F', fontSize: 13, fontWeight: '700', marginTop: 6 },
-  metrics: { flexDirection: 'row', marginTop: 18, gap: 8 },
-  metric: { flex: 1, minWidth: 0 },
-  metricValue: { color: '#2E2428', fontSize: 13, fontWeight: '900', marginTop: 3 },
-  metricLabel: { color: '#887B80', fontSize: 8, marginTop: 2 },
-  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 16 },
-  genre: { color: '#66152F', backgroundColor: '#F0E1E5', borderRadius: 99, paddingHorizontal: 9, paddingVertical: 5, fontSize: 10, fontWeight: '800' },
-  status: { color: '#527058', backgroundColor: '#E8EFE7', borderRadius: 99, paddingHorizontal: 9, paddingVertical: 5, fontSize: 10, fontWeight: '800' },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 20 },
-  tag: { color: '#70656A', borderWidth: 1, borderColor: '#DCCFC8', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, fontSize: 10, fontWeight: '700' },
-  description: { color: '#4E4347', fontSize: 14, lineHeight: 22, marginTop: 14 },
-  more: { color: '#8F1D3F', fontSize: 12, fontWeight: '900', marginTop: 5 },
-  primary: { height: 52, borderRadius: 15, backgroundColor: '#8F1D3F', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 22 },
-  primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  heroEyebrow: { color: xianxia.goldSoft, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
+  title: { color: xianxia.white, fontSize: 23, lineHeight: 28, fontWeight: '900', marginTop: 8 },
+  author: { color: xianxia.goldSoft, fontSize: 11, fontWeight: '800', marginTop: 5 },
+  metrics: { flexDirection: 'row', marginTop: 17, gap: 7 },
+  metric: { flex: 1, minWidth: 0, borderRadius: 10, backgroundColor: 'rgba(255,255,255,.07)', paddingVertical: 7, paddingHorizontal: 6 },
+  metricValue: { color: xianxia.white, fontSize: 12, fontWeight: '900', marginTop: 2 },
+  metricLabel: { color: 'rgba(255,253,248,.58)', fontSize: 6.5, marginTop: 2 },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  genre: { color: xianxia.goldSoft, backgroundColor: 'rgba(229,209,163,.10)', borderWidth: 1, borderColor: 'rgba(229,209,163,.30)', borderRadius: 99, paddingHorizontal: 9, paddingVertical: 5, fontSize: 8, fontWeight: '900' },
+  status: { color: '#CFE5D4', backgroundColor: 'rgba(99,146,108,.14)', borderRadius: 99, paddingHorizontal: 9, paddingVertical: 5, fontSize: 8, fontWeight: '900' },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 18 },
+  tag: { color: xianxia.inkSoft, borderWidth: 1, borderColor: xianxia.line, backgroundColor: 'rgba(255,253,247,.66)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, fontSize: 9, fontWeight: '800' },
+  description: { color: xianxia.inkSoft, fontSize: 13, lineHeight: 21, marginTop: 14 },
+  more: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900', marginTop: 5 },
+  primary: { minHeight: 54, borderRadius: 16, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 20, paddingHorizontal: 14 },
+  primaryGlyph: { width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(229,209,163,.10)', alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: xianxia.white, fontSize: 13, fontWeight: '900', flex: 1, textAlign: 'center' },
   actions: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 15 },
-  action: { alignItems: 'center', minWidth: 72 },
-  actionIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: '#DACBC5', backgroundColor: '#FFFDFC', alignItems: 'center', justifyContent: 'center' },
-  actionActive: { backgroundColor: '#8F1D3F', borderColor: '#8F1D3F' },
-  actionText: { color: '#5C5055', fontSize: 10, fontWeight: '700', marginTop: 5 },
-  authorSection: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E3D7D0', paddingVertical: 16, marginTop: 24 },
-  avatar: { width: 45, height: 45, borderRadius: 23, backgroundColor: '#6B243B', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
-  authorCopy: { flex: 1, marginLeft: 11 },
-  authorName: { color: '#2B2125', fontSize: 14, fontWeight: '900' },
-  authorFollowers: { color: '#80757A', fontSize: 10, marginTop: 3 },
-  follow: { borderWidth: 1, borderColor: '#8F1D3F', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  following: { borderColor: '#D8CBC5', backgroundColor: '#F2EAE6' },
-  followText: { color: '#8F1D3F', fontSize: 11, fontWeight: '900' },
-  followingText: { color: '#70656A' },
-  chapterList: { borderTopWidth: 1, borderTopColor: '#DED2CB' },
-  outline: { height: 46, borderWidth: 1, borderColor: '#CBA9B4', borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 14 },
-  outlineText: { color: '#8F1D3F', fontSize: 13, fontWeight: '900' },
-  ratingLine: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 17, borderBottomWidth: 1, borderBottomColor: '#E1D4CD' },
-  ratingValue: { color: '#261C20', fontSize: 38, fontWeight: '900' },
-  stars: { color: '#B9842E', fontSize: 16, letterSpacing: 2 },
-  ratingMeta: { color: '#81757A', fontSize: 10, marginTop: 3 },
-  comment: { flexDirection: 'row', gap: 11, paddingVertical: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DED2CB' },
-  commentAvatar: { width: 35, height: 35, borderRadius: 18, backgroundColor: '#E8D9DC', alignItems: 'center', justifyContent: 'center' },
-  commentAvatarText: { color: '#79203D', fontSize: 10, fontWeight: '900' },
+  action: { alignItems: 'center', minWidth: 72, maxWidth: 86 },
+  actionIcon: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: '#B8CBBF', backgroundColor: xianxia.jadeMist, alignItems: 'center', justifyContent: 'center' },
+  actionActive: { backgroundColor: xianxia.jadeDeep, borderColor: '#496A61' },
+  actionText: { color: xianxia.inkSoft, fontSize: 8, lineHeight: 11, fontWeight: '800', marginTop: 5, textAlign: 'center' },
+  authorSection: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: xianxia.line, backgroundColor: 'rgba(255,253,247,.78)', padding: 13, marginTop: 23 },
+  authorSeal: { width: 30, height: 30, borderRadius: 9, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  authorSealText: { color: '#F4DDA8', fontSize: 13, fontWeight: '900' },
+  avatar: { width: 42, height: 42, borderRadius: 13, backgroundColor: xianxia.jadeDeep, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: xianxia.goldSoft, fontSize: 12, fontWeight: '900' },
+  authorCopy: { flex: 1, marginLeft: 10 },
+  authorKicker: { color: xianxia.cinnabar, fontSize: 6.5, fontWeight: '900', letterSpacing: 1 },
+  authorName: { color: xianxia.ink, fontSize: 13, fontWeight: '900', marginTop: 2 },
+  authorFollowers: { color: xianxia.muted, fontSize: 8.5, marginTop: 2 },
+  follow: { borderWidth: 1, borderColor: '#91AA9B', backgroundColor: xianxia.jadeMist, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 8 },
+  following: { borderColor: xianxia.line, backgroundColor: '#EEE8DE' },
+  followText: { color: xianxia.jadeDeep, fontSize: 9, fontWeight: '900' },
+  followingText: { color: xianxia.muted },
+  chapterList: { borderTopWidth: 1, borderTopColor: xianxia.line },
+  outline: { height: 46, borderWidth: 1, borderColor: '#AFC4B7', backgroundColor: xianxia.jadeMist, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 14 },
+  outlineText: { color: xianxia.jadeDeep, fontSize: 11, fontWeight: '900' },
+  ratingLine: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 17, borderBottomWidth: 1, borderBottomColor: xianxia.line },
+  ratingValue: { color: xianxia.ink, fontSize: 38, fontWeight: '900' },
+  stars: { color: xianxia.gold, fontSize: 16, letterSpacing: 2 },
+  ratingMeta: { color: xianxia.muted, fontSize: 9, marginTop: 3 },
+  comment: { flexDirection: 'row', gap: 11, paddingVertical: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line },
+  commentAvatar: { width: 35, height: 35, borderRadius: 11, backgroundColor: xianxia.jadeMist, alignItems: 'center', justifyContent: 'center' },
+  commentAvatarText: { color: xianxia.jadeDeep, fontSize: 9, fontWeight: '900' },
   commentBody: { flex: 1 },
   commentTop: { flexDirection: 'row', justifyContent: 'space-between' },
-  commentName: { color: '#2A2024', fontSize: 12, fontWeight: '900' },
-  commentText: { color: '#554A4E', fontSize: 13, lineHeight: 19, marginTop: 5 },
-  commentTime: { color: '#93888C', fontSize: 9, marginTop: 5 },
+  commentName: { color: xianxia.ink, fontSize: 11, fontWeight: '900' },
+  commentText: { color: xianxia.inkSoft, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  commentTime: { color: xianxia.muted, fontSize: 8, marginTop: 5 },
   commentActions: { flexDirection: 'row', gap: 18, marginTop: 8 },
-  commentAction: { color: '#776B70', fontSize: 10, fontWeight: '800' },
-  liked: { color: '#8F1D3F' },
+  commentAction: { color: xianxia.muted, fontSize: 9, fontWeight: '800' },
+  liked: { color: xianxia.cinnabar },
   similar: { paddingRight: 6, paddingBottom: 5 },
-  sheetNote: { color: '#756B6F', fontSize: 12, marginBottom: 10 },
-  downloadRow: { flexDirection: 'row', alignItems: 'center', minHeight: 68, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E1D5CE', gap: 12 },
-  downloadIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1E2E6', alignItems: 'center', justifyContent: 'center' },
-  downloadTitle: { color: '#2C2226', fontSize: 14, fontWeight: '800' },
-  downloadMeta: { color: '#8B7E83', fontSize: 10, marginTop: 3 },
-  downloadSummary: { minHeight: 46, borderRadius: 12, backgroundColor: '#E8EFE7', paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  sheetNote: { color: xianxia.muted, fontSize: 11, lineHeight: 17, marginBottom: 10 },
+  downloadRow: { flexDirection: 'row', alignItems: 'center', minHeight: 68, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, gap: 12 },
+  downloadIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: xianxia.jadeMist, alignItems: 'center', justifyContent: 'center' },
+  downloadTitle: { color: xianxia.ink, fontSize: 13, fontWeight: '900' },
+  downloadMeta: { color: xianxia.muted, fontSize: 9, marginTop: 3 },
+  downloadSummary: { minHeight: 46, borderRadius: 12, backgroundColor: '#E7EFE9', paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   downloadSummaryText: { flex: 1, color: '#527058', fontSize: 9, fontWeight: '800' },
-  manageDownload: { color: '#8F1D3F', fontSize: 9, fontWeight: '900' },
-  downloadTrack: { height: 3, borderRadius: 99, backgroundColor: '#E6DBD6', overflow: 'hidden', marginTop: 7 },
-  downloadFill: { height: 3, borderRadius: 99, backgroundColor: '#8F1D3F' }
-  ,loadError: { color: '#8F1D3F', backgroundColor: '#F0E1E5', padding: 9, borderRadius: 9, fontSize: 10, textAlign: 'center' }
+  manageDownload: { color: xianxia.cinnabar, fontSize: 9, fontWeight: '900' },
+  downloadTrack: { height: 3, borderRadius: 99, backgroundColor: '#E2D9CC', overflow: 'hidden', marginTop: 7 },
+  downloadFill: { height: 3, borderRadius: 99, backgroundColor: xianxia.jadeDeep },
+  loadError: { color: xianxia.danger, backgroundColor: '#F5E5E1', padding: 9, borderRadius: 9, fontSize: 10, textAlign: 'center' },
 });
