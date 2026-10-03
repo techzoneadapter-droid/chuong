@@ -91,7 +91,7 @@ jobs:
           trap cleanup EXIT
           ready=0
           for i in $(seq 1 90); do
-            if curl -fsS http://127.0.0.1:3001/ >/dev/null; then
+            if curl -fsS http://127.0.0.1:3002/ >/dev/null; then
               ready=1
               break
             fi
@@ -101,4 +101,4 @@ jobs:
             cat /tmp/chuong-backend.log
             exit 1
           fi
-          TEST_BACKEND=1 TEST_BASE_URL=http://127.0.0.1:3001 npx playwright test tests/web/backend.spec.ts
+          TEST_BACKEND=1 TEST_BASE_URL=http://127.0.0.1:3002 npx playwright test tests/web/backend.spec.ts
