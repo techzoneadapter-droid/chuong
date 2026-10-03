@@ -68,7 +68,7 @@ export default function AuthorRevenueScreen() {
       <View style={styles.hero}>
         <Text style={styles.heroKicker}>CÓ THỂ ĐỐI SOÁT</Text>
         <Text style={styles.heroValue}>{formatRevenueCoins(data.availablePayoutCoins)} Linh Thạch</Text>
-        <Text style={styles.heroBody}>Số này là phần doanh thu tác giả đã ghi nhận sau hoàn tiền và các khoản đã đối soát. Đây chưa phải số tiền VND thực nhận.</Text>
+        <Text style={styles.heroBody}>Số này là phần còn có thể tạo yêu cầu rút sau hoàn tiền, khoản đã thanh toán và {formatRevenueCoins(data.reservedPayoutCoins)} Linh Thạch đang được giữ cho yêu cầu chờ xử lý. Đây chưa phải số tiền VND thực nhận.</Text>
       </View>
       <Pressable style={styles.payoutCta} onPress={() => router.push('/author/payout')}>
         <View style={styles.payoutCtaIcon}><Ionicons name="cash-outline" size={20} color="#8F1D3F" /></View>
