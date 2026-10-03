@@ -21,7 +21,7 @@ export function FormField({ label, ...props }: TextInputProps & { label: string 
 }
 
 export function PrimaryButton({ label, onPress, loading, disabled }: { label: string; onPress: () => void; loading?: boolean; disabled?: boolean }) {
-  return <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={onPress} style={({ pressed }) => [styles.button, (disabled || loading) && styles.disabled, pressed && !(disabled || loading) && styles.pressed]}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled || loading} onPress={onPress} style={({ pressed }) => [styles.button, (disabled || loading) && styles.disabled, pressed && !(disabled || loading) && styles.pressed]}>
     {loading ? <ActivityIndicator color={xianxia.goldSoft} /> : <><Text style={styles.buttonText}>{label}</Text><Text style={styles.buttonRune}>›</Text></>}
   </Pressable>;
 }
