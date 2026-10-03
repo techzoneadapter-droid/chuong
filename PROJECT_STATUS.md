@@ -300,3 +300,57 @@ Next product step:
   - idempotent wallet credit after verification
   - refund/revocation reconciliation
   - sandbox/test mode before any production money flow
+
+
+## Phase 4D-A — mobile store purchase foundation
+
+Status: implemented on production Supabase and source; real-money provider verification is intentionally not enabled yet.
+
+Completed:
+- Added a visible back button to the Admin Center; it returns to the Profile tab.
+- Store catalog table with active Android/iOS product IDs and Xu amounts.
+- Initial catalog:
+  - 100 Xu -> `chuong.coins.100`
+  - 550 Xu -> `chuong.coins.550`
+  - 1,200 Xu -> `chuong.coins.1200`
+  - 2,600 Xu -> `chuong.coins.2600`
+- Store purchase ledger with unique provider transaction IDs and receipt hashes.
+- Client cannot insert or credit purchases directly.
+- Verified credit RPC is service-role only and idempotent.
+- Purchase revocation RPC is service-role only and idempotent.
+- Wallet now tracks `debt_coins` and `lifetime_reversed` so a store refund cannot force a negative balance.
+- Revocation removes available coins first and converts any unrecoverable amount into Xu debt.
+- A later verified top-up repays Xu debt before increasing spendable balance.
+- `purchase_reversal_debit` wallet transaction type added.
+- Wallet UI shows debt state when present.
+- Wallet now opens `/wallet/store`.
+- Store screen lists active packages and clearly stays read-only in the Vibaocode/web preview.
+- Deployed `iap-verify` Supabase Edge Function with JWT required.
+- The Edge Function checks auth and configured catalog products, but deliberately refuses to credit coins until real Google Play / App Store receipt verification credentials and provider verifier logic are enabled.
+
+Production verification with temporary accounts:
+- 550 Xu verified purchase credited once.
+- Replaying the same provider transaction created no duplicate purchase and no duplicate wallet credit.
+- Simulated spend reduced balance to 50 Xu.
+- Store revocation removed the remaining 50 Xu and created 500 Xu debt instead of a negative balance.
+- A later 1,200 Xu verified purchase repaid the 500 Xu debt first and left 700 Xu spendable.
+- All temporary users/purchases/wallet rows were deleted afterward.
+- Production currently has 0 real store purchases and 0 wallets with Xu debt.
+- The user's active revenue-share policy remains 70% author / 30% platform; Phase 4D did not change it.
+
+Migrations:
+- `202610030013_phase4d_wallet_enum.sql`
+- `202610030014_phase4d_store_purchase_foundation.sql`
+
+Edge Function:
+- `supabase/functions/iap-verify/index.ts`
+- deployed as `iap-verify`, JWT verification enabled
+
+Next product step:
+- Phase 4D-B: native Android/iOS purchase bridge plus real provider verification:
+  - connect Android one-time product purchases
+  - connect Apple consumable IAP
+  - verify provider response server-side
+  - call service-role credit RPC only after verification succeeds
+  - finish/consume/acknowledge only through the native purchase flow
+  - test Google/Apple sandbox accounts before enabling production money flow
