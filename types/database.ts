@@ -1351,6 +1351,42 @@ export type Database = {
           },
         ]
       }
+      recommendation_feedback: {
+        Row: {
+          action: string
+          book_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          action?: string
+          book_id: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          book_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_feedback_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           assigned_admin_id: string | null
@@ -2116,6 +2152,16 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_personalized_book_ids: {
+        Args: { p_limit?: number }
+        Returns: {
+          book_id: string
+          personalized: boolean
+          reason_label: string
+          reason_type: string
+          score: number
+        }[]
+      }
       get_public_genre_counts: {
         Args: { p_limit?: number }
         Returns: {
@@ -2260,6 +2306,10 @@ export type Database = {
           relevance: number
           total_count: number
         }[]
+      }
+      set_recommendation_hidden: {
+        Args: { p_book_id: string; p_hidden?: boolean }
+        Returns: boolean
       }
       unlock_book: {
         Args: { p_book_id: string; p_idempotency_key: string }
