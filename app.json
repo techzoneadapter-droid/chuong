@@ -17,6 +17,14 @@
         {
           "photosPermission": "Cho phép CHƯƠNG chọn ảnh bìa và ảnh đại diện."
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "userTrackingUsageDescription": "CHƯƠNG sử dụng thông tin quảng cáo để phân phối và đo lường quảng cáo phù hợp."
+        }
       ]
     ],
     "ios": {
