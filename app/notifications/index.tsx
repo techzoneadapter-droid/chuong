@@ -4,6 +4,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState, RetryState } from '../../components/States';
+import { ArtIcon } from '../../components/Artwork';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
+import { artwork } from '../../constants/artwork';
+import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   AppNotification,
@@ -72,24 +76,25 @@ export default function NotificationsScreen() {
   };
 
   if (authLoading || (loading && !items.length && !error)) {
-    return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải thông báo…" /></SafeAreaView>;
+    return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang tải thông báo…" /></SafeAreaView>;
   }
   if (!user) return null;
   if (error && !items.length) {
-    return <SafeAreaView style={styles.safe}><RetryState detail={error} onRetry={() => load()} /></SafeAreaView>;
+    return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={error} onRetry={() => load()} /></SafeAreaView>;
   }
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
+    <XianxiaBackdrop />
     <View style={styles.topbar}>
       <Pressable style={styles.iconButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={22} color="#2D2327" />
+        <Ionicons name="arrow-back" size={21} color={xianxia.ink} />
       </Pressable>
       <View style={{ flex: 1 }}>
         <Text style={styles.topTitle}>Thông báo</Text>
         <Text style={styles.topSub}>{unreadCount ? String(unreadCount) + ' chưa đọc' : 'Bạn đã đọc hết'}</Text>
       </View>
       <Pressable style={styles.iconButton} onPress={() => router.push('/notifications/settings')}>
-        <Ionicons name="settings-outline" size={20} color="#8F1D3F" />
+        <Ionicons name="settings-outline" size={20} color={xianxia.jadeDeep} />
       </Pressable>
     </View>
 
@@ -114,7 +119,8 @@ export default function NotificationsScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {!items.length ? <View style={styles.empty}>
-        <View style={styles.emptyIcon}><Ionicons name="notifications-outline" size={31} color="#8F1D3F" /></View>
+        <ArtIcon source={artwork.lotus} size={76} />
+        <View style={styles.emptyIcon}><Ionicons name="notifications-outline" size={28} color={xianxia.jadeDeep} /></View>
         <Text style={styles.emptyTitle}>{filter === 'unread' ? 'Không còn thông báo chưa đọc' : 'Chưa có thông báo'}</Text>
         <Text style={styles.emptyBody}>Doanh thu, Linh Thạch, bình luận, kiểm duyệt và thanh toán tác giả sẽ xuất hiện tại đây.</Text>
       </View> : items.map((item) => <Pressable key={item.id} onPress={() => { void openItem(item); }} style={[styles.item, !item.read_at && styles.itemUnread]}>
@@ -129,7 +135,7 @@ export default function NotificationsScreen() {
           <Text style={[styles.itemTitle, !item.read_at && styles.itemTitleUnread]}>{item.title}</Text>
           <Text style={styles.itemBody}>{item.body}</Text>
         </View>
-        {!item.read_at ? <View style={styles.unreadDot} /> : item.action_route ? <Ionicons name="chevron-forward" size={16} color="#B2A6AB" /> : null}
+        {!item.read_at ? <View style={styles.unreadDot} /> : item.action_route ? <Ionicons name="chevron-forward" size={16} color={xianxia.muted} /> : null}
       </Pressable>)}
     </ScrollView>
   </SafeAreaView>;
@@ -159,32 +165,32 @@ function formatNotificationTime(value: string) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F2E9' },
-  topbar: { minHeight: 60, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DED1CA' },
+  safe: { flex: 1, backgroundColor: xianxia.paper },
+  topbar: { minHeight: 60, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(244,235,216,.90)' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: '#251D20', fontSize: 17, fontWeight: '900', textAlign: 'center' },
-  topSub: { color: '#81757A', fontSize: 9, textAlign: 'center', marginTop: 2 },
+  topTitle: { color: xianxia.ink, fontSize: 17, fontWeight: '900', textAlign: 'center' },
+  topSub: { color: xianxia.muted, fontSize: 9, textAlign: 'center', marginTop: 2 },
   page: { padding: 14, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
   filterRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 10 },
-  filter: { minHeight: 34, borderRadius: 999, borderWidth: 1, borderColor: '#E0D3CD', backgroundColor: '#FFFDFC', paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
-  filterActive: { backgroundColor: '#8F1D3F', borderColor: '#8F1D3F' },
-  filterText: { color: '#6F6468', fontSize: 10, fontWeight: '800' },
-  filterTextActive: { color: '#FFF' },
-  markAll: { color: '#8F1D3F', fontSize: 10, fontWeight: '900' },
+  filter: { minHeight: 34, borderRadius: 999, borderWidth: 1, borderColor: xianxia.line, backgroundColor: 'rgba(255,248,234,.92)', paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
+  filterActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.gold },
+  filterText: { color: xianxia.inkSoft, fontSize: 10, fontWeight: '800' },
+  filterTextActive: { color: xianxia.goldSoft },
+  markAll: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900' },
   markAllDisabled: { opacity: .4 },
-  error: { color: '#A12B48', backgroundColor: '#F8E7EC', padding: 10, borderRadius: 10, fontSize: 10, marginBottom: 10 },
-  item: { minHeight: 88, borderRadius: 16, borderWidth: 1, borderColor: '#E5D8D1', backgroundColor: '#FFFDFC', padding: 12, marginBottom: 9, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  itemUnread: { borderColor: '#D8B3BF', backgroundColor: '#FFF9FB' },
-  categoryIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  error: { color: xianxia.danger, backgroundColor: '#F5E5E1', borderWidth: 1, borderColor: '#E2C2BA', padding: 10, borderRadius: 10, fontSize: 10, marginBottom: 10 },
+  item: { minHeight: 88, borderRadius: 16, borderWidth: 1, borderColor: xianxia.line, backgroundColor: 'rgba(255,248,234,.94)', padding: 12, marginBottom: 9, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  itemUnread: { borderColor: '#9EB7A7', backgroundColor: '#F4F5E9' },
+  categoryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   itemHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  category: { color: '#8F1D3F', fontSize: 8, fontWeight: '900', letterSpacing: .5, textTransform: 'uppercase' },
-  time: { color: '#9A8E93', fontSize: 8 },
-  itemTitle: { color: '#43373C', fontSize: 12, fontWeight: '800', marginTop: 5 },
-  itemTitleUnread: { color: '#241C20', fontWeight: '900' },
-  itemBody: { color: '#766A6F', fontSize: 10, lineHeight: 16, marginTop: 4 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#8F1D3F', marginTop: 4 },
+  category: { color: xianxia.cinnabar, fontSize: 8, fontWeight: '900', letterSpacing: .5, textTransform: 'uppercase' },
+  time: { color: xianxia.muted, fontSize: 8 },
+  itemTitle: { color: xianxia.inkSoft, fontSize: 12, fontWeight: '800', marginTop: 5 },
+  itemTitleUnread: { color: xianxia.ink, fontWeight: '900' },
+  itemBody: { color: xianxia.muted, fontSize: 10, lineHeight: 16, marginTop: 4 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: xianxia.cinnabar, marginTop: 4 },
   empty: { minHeight: 300, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  emptyIcon: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { color: '#2C2226', fontSize: 16, fontWeight: '900', marginTop: 14 },
-  emptyBody: { color: '#81757A', fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 6 },
+  emptyIcon: { width: 54, height: 54, borderRadius: 17, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', alignItems: 'center', justifyContent: 'center', marginTop: -8 },
+  emptyTitle: { color: xianxia.ink, fontSize: 16, fontWeight: '900', marginTop: 14 },
+  emptyBody: { color: xianxia.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 6 },
 });
