@@ -527,7 +527,7 @@ async function verifyStored(bookId,expected){
 async function deleteDraftBook(bookId){ try{await rest('books?id=eq.'+bookId+'&status=eq.draft',{method:'DELETE',prefer:'return=minimal'});}catch{} }
 $('uploadBtn').addEventListener('click',async()=>{
   hideMessage(uploadMessage);
-  const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,publish=$('publishNow').checked,rights=$('rightsConfirmed').checked,useAi=$('aiTranslate').checked,chapters=state.chapters;
+  const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,bookStatus=$('bookStatus').value,publish=$('publishNow').checked,rights=$('rightsConfirmed').checked,useAi=$('aiTranslate').checked,chapters=state.chapters;
   if(!state.ownerAuthorId)return showMessage(uploadMessage,'Chưa xác định được tác giả nội bộ Admin.');
   if(title.length<2)return showMessage(uploadMessage,'Hãy nhập tên truyện.');
   if(!author)return showMessage(uploadMessage,'Hãy nhập tên tác giả hiển thị.');
@@ -552,9 +552,10 @@ $('uploadBtn').addEventListener('click',async()=>{
     if(publish){
       const now=new Date().toISOString();
       await rest('chapters?book_id=eq.'+bookId,{method:'PATCH',body:{status:'published',published_at:now}});
-      await rest('books?id=eq.'+bookId,{method:'PATCH',body:{status:'ongoing',visibility:'public',language:'vi'}});
+      await rest('books?id=eq.'+bookId,{method:'PATCH',body:{status:bookStatus,visibility:'public',language:'vi'}});
     }
-    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+'\nTrạng thái: '+(publish?'Đã công khai trong app':'Bản nháp riêng tư')+'.\nBook ID: '+bookId,'success');
+    const statusLabel=bookStatus==='completed'?'Hoàn thành':bookStatus==='paused'?'Tạm dừng / Drop':'Đang ra';
+    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+'\nTrạng thái: '+(publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+'.\nBook ID: '+bookId,'success');
     btn.textContent='Đã đẩy đủ '+chapters.length+'/'+chapters.length+' chương';
   }catch(err){
     if(bookId)await deleteDraftBook(bookId);
