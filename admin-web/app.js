@@ -378,7 +378,7 @@ async function parseZipStory(buffer,fileName){
 }
 async function parseStoryFile(file){
   hideMessage(uploadMessage);hideParse();
-  state.coverBlob=null;state.coverMime='';
+  clearCover();
   const ext=extOf(file.name),buffer=await file.arrayBuffer();
   state.sourceName=file.name;
   let chapters=[],title=cleanTitle(baseName(file.name)),detectedAuthor='',coverBlob=null,coverMime='';
