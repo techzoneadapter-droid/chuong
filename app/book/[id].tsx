@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Comments } from '../../components/Comments';
 import { BookReviews } from '../../components/BookReviews';
@@ -12,7 +12,7 @@ import { BottomSheet } from '../../components/BottomSheet';
 import { ChapterRow } from '../../components/ChapterRow';
 import { SectionHeader } from '../../components/SectionHeader';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
-import { ButtonArt } from '../../components/Artwork';
+import { AssetBookCover, ButtonArt, VipArt } from '../../components/Artwork';
 import { xianxia } from '../../constants/xianxia';
 import { getBook as getDemoBook } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
@@ -143,12 +143,11 @@ export default function BookDetailScreen() {
         <View style={styles.heroCard}>
           <View style={styles.hero}>
             <View style={styles.coverFrame}>
-              <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-                {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <>
-                  <Text style={styles.coverBrand}>CHƯƠNG</Text>
-                  <Text numberOfLines={4} style={styles.coverTitle}>{book.title}</Text>
-                  <Text numberOfLines={1} style={styles.coverAuthor}>{book.author}</Text>
-                </>}
+              <View style={styles.cover}>
+                <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+                <View pointerEvents="none" style={styles.coverShade} />
+                <Text style={styles.coverBrand}>CHƯƠNG</Text>
+                {book.isVip ? <View style={styles.coverVip}><VipArt width={56} /></View> : null}
               </View>
             </View>
             <View style={styles.heroInfo}>
@@ -266,11 +265,10 @@ const styles = StyleSheet.create({
   heroCard: { marginTop: 14, borderRadius: 23, backgroundColor: '#27423B', borderWidth: 1, borderColor: '#4A685F', overflow: 'hidden', padding: 15, shadowColor: '#17231F', shadowOpacity: .14, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   hero: { flexDirection: 'row', gap: 17, zIndex: 2 },
   coverFrame: { borderRadius: 17, padding: 2, backgroundColor: xianxia.goldSoft, alignSelf: 'flex-start' },
-  cover: { width: 126, height: 188, borderRadius: 15, padding: 12, justifyContent: 'space-between', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,.12)' },
-  coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
-  coverBrand: { color: 'rgba(255,253,248,.78)', fontSize: 8, fontWeight: '900', letterSpacing: 1.2, zIndex: 2 },
-  coverTitle: { color: xianxia.white, fontSize: 18, lineHeight: 23, fontWeight: '900', zIndex: 2, textShadowColor: 'rgba(0,0,0,.25)', textShadowRadius: 5 },
-  coverAuthor: { color: 'rgba(255,253,248,.72)', fontSize: 9, fontWeight: '700', zIndex: 2 },
+  cover: { width: 126, height: 188, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,.20)' },
+  coverBrand: { position: 'absolute', left: 9, top: 8, color: 'rgba(255,253,248,.92)', fontSize: 7.5, fontWeight: '900', letterSpacing: 1.1, zIndex: 2, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 4 },
+  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,20,18,.07)' },
+  coverVip: { position: 'absolute', left: 7, bottom: 6, zIndex: 3 },
   coverSeal: { position: 'absolute', right: 7, top: 7, width: 23, height: 23, borderRadius: 7, backgroundColor: 'rgba(132,50,41,.84)', borderWidth: 1, borderColor: 'rgba(229,209,163,.72)', alignItems: 'center', justifyContent: 'center', zIndex: 3 },
   coverSealText: { color: '#F3D99D', fontSize: 10, fontWeight: '900' },
   heroInfo: { flex: 1, paddingVertical: 4 },
