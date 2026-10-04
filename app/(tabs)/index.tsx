@@ -92,8 +92,7 @@ export default function HomeScreen() {
     return <SafeAreaView style={styles.safe} edges={['top']}>
       <XianxiaBackdrop />
       <View style={styles.emptyHome}>
-        <Text style={styles.brand}>CHƯƠNG</Text>
-        <Text style={styles.tagline}>Mỗi chương, một thế giới.</Text>
+        <View style={styles.emptyBrand}><BrandLockup /></View>
         <EmptyState title="Chưa có truyện công khai" detail="Kho truyện sẽ xuất hiện sau khi tác giả hoặc quản trị viên công khai nội dung." />
       </View>
     </SafeAreaView>;
@@ -244,6 +243,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: xianxia.paper },
   page: { paddingBottom: 38, width: '100%', maxWidth: 840, alignSelf: 'center' },
   emptyHome: { flex: 1, paddingTop: 42 },
+  emptyBrand: { paddingHorizontal: 20, marginBottom: 12 },
   header: {
     backgroundColor: 'rgba(255,248,234,.82)',
     paddingHorizontal: 16,
