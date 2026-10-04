@@ -316,6 +316,7 @@ export default function StudioUploadScreen() {
               <Text numberOfLines={3} style={styles.preview}>{item.chapters.slice(0, 5).map((chapter) => `${chapter.chapterNumber}. ${chapter.title}`).join('  •  ')}</Text>
               {item.warnings.map((warning) => <Text key={warning} style={styles.warning}>⚠ {warning}</Text>)}
               <Pressable style={styles.coverButton} onPress={() => void pickCover(item.id)}><Ionicons name="image-outline" size={14} color={xianxia.jadeDeep} /><Text style={styles.coverButtonText}>{item.coverDataUri ? 'Đổi ảnh bìa' : 'Chọn ảnh bìa'}</Text></Pressable>
+              <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Bìa đẹp nhất</Text><Text style={styles.coverGuideText}>2:3 · nên dùng 1200 × 1800 px · tối thiểu 800 × 1200 px · 300 KB – 1.5 MB là lý tưởng · tối đa 5 MB · ưu tiên WebP/JPG.</Text></View>
             </View>
           </View>)}
 
@@ -392,6 +393,9 @@ const styles = StyleSheet.create({
   candidateMeta: { color: xianxia.jade, fontSize: 7.5, fontWeight: '800', marginTop: 3 },
   preview: { color: '#7B726D', fontSize: 8, lineHeight: 12, marginTop: 5 },
   warning: { color: xianxia.cinnabar, fontSize: 7.5, lineHeight: 11, marginTop: 4 },
+  coverGuide: { marginTop: 8, padding: 9, borderRadius: 10, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
+  coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 8.5, fontWeight: '900', marginBottom: 3 },
+  coverGuideText: { color: xianxia.muted, fontSize: 7.8, lineHeight: 12 },
   coverButton: { alignSelf: 'flex-start', minHeight: 32, marginTop: 7, borderRadius: 9, paddingHorizontal: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 5 },
   coverButtonText: { color: xianxia.jadeDeep, fontSize: 7.5, fontWeight: '900' },
   submit: { minHeight: 50, borderRadius: 13, marginTop: 10, paddingHorizontal: 14, backgroundColor: xianxia.jadeDeep, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
