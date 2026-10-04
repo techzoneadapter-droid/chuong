@@ -224,6 +224,7 @@ export default function StudioBookManager() {
     title={book.title}
     subtitle="Quản lý metadata, bìa, trạng thái truyện và chương hiển thị trong ứng dụng mobile."
     actions={<>
+      <Pressable style={styles.primaryAction} onPress={() => router.push({ pathname: '/studio/book/[bookId]/chapter/[chapterId]', params: { bookId: book.id, chapterId: 'new' } })}><Ionicons name="add-circle-outline" size={16} color="#FFF8EA" /><Text style={styles.primaryActionText}>Thêm chương</Text></Pressable>
       <Pressable style={styles.lightAction} onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })}><Ionicons name="eye-outline" size={16} color={xianxia.jadeDeep} /><Text style={styles.lightActionText}>Xem trên app</Text></Pressable>
       <Pressable style={styles.lightAction} onPress={() => router.push('/studio')}><Ionicons name="arrow-back" size={16} color={xianxia.jadeDeep} /><Text style={styles.lightActionText}>Về kho</Text></Pressable>
     </>}
@@ -308,6 +309,13 @@ export default function StudioBookManager() {
               <Pressable disabled={!chapter.id || busy} onPress={() => toggleChapter(chapter)} style={[styles.chapterToggle, chapter.status === 'published' && styles.chapterToggleLive]}>
                 <Text style={[styles.chapterToggleText, chapter.status === 'published' && styles.chapterToggleTextLive]}>{chapter.status === 'published' ? 'Ẩn' : 'Xuất bản'}</Text>
               </Pressable>
+              {chapter.id ? <Pressable
+                style={styles.chapterEdit}
+                onPress={() => router.push({ pathname: '/studio/book/[bookId]/chapter/[chapterId]', params: { bookId: book.id, chapterId: chapter.id! } })}
+              >
+                <Ionicons name="create-outline" size={14} color={xianxia.jadeDeep} />
+                <Text style={styles.chapterEditText}>Sửa</Text>
+              </Pressable> : null}
             </View>)}
             {chapters.length > 120 ? <Text style={styles.more}>Đang hiển thị 120 chương đầu tiên trong Studio.</Text> : null}
           </View>}
@@ -332,6 +340,8 @@ function Field({ label, value, onChangeText }: { label: string; value: string; o
 }
 
 const styles = StyleSheet.create({
+  primaryAction: { minHeight: 40, borderRadius: 11, paddingHorizontal: 12, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  primaryActionText: { color: '#FFF8EA', fontSize: 8.5, fontWeight: '900' },
   lightAction: { minHeight: 40, borderRadius: 11, paddingHorizontal: 11, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 6 },
   lightActionText: { color: xianxia.jadeDeep, fontSize: 8.5, fontWeight: '900' },
   error: { borderRadius: 13, padding: 11, backgroundColor: '#F5E5E1', borderWidth: 1, borderColor: '#E4C5BD', flexDirection: 'row', gap: 8, marginBottom: 14 },
@@ -396,6 +406,8 @@ const styles = StyleSheet.create({
   chapterToggleTextLive: { color: '#47704D' },
   more: { color: xianxia.cinnabar, fontSize: 8, fontWeight: '800', marginTop: 9 },
   delete: { alignSelf: 'center', minHeight: 40, borderRadius: 11, paddingHorizontal: 12, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chapterEdit: { minHeight: 34, borderRadius: 9, paddingHorizontal: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 4 },
+  chapterEditText: { color: xianxia.jadeDeep, fontSize: 7.5, fontWeight: '900' },
   deleteText: { color: xianxia.danger, fontSize: 8.5, fontWeight: '900' },
   disabled: { opacity: .45 },
 });
