@@ -144,6 +144,7 @@ export type ReaderFont = 'default' | 'serif' | 'sans';
 export type ReaderSpacing = 'compact' | 'normal' | 'relaxed';
 export type ReaderTheme = 'white' | 'paper' | 'night' | 'amoled';
 export type ReaderMode = 'scroll' | 'page';
+export type ReaderAutoScrollSpeed = 1 | 2 | 3 | 4;
 
 export interface ReaderSettings {
   fontSize: number;
@@ -152,6 +153,8 @@ export interface ReaderSettings {
   theme: ReaderTheme;
   padding: number;
   mode: ReaderMode;
+  autoScrollSpeed: ReaderAutoScrollSpeed;
+  keepAwake: boolean;
 }
 
 export interface CommentItem {
@@ -182,6 +185,4 @@ export interface DiscussionComment {
   createdAt: string;
   likes: number;
   liked: boolean;
-  paragraphIndex?: number | null;
-  paragraphExcerpt?: string | null;
 }
