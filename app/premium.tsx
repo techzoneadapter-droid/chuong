@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ButtonArt } from '../components/Artwork';
 import { XianxiaBackdrop } from '../components/XianxiaBackdrop';
 import { xianxia } from '../constants/xianxia';
 import { useAuth } from '../contexts/AuthContext';
 import { useMembership } from '../hooks/useMembership';
+import { usePremiumIap } from '../hooks/usePremiumIap';
 import { formatOfflineBytes, PREMIUM_OFFLINE_QUOTA_BYTES, STANDARD_OFFLINE_QUOTA_BYTES } from '../services/offlineDownloads';
 
 const benefits = [
@@ -20,6 +21,9 @@ export default function PremiumScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const membership = useMembership();
+  const billing = usePremiumIap(user?.id ?? '', () => { void membership.refresh(); });
+  const isWeb = Platform.OS === 'web';
+  const canBuy = Boolean(user && !membership.isPremium && !isWeb && billing.supported && billing.connected && billing.verifierReady && billing.product && !billing.processing);
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <XianxiaBackdrop />
@@ -67,12 +71,39 @@ export default function PremiumScreen() {
         <Text style={styles.primaryText}>Đăng nhập để nâng cấp</Text>
       </Pressable> : <View style={styles.purchaseCard}>
         <Text style={styles.purchaseTitle}>Tài khoản hiện tại: Gói Thường</Text>
-        <Text style={styles.purchaseBody}>Hệ thống quyền VIP đã hoạt động. Phần thanh toán thuê bao Google Play / App Store sẽ được nối vào đây; chưa có giao dịch nào được tự tạo trong bản preview.</Text>
-        <Pressable style={styles.primary} onPress={() => router.push('/wallet/store')}>
+        <Text style={styles.purchaseBody}>
+          {isWeb
+            ? 'Vibaocode đang chạy bản Web. Mua thuê bao thật chỉ mở trong build Android/iOS có Google Play Billing hoặc StoreKit.'
+            : !billing.verifierReady
+              ? 'Server chưa có đủ khóa xác minh cửa hàng nên CHƯƠNG khóa mua an toàn để tránh trừ tiền mà không cấp VIP.'
+              : !billing.connected
+                ? 'Đang kết nối với cửa hàng trên thiết bị.'
+                : billing.product
+                  ? `Gói đang nhận từ cửa hàng: ${billing.product.title || 'CHƯƠNG VIP'} · ${billing.product.displayPrice || 'giá do cửa hàng hiển thị'}.`
+                  : `Chưa tìm thấy Product ID “${billing.productId}” trên cửa hàng. Hãy tạo đúng gói thuê bao trong Google Play Console / App Store Connect.`}
+        </Text>
+
+        {billing.error ? <Text style={styles.billingError}>{billing.error}</Text> : null}
+        {billing.success ? <Text style={styles.billingSuccess}>{billing.success}</Text> : null}
+
+        <Pressable disabled={!canBuy} style={[styles.primary, !canBuy && styles.primaryDisabled]} onPress={() => { void billing.buy(); }}>
           <ButtonArt />
-          <Ionicons name="card-outline" size={18} color={xianxia.goldSoft} />
-          <Text style={styles.primaryText}>Xem hệ thống thanh toán hiện có</Text>
+          <Ionicons name="diamond-outline" size={18} color={xianxia.goldSoft} />
+          <Text style={styles.primaryText}>
+            {billing.processing
+              ? 'Đang xử lý…'
+              : billing.product?.displayPrice
+                ? `Đăng ký VIP · ${billing.product.displayPrice}`
+                : isWeb
+                  ? 'Mua trên Android / iOS'
+                  : 'Đăng ký CHƯƠNG VIP'}
+          </Text>
         </Pressable>
+
+        {!isWeb ? <Pressable disabled={billing.restoring} style={styles.restore} onPress={() => { void billing.restore(); }}>
+          <Ionicons name="refresh-outline" size={16} color={xianxia.jadeDeep} />
+          <Text style={styles.restoreText}>{billing.restoring ? 'Đang khôi phục…' : 'Khôi phục giao dịch VIP'}</Text>
+        </Pressable> : null}
       </View>}
 
       <View style={styles.note}>
@@ -126,8 +157,13 @@ const styles = StyleSheet.create({
   purchaseCard: { marginTop: 18, borderRadius: 17, padding: 14, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: xianxia.line },
   purchaseTitle: { color: xianxia.ink, fontSize: 12, fontWeight: '900' },
   purchaseBody: { color: xianxia.muted, fontSize: 9, lineHeight: 14, marginTop: 5 },
+  billingError: { color: xianxia.danger, backgroundColor: '#F5E5E1', borderRadius: 10, padding: 9, fontSize: 8.5, lineHeight: 13, marginTop: 10 },
+  billingSuccess: { color: '#47704D', backgroundColor: '#E8F3EC', borderRadius: 10, padding: 9, fontSize: 8.5, lineHeight: 13, marginTop: 10 },
   primary: { position: 'relative', overflow: 'hidden', minHeight: 52, borderRadius: 14, paddingHorizontal: 16, marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   primaryText: { color: '#FFF8EA', fontSize: 10.5, fontWeight: '900' },
+  primaryDisabled: { opacity: .48 },
+  restore: { minHeight: 42, marginTop: 10, borderRadius: 12, borderWidth: 1, borderColor: '#B8CBBF', backgroundColor: xianxia.jadeMist, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  restoreText: { color: xianxia.jadeDeep, fontSize: 9, fontWeight: '900' },
   note: { marginTop: 13, borderRadius: 14, padding: 12, backgroundColor: '#F4E5E1', borderWidth: 1, borderColor: '#E6CBC4', flexDirection: 'row', gap: 9 },
   noteText: { flex: 1, color: xianxia.inkSoft, fontSize: 8.5, lineHeight: 13 },
 });
