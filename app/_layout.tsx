@@ -24,13 +24,13 @@ export default function RootLayout() {
       document.head.appendChild(style);
     }
     style.textContent = `
-      html, body, #root, #root * {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif !important;
+      html, body, #root {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
         text-rendering: optimizeLegibility;
       }
       input, textarea, button, select {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif !important;
+        font-family: inherit;
       }
     `;
     return () => { style?.remove(); };
