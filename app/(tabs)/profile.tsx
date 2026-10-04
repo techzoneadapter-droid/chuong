@@ -11,9 +11,9 @@ import { getUnreadNotificationCount } from '../../services/notifications';
 import { getPublicReaderProfile } from '../../services/community';
 
 const menu = [
-  ['download-outline', 'Tải xuống', 'Cục bộ'],
-  ['color-palette-outline', 'Giao diện & đọc', ''],
-  ['settings-outline', 'Cài đặt', '']
+  ['download-outline', 'Tải xuống', 'Cục bộ', '/downloads'],
+  ['color-palette-outline', 'Giao diện & đọc', '', '/settings/reading'],
+  ['settings-outline', 'Cài đặt', '', '/settings']
 ] as const;
 
 export default function ProfileScreen() {
@@ -86,11 +86,11 @@ export default function ProfileScreen() {
         {unreadNotifications > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text></View> : null}
         <Ionicons name="chevron-forward" size={17} color={xianxia.muted} />
       </Pressable>
-      {menu.map(([icon, label, value]) => <Pressable
+      {menu.map(([icon, label, value, route]) => <Pressable
+        accessibilityRole="button"
         style={styles.row}
         key={label}
-        disabled={label !== 'Tải xuống'}
-        onPress={() => label === 'Tải xuống' && router.push('/downloads')}
+        onPress={() => router.push(route)}
       >
         <Ionicons name={icon} size={21} color={xianxia.jadeDeep} />
         <Text style={styles.rowLabel}>{label}</Text>
