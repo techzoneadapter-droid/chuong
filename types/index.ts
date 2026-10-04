@@ -122,6 +122,8 @@ export interface AuthorBookInput {
   coverUrl: string | null;
   creditedAuthorName?: string | null;
   sourceType: SourceType;
+  isVip?: boolean;
+  priceCoins?: number;
 }
 
 export interface ChapterInput {
