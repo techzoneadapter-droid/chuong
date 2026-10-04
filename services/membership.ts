@@ -62,7 +62,7 @@ export async function getMembershipStatus(userId?: string | null): Promise<Membe
   if (!supabase) return cached ? statusFor(cached.premium, 'cache') : statusFor(false, 'fallback');
 
   try {
-    const { data, error } = await supabase.functions.invoke('ai-translate-book', {
+    const { data, error } = await supabase.functions.invoke('subscription-verify', {
       body: { action: 'status' },
     });
     if (error) throw error;
