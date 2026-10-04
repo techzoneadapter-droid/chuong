@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../../../../components/States';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../../../../contexts/AuthContext';
-import { updateBook, deleteDraftBook } from '../../../../../services/books';
+import { deleteDraftBook, setAuthorBookStatus } from '../../../../../services/books';
 import { removeBookCover, replaceBookCover } from '../../../../../services/storage';
 import { messageForError } from '../../../../../services/errors';
 import { getAuthorChapters, getAuthorForUser, getMyBooks } from '../../../../../services/authors';
@@ -24,7 +24,7 @@ export default function AuthorChapterListScreen() {
     setBusy(true);
     setError('');
     try {
-      await updateBook(bookId, { status, visibility: status === 'draft' ? 'private' : 'public' });
+      await setAuthorBookStatus(bookId, status);
       await load();
     } catch (cause) { setError(messageForError(cause)); } finally { setBusy(false); }
   };
