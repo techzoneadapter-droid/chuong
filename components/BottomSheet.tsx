@@ -23,7 +23,7 @@ export function BottomSheet({ visible, title, onClose, children, scroll = false,
         <View style={[styles.sheet, tall && styles.tall]}>
           <View style={styles.handle} />
           <View style={styles.header}>
-            <View style={styles.seal}><Text style={styles.sealText}>章</Text></View>
+            <View style={styles.seal}><Ionicons name="book-outline" size={15} color="#F3D99D" /></View>
             <Text style={styles.title}>{title}</Text>
             <Pressable onPress={onClose} style={styles.close}><Ionicons name="close" size={20} color={xianxia.ink} /></Pressable>
           </View>
