@@ -84,11 +84,59 @@ function decodeXmlEntities(value: string) {
     .replace(/&apos;/g, "'");
 }
 
+function romanToNumber(value: string) {
+  const map: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+  let total = 0;
+  let prev = 0;
+  for (const char of value.toUpperCase().split('').reverse()) {
+    const current = map[char] ?? 0;
+    total += current < prev ? -current : current;
+    prev = Math.max(prev, current);
+  }
+  return total;
+}
+
+function chineseToNumber(value: string) {
+  if (/^\d+$/.test(value)) return Number(value);
+  const digits: Record<string, number> = { '零': 0, '〇': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+  const units: Record<string, number> = { '十': 10, '百': 100, '千': 1000, '万': 10000 };
+  let total = 0;
+  let section = 0;
+  let number = 0;
+  for (const char of value) {
+    if (char in digits) {
+      number = digits[char];
+      continue;
+    }
+    const unit = units[char];
+    if (!unit) continue;
+    if (unit === 10000) {
+      section = (section + (number || 0)) * unit;
+      total += section;
+      section = 0;
+      number = 0;
+    } else {
+      section += (number || 1) * unit;
+      number = 0;
+    }
+  }
+  return total + section + number;
+}
+
+function parseChapterNumber(value: string) {
+  const token = value.trim();
+  if (/^\d+$/.test(token)) return Number(token);
+  if (/^[ivxlcdm]+$/i.test(token)) return romanToNumber(token);
+  return chineseToNumber(token);
+}
+
 export function splitChaptersFromText(raw: string): ParsedImportChapter[] {
   const text = normalizeText(raw);
   if (!text) return [];
 
-  const re = /^(?:chương|chuong|chapter|chap)\s*(\d{1,6})(?:\s*[:.\-–—]\s*|\s+)?([^\n]*)$/gim;
+  // Supports plain headings, Markdown headings/bold, blockquotes, Vietnamese/English
+  // chapter labels, Roman numerals and common Chinese web-novel headings.
+  const re = /^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?:\s*\/\s*\d{1,6})?|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
   const matches = [...text.matchAll(re)];
 
   if (!matches.length) {
@@ -99,8 +147,9 @@ export function splitChaptersFromText(raw: string): ParsedImportChapter[] {
   for (let i = 0; i < matches.length; i += 1) {
     const match = matches[i];
     const next = matches[i + 1];
-    const chapterNumber = Number(match[1]);
-    const titleTail = (match[2] || '').trim();
+    const chapterNumber = parseChapterNumber(match[1] || match[2] || '');
+    if (!chapterNumber) continue;
+    const titleTail = (match[3] || '').replace(/[*_#]+\s*$/g, '').trim();
     const start = (match.index || 0) + match[0].length;
     const end = next?.index ?? text.length;
     const content = normalizeText(text.slice(start, end));
@@ -112,7 +161,7 @@ export function splitChaptersFromText(raw: string): ParsedImportChapter[] {
     });
   }
 
-  return chapters;
+  return chapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
 }
 
 function findEocd(bytes: Uint8Array) {
