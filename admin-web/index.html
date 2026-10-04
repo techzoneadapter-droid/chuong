@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>CHƯƠNG · Admin Upload</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="page">
+    <section id="loginView" class="login-shell">
+      <div class="login-brand">
+        <div class="brand-mark">C</div>
+        <div>
+          <p class="eyebrow">CHƯƠNG</p>
+          <h1>Admin Upload Studio</h1>
+        </div>
+      </div>
+      <p class="muted">Cổng này chỉ dành cho Admin để tăng kho truyện của app. Tác giả vẫn đăng truyện từ tài khoản cá nhân như bình thường.</p>
+      <form id="loginForm" class="stack">
+        <label>Email Admin<input id="email" type="email" autocomplete="username" required placeholder="admin@example.com" /></label>
+        <label>Mật khẩu<input id="password" type="password" autocomplete="current-password" required minlength="6" placeholder="••••••••" /></label>
+        <button class="primary" type="submit">Đăng nhập Admin</button>
+      </form>
+      <div id="loginMessage" class="message hidden"></div>
+    </section>
+
+    <section id="studioView" class="studio hidden">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">CHƯƠNG · ADMIN ONLY</p>
+          <h1>Đẩy truyện vào app</h1>
+          <p class="muted">Dán truyện hoặc tải TXT / DOCX / ZIP → tự tách chương → kiểm tra → ghi thẳng vào kho mobile.</p>
+        </div>
+        <div class="admin-box">
+          <div><strong id="adminName">Admin</strong><span>Quản trị nội dung</span></div>
+          <button id="logoutBtn" class="ghost" type="button">Đăng xuất</button>
+        </div>
+      </header>
+
+      <div class="warning">
+        <strong>Chỉ Admin.</strong> Trang này không thay thế Author Studio. Tác giả vẫn tạo và đăng truyện bằng tài khoản cá nhân.
+      </div>
+
+      <div class="layout">
+        <div class="left-col">
+          <section class="card">
+            <div class="section-head"><span>1</span><div><h2>Nguồn truyện</h2><p>Chọn file hoặc dán nguyên truyện.</p></div></div>
+            <div id="dropZone" class="drop-zone">
+              <input id="storyFile" type="file" accept=".txt,.docx,.zip,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip" />
+              <div class="drop-icon">↑</div>
+              <strong>Chọn TXT / DOCX / ZIP</strong>
+              <p>Hoặc kéo thả file vào đây</p>
+            </div>
+            <div class="or"><span></span>hoặc<span></span></div>
+            <label>Tên truyện<input id="pasteTitle" type="text" placeholder="Tên truyện" /></label>
+            <label>Dán toàn bộ nội dung
+              <textarea id="pasteText" rows="14" placeholder="Chương 1: Khởi đầu&#10;&#10;Nội dung...&#10;&#10;Chương 2: ..."></textarea>
+            </label>
+            <button id="parsePasteBtn" class="secondary" type="button">Tự tách chương từ nội dung dán</button>
+          </section>
+
+          <section class="card">
+            <div class="section-head"><span>2</span><div><h2>Thông tin truyện</h2><p>Thông tin hiển thị trong app mobile.</p></div></div>
+            <div class="grid-2">
+              <label>Tên truyện<input id="bookTitle" type="text" placeholder="Tên truyện" /></label>
+              <label>Tên tác giả hiển thị<input id="authorName" type="text" placeholder="Tên tác giả" /></label>
+              <label>Thể loại
+                <select id="genre">
+                  <option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option>
+                  <option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option>
+                  <option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option><option>Khác</option>
+                </select>
+              </label>
+              <label>Nguồn nội dung
+                <select id="sourceType">
+                  <option value="authorized">Được cấp phép đăng</option>
+                  <option value="original">Nội dung gốc</option>
+                  <option value="licensed_translation">Bản dịch có bản quyền</option>
+                </select>
+              </label>
+            </div>
+
+            <label>Ảnh bìa
+              <div class="cover-row">
+                <div id="coverPreview" class="cover-preview"><span>Chưa có bìa</span></div>
+                <div>
+                  <input id="coverFile" type="file" accept="image/jpeg,image/png,image/webp" />
+                  <p class="tiny">JPG / PNG / WebP · tối đa 5 MB. ZIP có thể tự nhận ảnh cover/bia.</p>
+                </div>
+              </div>
+            </label>
+
+            <label class="check-row"><input id="publishNow" type="checkbox" checked /> <span><strong>Xuất bản ngay</strong><small>Để bật nếu muốn truyện xuất hiện trong app ngay sau khi xác minh đủ chương.</small></span></label>
+            <label class="check-row"><input id="rightsConfirmed" type="checkbox" /> <span><strong>Xác nhận quyền nội dung</strong><small>Tôi xác nhận CHƯƠNG có quyền hợp pháp để lưu trữ và phân phối nội dung này.</small></span></label>
+          </section>
+        </div>
+
+        <div class="right-col">
+          <section class="card sticky">
+            <div class="section-head"><span>3</span><div><h2>Kiểm tra trước khi đẩy</h2><p>Đối chiếu số chương trước khi ghi database.</p></div></div>
+            <div id="emptyPreview" class="empty-preview">Chưa có truyện được phân tích.</div>
+            <div id="chapterPreview" class="hidden">
+              <div class="summary-grid">
+                <div><b id="chapterCount">0</b><span>chương nhận diện</span></div>
+                <div><b id="chapterRange">—</b><span>khoảng chương</span></div>
+              </div>
+              <div id="auditBox" class="audit"></div>
+              <div id="chapterList" class="chapter-list"></div>
+            </div>
+            <button id="uploadBtn" class="primary large" type="button" disabled>Đẩy truyện lên app</button>
+            <div id="uploadMessage" class="message hidden"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
