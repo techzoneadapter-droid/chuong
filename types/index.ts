@@ -182,4 +182,6 @@ export interface DiscussionComment {
   createdAt: string;
   likes: number;
   liked: boolean;
+  paragraphIndex?: number | null;
+  paragraphExcerpt?: string | null;
 }
