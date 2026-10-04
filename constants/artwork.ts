@@ -16,10 +16,4 @@ export const artwork = {
   button: require('../assets/xianxia/button-jade.png'),
   divider: require('../assets/xianxia/divider.png'),
   vip: require('../assets/xianxia/badge-vip.png'),
-
-  // Original cover artwork restored from the supplied asset pack. These are
-  // used only as visual placeholders when a real book cover has not been set.
-  coverArchive: require('../assets/xianxia/cover-archive.png'),
-  coverBamboo: require('../assets/xianxia/cover-bamboo.png'),
-  coverPalace: require('../assets/xianxia/cover-palace.png'),
 } as const;
