@@ -315,7 +315,10 @@ export default function StudioUploadScreen() {
               <Text style={styles.candidateMeta}>{item.chapters.length} chương · {item.coverDataUri ? 'đã có ảnh bìa' : 'chưa có ảnh bìa'} · {item.sourceName}</Text>
               <Text numberOfLines={3} style={styles.preview}>{item.chapters.slice(0, 5).map((chapter) => `${chapter.chapterNumber}. ${chapter.title}`).join('  •  ')}</Text>
               {item.warnings.map((warning) => <Text key={warning} style={styles.warning}>⚠ {warning}</Text>)}
-              <Pressable style={styles.coverButton} onPress={() => void pickCover(item.id)}><Ionicons name="image-outline" size={14} color={xianxia.jadeDeep} /><Text style={styles.coverButtonText}>{item.coverDataUri ? 'Đổi ảnh bìa' : 'Chọn ảnh bìa'}</Text></Pressable>
+              <View style={styles.coverButtonRow}>
+                <Pressable style={styles.coverButton} onPress={() => void pickCover(item.id)}><Ionicons name="image-outline" size={14} color={xianxia.jadeDeep} /><Text style={styles.coverButtonText}>{item.coverDataUri ? 'Chọn lại ảnh' : 'Chọn ảnh bìa'}</Text></Pressable>
+                {item.coverDataUri ? <Pressable style={styles.coverDeleteButton} onPress={() => updateCandidate(item.id, { coverDataUri: undefined, coverMimeType: undefined })}><Ionicons name="trash-outline" size={14} color={xianxia.danger} /><Text style={styles.coverDeleteText}>Xóa ảnh</Text></Pressable> : null}
+              </View>
               <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Bìa đẹp nhất</Text><Text style={styles.coverGuideText}>2:3 · nên dùng 1200 × 1800 px · tối thiểu 800 × 1200 px · 300 KB – 1.5 MB là lý tưởng · tối đa 5 MB · ưu tiên WebP/JPG.</Text></View>
             </View>
           </View>)}
@@ -393,6 +396,9 @@ const styles = StyleSheet.create({
   candidateMeta: { color: xianxia.jade, fontSize: 7.5, fontWeight: '800', marginTop: 3 },
   preview: { color: '#7B726D', fontSize: 8, lineHeight: 12, marginTop: 5 },
   warning: { color: xianxia.cinnabar, fontSize: 7.5, lineHeight: 11, marginTop: 4 },
+  coverButtonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 8 },
+  coverDeleteButton: { minHeight: 36, borderRadius: 10, paddingHorizontal: 10, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', flexDirection: 'row', alignItems: 'center', gap: 5 },
+  coverDeleteText: { color: xianxia.danger, fontSize: 8, fontWeight: '900' },
   coverGuide: { marginTop: 8, padding: 9, borderRadius: 10, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
   coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 8.5, fontWeight: '900', marginBottom: 3 },
   coverGuideText: { color: xianxia.muted, fontSize: 7.8, lineHeight: 12 },
