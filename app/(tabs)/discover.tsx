@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,20 +35,28 @@ const statusOptions: { value: DiscoveryStatus; label: string }[] = [
 ];
 
 const sortOptions: { value: DiscoverySort; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'relevance', label: 'Liên quan', icon: 'sparkles-outline' },
-  { value: 'popular', label: 'Phổ biến', icon: 'flame-outline' },
-  { value: 'newest', label: 'Mới cập nhật', icon: 'time-outline' },
+  { value: 'trending', label: 'Thịnh hành', icon: 'trending-up-outline' },
+  { value: 'hot', label: 'Hot', icon: 'flame-outline' },
+  { value: 'new', label: 'Mới ra', icon: 'sparkles-outline' },
+  { value: 'top', label: 'Top', icon: 'trophy-outline' },
+  { value: 'updated', label: 'Mới cập nhật', icon: 'time-outline' },
   { value: 'rating', label: 'Đánh giá', icon: 'star-outline' },
+  { value: 'relevance', label: 'Liên quan', icon: 'search-outline' },
 ];
+
+function isDiscoverySort(value?: string): value is DiscoverySort {
+  return ['relevance','popular','newest','rating','trending','hot','new','top','updated'].includes(value || '');
+}
 
 export default function DiscoverScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ sort?: string }>();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [genre, setGenre] = useState<string | null>(null);
   const [access, setAccess] = useState<DiscoveryAccess>('all');
   const [status, setStatus] = useState<DiscoveryStatus>('all');
-  const [sort, setSort] = useState<DiscoverySort>('popular');
+  const [sort, setSort] = useState<DiscoverySort>(isDiscoverySort(params.sort) ? params.sort : 'trending');
   const [genres, setGenres] = useState<GenreCount[]>([]);
   const [history, setHistory] = useState<string[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
@@ -76,8 +84,16 @@ export default function DiscoverScreen() {
   }, [query]);
 
   useEffect(() => {
-    setSort(query.trim() ? 'relevance' : 'popular');
-  }, [hasQuery]);
+    if (query.trim()) {
+      setSort('relevance');
+      return;
+    }
+    if (isDiscoverySort(params.sort)) {
+      setSort(params.sort);
+      return;
+    }
+    setSort((current) => current === 'relevance' ? 'trending' : current);
+  }, [hasQuery, params.sort]);
 
   useEffect(() => {
     let active = true;
