@@ -42,6 +42,8 @@ export default function AdminBulkImportScreen() {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [publish, setPublish] = useState(false);
   const [publishStatus, setPublishStatus] = useState<Exclude<BookStatus, 'draft'>>('ongoing');
+  const [isVip, setIsVip] = useState(false);
+  const [priceCoins, setPriceCoins] = useState(0);
   const [pasteTitle, setPasteTitle] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [candidates, setCandidates] = useState<MutableCandidate[]>([]);
@@ -145,6 +147,7 @@ export default function AdminBulkImportScreen() {
     if (!user || profile?.role !== 'admin') return;
     if (!ownerAuthorId) return setError('Cần chọn tác giả sở hữu nội bộ.');
     if (!rightsConfirmed) return setError('Cần xác nhận quyền sử dụng và phân phối nội dung.');
+    if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
     if (!selected.length) return setError('Chưa chọn truyện nào để nhập.');
 
     const invalid = selected.find((item) => item.title.trim().length < 2 || !item.chapters.length);
@@ -168,6 +171,8 @@ export default function AdminBulkImportScreen() {
           tags: [],
           language,
           sourceType,
+          isVip,
+          priceCoins: isVip ? priceCoins : 0,
         });
         await importAdminCatalogChapters(bookId, item.chapters, publish);
         if (item.coverDataUri && item.coverMimeType) {
@@ -249,6 +254,10 @@ export default function AdminBulkImportScreen() {
         <Text style={styles.fieldLabel}>Nguồn nội dung</Text>
         <View style={styles.sourceRow}>{sources.map((item) => <Pressable key={item.value} onPress={() => setSourceType(item.value)} style={[styles.sourceChip, sourceType === item.value && styles.sourceChipActive]}><Text style={[styles.sourceText, sourceType === item.value && styles.sourceTextActive]}>{item.label}</Text></Pressable>)}</View>
 
+        <View style={styles.vipCard}>
+          <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Áp dụng VIP toàn truyện cho tất cả truyện đang được chọn trong lần nhập này.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
+          {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa / truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Linh Thạch</Text></View> : null}
+        </View>
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Tắt: nhập thành bản nháp để kiểm tra. Bật: chương được xuất bản và áp dụng trạng thái bên dưới.</Text></View>
           <Switch value={publish} onValueChange={setPublish} trackColor={{ false: '#D8CEC1', true: '#79988B' }} thumbColor={publish ? xianxia.jadeDeep : '#FFF8EA'} />
@@ -342,6 +351,14 @@ const styles = StyleSheet.create({
   sourceChipActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.gold },
   sourceText: { color: xianxia.inkSoft, fontSize: 8.5, fontWeight: '800' },
   sourceTextActive: { color: xianxia.goldSoft },
+  vipCard: { marginTop: 10, padding: 11, borderRadius: 13, backgroundColor: '#F7F0DF', borderWidth: 1, borderColor: '#D8C6A0' },
+  vipRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  vipTitle: { color: '#5D431D', fontSize: 9.5, fontWeight: '900' },
+  vipBody: { color: '#7E6C51', fontSize: 8, lineHeight: 12, marginTop: 3 },
+  vipPriceRow: { marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  vipPriceLabel: { flex: 1, color: '#5D431D', fontSize: 8.5, fontWeight: '800' },
+  vipPriceInput: { width: 84, height: 36, borderRadius: 9, borderWidth: 1, borderColor: '#D8C6A0', backgroundColor: '#FFFDF7', textAlign: 'center', color: '#5D431D', fontWeight: '900' },
+  vipUnit: { color: '#7E6C51', fontSize: 8, fontWeight: '800' },
   publishStatusBox: { marginTop: 9, padding: 10, borderRadius: 12, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
   switchRow: { marginTop: 16, minHeight: 66, borderRadius: 13, padding: 11, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', flexDirection: 'row', alignItems: 'center', gap: 10 },
   switchTitle: { color: xianxia.ink, fontSize: 10.5, fontWeight: '900' },
