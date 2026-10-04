@@ -85,8 +85,8 @@ export default function AuthorImportBookScreen() {
       if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) return setError('Ảnh bìa cần nhỏ hơn 5 MB.');
       setBusy(true);
       setError('');
-      await replaceBookCover(user.id, book.id, asset.uri, asset.mimeType, book.coverUrl);
-      setBook((current) => current ? { ...current, coverUrl: asset.uri } : current);
+      const url = await replaceBookCover(user.id, book.id, asset.uri, asset.mimeType, book.coverUrl);
+      setBook((current) => current ? { ...current, coverUrl: url } : current);
       setSuccess('Đã cập nhật ảnh bìa.');
     } catch (cause) {
       setError(messageForError(cause, 'Không thể thay ảnh bìa.'));
