@@ -158,7 +158,8 @@ function readZipEntries(buffer: ArrayBuffer): ZipEntry[] {
 async function inflateRaw(data: Uint8Array) {
   const DS = (globalThis as unknown as { DecompressionStream?: new (format: string) => TransformStream<Uint8Array, Uint8Array> }).DecompressionStream;
   if (!DS) throw new Error('Trình duyệt này chưa hỗ trợ giải nén ZIP. Hãy dùng Chrome/Edge mới hoặc dán nội dung trực tiếp.');
-  const stream = new Blob([data]).stream().pipeThrough(new DS('deflate-raw'));
+  const arrayBuffer = data.slice().buffer as ArrayBuffer;
+  const stream = new Blob([arrayBuffer]).stream().pipeThrough(new DS('deflate-raw'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
@@ -214,7 +215,7 @@ function imageMime(name: string) {
 async function parseTextOrDocx(name: string, bytes: Uint8Array) {
   const ext = extOf(name);
   if (ext === 'txt') return normalizeText(new TextDecoder('utf-8').decode(bytes));
-  if (ext === 'docx') return docxText(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  if (ext === 'docx') return docxText(bytes.slice().buffer as ArrayBuffer);
   throw new Error(`Không hỗ trợ file .${ext || '?'}.`);
 }
 
