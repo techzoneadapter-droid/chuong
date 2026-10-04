@@ -77,7 +77,7 @@ export default function LibraryScreen() {
           <Text style={styles.title}>Tủ sách</Text>
           <Text style={styles.subtitle}>Giữ lại những thế giới bạn đang đồng hành.</Text>
         </View>
-        <View style={styles.headerSeal}><Text style={styles.headerSealText}>书</Text></View>
+        <View style={styles.headerSeal}><Ionicons name="library-outline" size={19} color={xianxia.goldSoft} /></View>
       </View>
 
       {!user ? <Pressable style={styles.syncCard} onPress={() => router.push('/auth/login')}>
@@ -116,7 +116,7 @@ export default function LibraryScreen() {
               <View style={styles.cover}>
                 <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
                 <View pointerEvents="none" style={styles.coverShade} />
-                <View style={styles.coverSeal}><Text style={styles.coverSealText}>藏</Text></View>
+                <View style={styles.coverSeal}><Ionicons name="bookmark-outline" size={13} color={xianxia.goldSoft} /></View>
               </View>
             </View>
             <View style={styles.meta}>
