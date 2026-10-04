@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../contexts/AuthContext';
 import { PushNotificationBridge } from '../components/PushNotificationBridge';
 import { OfflineSyncBridge } from '../components/OfflineSyncBridge';
+import { AdsBridge } from '../components/AdsBridge';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(Ionicons.font);
@@ -20,6 +21,7 @@ export default function RootLayout() {
       <AuthProvider>
         <PushNotificationBridge />
         <OfflineSyncBridge />
+        <AdsBridge />
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />
       </AuthProvider>
