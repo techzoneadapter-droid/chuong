@@ -10,6 +10,7 @@ import {
   createAdminCatalogBook,
   deleteAdminDraftBook,
   importAdminCatalogChapters,
+  getAdminCatalogChapters,
   listAdminAuthors,
   setAdminCatalogBookStatus,
 } from '../../services/adminCatalog';
@@ -172,11 +173,23 @@ export default function StudioUploadScreen() {
           sourceType,
         });
         await importAdminCatalogChapters(bookId, item.chapters, publish);
+
+        // Read back from production immediately. A story is only reported as
+        // successful when every expected chapter number exists in the database.
+        const storedChapters = await getAdminCatalogChapters(bookId);
+        const expectedNumbers = item.chapters.map((chapter) => chapter.chapterNumber).sort((a, b) => a - b);
+        const storedNumbers = storedChapters.map((chapter) => chapter.number).sort((a, b) => a - b);
+        const complete = expectedNumbers.length === storedNumbers.length
+          && expectedNumbers.every((number, index) => storedNumbers[index] === number);
+        if (!complete) {
+          throw new Error(`Kiểm tra sau khi tải thất bại: dự kiến ${expectedNumbers.length} chương nhưng database có ${storedNumbers.length}. Truyện được giữ ở trạng thái nháp để kiểm tra.`);
+        }
+
         if (item.coverDataUri && item.coverMimeType) {
           await replaceBookCover(user.id, bookId, item.coverDataUri, item.coverMimeType);
         }
         if (publish) await setAdminCatalogBookStatus(bookId, 'ongoing');
-        done.push(`${item.title} · ${item.chapters.length} chương`);
+        done.push(`${item.title} · ✓ ${item.chapters.length}/${item.chapters.length} chương đã lưu đủ`);
       } catch (cause) {
         if (bookId) await deleteAdminDraftBook(bookId).catch(() => undefined);
         failed.push(`${item.title}: ${messageForError(cause, 'Nhập thất bại')}`);
@@ -197,9 +210,17 @@ export default function StudioUploadScreen() {
   return <StudioShell
     active="upload"
     title="Đẩy truyện vào app mobile"
-    subtitle="Nhập TXT, DOCX, ZIP hoặc dán nội dung; kiểm tra trước rồi ghi trực tiếp vào kho truyện dùng chung với ứng dụng."
+    subtitle="CHỈ DÀNH CHO ADMIN để tăng kho truyện của app. Tác giả vẫn đăng truyện bình thường từ tài khoản cá nhân/Author Studio."
     actions={<Pressable style={styles.back} onPress={() => router.push('/studio')}><Ionicons name="arrow-back" size={16} color={xianxia.jadeDeep} /><Text style={styles.backText}>Về kho truyện</Text></Pressable>}
   >
+    <View style={styles.adminOnly}>
+      <Ionicons name="shield-checkmark-outline" size={18} color={xianxia.goldSoft} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.adminOnlyTitle}>Cổng nhập kho truyện · chỉ Admin</Text>
+        <Text style={styles.adminOnlyBody}>Trang này không thay thế luồng đăng truyện của tác giả. Mọi truyện nhập ở đây được ghi trực tiếp vào kho nội dung của app mobile.</Text>
+      </View>
+    </View>
+
     {error ? <View style={styles.error}><Ionicons name="alert-circle-outline" size={18} color={xianxia.danger} /><Text style={styles.errorText}>{error}</Text></View> : null}
     {result ? <View style={styles.success}><Ionicons name="checkmark-circle-outline" size={18} color="#47704D" /><Text style={styles.successText}>{result}</Text></View> : null}
 
@@ -317,6 +338,9 @@ function Field({ label, value, onChangeText, placeholder }: { label: string; val
 }
 
 const styles = StyleSheet.create({
+  adminOnly: { minHeight: 64, borderRadius: 14, padding: 12, backgroundColor: '#27423B', borderWidth: 1, borderColor: '#C7A95D', flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 14 },
+  adminOnlyTitle: { color: '#FFF8EA', fontSize: 10.5, fontWeight: '900' },
+  adminOnlyBody: { color: 'rgba(255,248,234,.68)', fontSize: 8.5, lineHeight: 13, marginTop: 3 },
   back: { minHeight: 40, borderRadius: 11, paddingHorizontal: 12, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 6 },
   backText: { color: xianxia.jadeDeep, fontSize: 8.5, fontWeight: '900' },
   error: { borderRadius: 13, padding: 11, backgroundColor: '#F5E5E1', borderWidth: 1, borderColor: '#E4C5BD', flexDirection: 'row', gap: 8, marginBottom: 14 },
