@@ -34,6 +34,8 @@ jobs:
         run: npm run typecheck
       - name: UI copy audit
         run: npm run test:ui-copy
+      - name: Admin upload web syntax
+        run: npm run test:admin-web
       - name: Release readiness audit
         run: npm run test:release
       - name: Database regression
