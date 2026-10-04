@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LoadingState, EmptyState, RetryState } from '../../components/States';
 import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
@@ -18,6 +18,7 @@ import { ReaderToolbar, ReaderTool } from '../../components/ReaderToolbar';
 import { getBook as getDemoBook } from '../../data/books';
 import { getChapterContent } from '../../data/readerContent';
 import { usePersistentState } from '../../hooks/usePersistentState';
+import { useTtsPlayer } from '../../hooks/useTtsPlayer';
 import { defaultReaderSettings } from '../../services/storage';
 import { getBookById } from '../../services/books';
 import { ContentLockedError, getChapter, getChaptersByBook } from '../../services/chapters';
@@ -242,6 +243,18 @@ export default function ReaderScreen() {
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
   };
 
+  const pagePanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => (
+      settings.mode === 'page'
+      && Math.abs(gesture.dx) > 18
+      && Math.abs(gesture.dx) > Math.abs(gesture.dy)
+    ),
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dx <= -45 && pageIndex < pagedContent.length - 1) goReaderPage(pageIndex + 1);
+      if (gesture.dx >= 45 && pageIndex > 0) goReaderPage(pageIndex - 1);
+    },
+  }), [pageIndex, pagedContent.length, settings.mode]);
+
   useEffect(() => {
     if (settings.mode !== 'page') return;
     setPageIndex(0);
@@ -249,6 +262,13 @@ export default function ReaderScreen() {
     scrollPosition.current = 0;
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
   }, [chapterNumber, settings.mode, settings.fontSize, settings.spacing, settings.padding, pagedContent.length]);
+
+  useEffect(() => {
+    if (settings.mode !== 'page' || !progressReady || !pagedContent.length) return;
+    const target = Math.min(pagedContent.length - 1, Math.max(0, Math.floor(readingProgress / 100 * pagedContent.length)));
+    setPageIndex(target);
+    scrollPosition.current = target;
+  }, [chapterNumber, pagedContent.length, progressReady, settings.mode]);
 
   const toggleBookmark = async () => {
     const previous = bookmarked; setBookmarked(!previous);
@@ -345,6 +365,8 @@ export default function ReaderScreen() {
         ref={scrollRef}
         onScroll={onScroll}
         scrollEventThrottle={120}
+        scrollEnabled={settings.mode !== 'page'}
+        {...(settings.mode === 'page' ? pagePanResponder.panHandlers : {})}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.readingPage, { paddingHorizontal: settings.padding, paddingTop: insets.top + 72, paddingBottom: insets.bottom + 105 }]}
         style={{ backgroundColor: dark ? palette.bg : settings.theme === 'paper' ? 'rgba(244,235,216,.88)' : 'rgba(255,255,255,.94)' }}
@@ -405,7 +427,8 @@ export default function ReaderScreen() {
           <View style={[styles.topbar, { paddingTop: insets.top, height: 57 + insets.top, backgroundColor: palette.bar, borderBottomColor: dark ? '#3F3B3D' : '#DFD2CB' }]}>
             <Pressable accessibilityRole="button" accessibilityLabel="Quay lại trang truyện" style={styles.topIcon} onPress={exitReader}><Ionicons name="arrow-back" size={22} color={palette.text} /></Pressable>
             <View style={styles.topCopy}><Text numberOfLines={1} style={[styles.topTitle, { color: palette.text }]}>{book.title}</Text><Text style={[styles.topSubtitle, { color: palette.muted }]}>{offlineReading ? 'Offline · ' : ''}Chương {chapterNumber} · {readingProgress}%</Text></View>
-            <Pressable style={styles.topIcon} onPress={toggleBookmark}><Ionicons name={bookmark?.chapter === chapterNumber ? 'bookmark' : 'bookmark-outline'} size={22} color={bookmark?.chapter === chapterNumber ? '#A52C52' : palette.text} /></Pressable>
+            <Pressable style={styles.topIcon} onPress={toggleBookmark}><Ionicons name={bookmark?.chapter === chapterNumber ? 'bookmark' : 'bookmark-outline'} size={22} color={bookmark?.chapter === chapterNumber ? xianxia.cinnabar : palette.text} /></Pressable>
+            <View style={[styles.readingProgressTrack, { backgroundColor: dark ? '#3F4541' : '#E4DACB' }]}><View style={[styles.readingProgressFill, { width: `${readingProgress}%` }]} /></View>
           </View>
           <View style={styles.toolbar}><ReaderToolbar onSelect={chooseTool} dark={dark} /></View>
         </>
@@ -413,7 +436,19 @@ export default function ReaderScreen() {
 
       <ChapterSheet visible={sheet === 'chapters'} onClose={() => setSheet(null)} chapters={filteredChapters} query={chapterSearch} onQuery={setChapterSearch} onSelect={goChapter} current={chapterNumber} />
       <SettingsSheet visible={sheet === 'settings'} onClose={() => setSheet(null)} settings={settings} onChange={setSettings} />
-      <AudioSheet visible={sheet === 'audio'} onClose={() => setSheet(null)} chapterTitle={`Chương ${chapterNumber} · ${chapter.title}`} onPrevious={() => goChapter(previousNumber ?? chapterNumber)} onNext={() => goChapter(nextNumber ?? chapterNumber)} canPrevious={previousNumber !== undefined} canNext={nextNumber !== undefined} />
+      <AudioSheet
+        visible={sheet === 'audio'}
+        onClose={() => setSheet(null)}
+        chapterKey={`${book.id}:${chapterNumber}`}
+        chapterTitle={`Chương ${chapterNumber} · ${chapter.title}`}
+        chapterText={content.join('\n\n')}
+        initialProgress={readingProgress}
+        onProgress={setReadingProgress}
+        onPrevious={() => goChapter(previousNumber ?? chapterNumber)}
+        onNext={() => goChapter(nextNumber ?? chapterNumber)}
+        canPrevious={previousNumber !== undefined}
+        canNext={nextNumber !== undefined}
+      />
       <AiSheet visible={sheet === 'ai'} onClose={() => setSheet(null)} onOpen={(path) => router.push({ pathname: path, params: { bookId: book.id, chapter: chapterNumber } })} result={aiResult} onResult={setAiResult} />
       <MoreSheet visible={sheet === 'more'} onClose={() => setSheet(null)} bookmark={bookmark} chapter={chapterNumber} onBookmark={toggleBookmark} onComments={() => { setSheet(null); requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })); }} />
     </View>
@@ -452,26 +487,108 @@ function Segment({ options, value, onChange }: { options: readonly (readonly [st
   return <View style={sheetStyles.segment}>{options.map(([id, label]) => <Pressable key={id} onPress={() => onChange(id)} style={[sheetStyles.segmentItem, value === id && sheetStyles.segmentActive]}><Text style={[sheetStyles.segmentText, value === id && sheetStyles.segmentTextActive]}>{label}</Text></Pressable>)}</View>;
 }
 
-function AudioSheet({ visible, onClose, chapterTitle, onPrevious, onNext, canPrevious, canNext }: { visible: boolean; onClose: () => void; chapterTitle: string; onPrevious: () => void; onNext: () => void; canPrevious: boolean; canNext: boolean }) {
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(24);
-  const [speed, setSpeed] = useState(1);
-  const [voice, setVoice] = useState<TtsVoice>('Nữ');
-  const [timer, setTimer] = useState<SleepTimer>('Tắt');
+function AudioSheet({
+  visible,
+  onClose,
+  chapterKey,
+  chapterTitle,
+  chapterText,
+  initialProgress,
+  onProgress,
+  onPrevious,
+  onNext,
+  canPrevious,
+  canNext,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  chapterKey: string;
+  chapterTitle: string;
+  chapterText: string;
+  initialProgress: number;
+  onProgress: (percent: number) => void;
+  onPrevious: () => void;
+  onNext: () => void;
+  canPrevious: boolean;
+  canNext: boolean;
+}) {
+  const autoStartNext = useRef(false);
+  const [trackWidth, setTrackWidth] = useState(1);
+  const player = useTtsPlayer({
+    chapterKey,
+    text: chapterText,
+    initialProgressPercent: initialProgress,
+    onProgress,
+    onEnded: () => {
+      if (player.sleepTimer === 'Hết chương') return;
+      if (player.autoNext && canNext) {
+        autoStartNext.current = true;
+        onNext();
+      }
+    },
+  });
+
   useEffect(() => {
-    if (!playing || !visible) return;
-    const interval = setInterval(() => setProgress((value) => value >= 100 ? 0 : value + .35 * speed), 500);
-    return () => clearInterval(interval);
-  }, [playing, speed, visible]);
+    if (!autoStartNext.current) return;
+    autoStartNext.current = false;
+    const timeout = setTimeout(() => player.playFromStart(), 180);
+    return () => clearTimeout(timeout);
+  }, [chapterKey]);
+
+  const switchChapter = (direction: 'previous' | 'next') => {
+    const resume = player.playing;
+    void player.stop(false);
+    autoStartNext.current = resume;
+    if (direction === 'previous') onPrevious();
+    else onNext();
+  };
+
   return <BottomSheet visible={visible} title="Nghe chương" onClose={onClose} scroll>
-    <View style={audioStyles.art}><Ionicons name="headset" size={35} color="#F4E9E4" /><View style={audioStyles.wave}><View style={audioStyles.waveLine} /><View style={[audioStyles.waveLine, { height: 25 }]} /><View style={[audioStyles.waveLine, { height: 16 }]} /><View style={[audioStyles.waveLine, { height: 28 }]} /><View style={audioStyles.waveLine} /></View></View>
-    <Text style={audioStyles.title}>{chapterTitle}</Text><Text style={audioStyles.sub}>Giọng đọc thử nghiệm · CHƯƠNG Audio</Text>
-    <Pressable style={audioStyles.track} onPress={() => setProgress((progress + 10) % 100)}><View style={[audioStyles.fill, { width: `${progress}%` }]}><View style={audioStyles.thumb} /></View></Pressable>
-    <View style={audioStyles.time}><Text style={audioStyles.timeText}>{Math.floor(progress * .32)}:{String(Math.floor(progress * .47) % 60).padStart(2, '0')}</Text><Text style={audioStyles.timeText}>32:18</Text></View>
-    <View style={audioStyles.controls}><Pressable disabled={!canPrevious} onPress={onPrevious} style={!canPrevious && styles.disabled}><Ionicons name="play-skip-back" size={23} color="#55494E" /></Pressable><Pressable onPress={() => setProgress(Math.max(0, progress - 8))}><View><Ionicons name="refresh-outline" size={27} color="#55494E" /><Text style={audioStyles.seconds}>15</Text></View></Pressable><Pressable style={audioStyles.play} onPress={() => setPlaying((value) => !value)}><Ionicons name={playing ? 'pause' : 'play'} size={29} color="#FFFFFF" /></Pressable><Pressable onPress={() => setProgress(Math.min(100, progress + 8))}><View><Ionicons name="refresh-outline" size={27} color="#55494E" style={{ transform: [{ scaleX: -1 }] }} /><Text style={audioStyles.seconds}>15</Text></View></Pressable><Pressable disabled={!canNext} onPress={onNext} style={!canNext && styles.disabled}><Ionicons name="play-skip-forward" size={23} color="#55494E" /></Pressable></View>
-    <Text style={audioStyles.optionLabel}>Tốc độ</Text><View style={audioStyles.options}>{TTS_SPEEDS.map((item) => <Pressable key={item} onPress={() => setSpeed(item)} style={[audioStyles.option, speed === item && audioStyles.optionActive]}><Text style={[audioStyles.optionText, speed === item && audioStyles.optionTextActive]}>{item}x</Text></Pressable>)}</View>
-    <Text style={audioStyles.optionLabel}>Giọng đọc</Text><Segment options={TTS_VOICES.map((item) => [item, item] as const)} value={voice} onChange={(value) => setVoice(value as TtsVoice)} />
-    <Text style={audioStyles.optionLabel}>Hẹn giờ ngủ {timer !== 'Tắt' ? `· ${timer}` : ''}</Text><View style={audioStyles.options}>{SLEEP_TIMERS.map((item) => <Pressable key={item} onPress={() => setTimer(timer === item ? 'Tắt' : item)} style={[audioStyles.timerChoice, timer === item && audioStyles.optionActive]}><Text style={[audioStyles.timerChoiceText, timer === item && audioStyles.optionTextActive]}>{item}</Text></Pressable>)}</View>
+    <View style={[audioStyles.art, player.playing && audioStyles.artPlaying]}>
+      <Ionicons name="headset" size={35} color={xianxia.goldSoft} />
+      <View style={audioStyles.wave}>
+        {[10, 25, 16, 28, 10].map((height, index) => <View key={index} style={[audioStyles.waveLine, { height: player.playing ? height : 8 }]} />)}
+      </View>
+    </View>
+    <Text style={audioStyles.title}>{chapterTitle}</Text>
+    <Text style={audioStyles.sub}>TTS hệ thống · {player.voiceName}</Text>
+    {player.voiceCount < 2 ? <Text style={audioStyles.voiceHint}>Thiết bị hiện chỉ cung cấp một giọng phù hợp; lựa chọn Nam/Nữ có thể dùng cùng một giọng hệ thống.</Text> : null}
+    {player.error ? <Text style={audioStyles.error}>{player.error}</Text> : null}
+    {player.sleepExpired ? <Text style={audioStyles.sleepNotice}>Hẹn giờ ngủ đã dừng giọng đọc.</Text> : null}
+
+    <Pressable
+      accessibilityRole="adjustable"
+      accessibilityLabel="Tiến độ nghe"
+      style={audioStyles.track}
+      onLayout={(event) => setTrackWidth(Math.max(1, event.nativeEvent.layout.width))}
+      onPress={(event) => player.seekToPercent(event.nativeEvent.locationX / trackWidth * 100)}
+    >
+      <View style={[audioStyles.fill, { width: `${player.progressPercent}%` }]}><View style={audioStyles.thumb} /></View>
+    </Pressable>
+    <View style={audioStyles.time}><Text style={audioStyles.timeText}>{player.formattedCurrent}</Text><Text style={audioStyles.timeText}>{player.formattedTotal}</Text></View>
+
+    <View style={audioStyles.controls}>
+      <Pressable accessibilityLabel="Chương trước" disabled={!canPrevious} onPress={() => switchChapter('previous')} style={!canPrevious && styles.disabled}><Ionicons name="play-skip-back" size={23} color={xianxia.inkSoft} /></Pressable>
+      <Pressable accessibilityLabel="Lùi khoảng 15 giây" onPress={() => player.seekBySeconds(-15)}><View><Ionicons name="refresh-outline" size={27} color={xianxia.inkSoft} /><Text style={audioStyles.seconds}>15</Text></View></Pressable>
+      <Pressable accessibilityLabel={player.playing ? 'Tạm dừng' : 'Phát giọng đọc'} disabled={!player.hasSpeech} style={[audioStyles.play, !player.hasSpeech && styles.disabled]} onPress={player.toggle}><Ionicons name={player.playing ? 'pause' : 'play'} size={29} color="#FFFFFF" /></Pressable>
+      <Pressable accessibilityLabel="Tiến khoảng 15 giây" onPress={() => player.seekBySeconds(15)}><View><Ionicons name="refresh-outline" size={27} color={xianxia.inkSoft} style={{ transform: [{ scaleX: -1 }] }} /><Text style={audioStyles.seconds}>15</Text></View></Pressable>
+      <Pressable accessibilityLabel="Chương sau" disabled={!canNext} onPress={() => switchChapter('next')} style={!canNext && styles.disabled}><Ionicons name="play-skip-forward" size={23} color={xianxia.inkSoft} /></Pressable>
+    </View>
+    <Text style={audioStyles.pauseHint}>{player.paused ? 'Đã tạm dừng · phát lại sẽ tiếp tục gần vị trí hiện tại.' : 'Giọng đọc chạy trực tiếp trên thiết bị, không cần API trả phí.'}</Text>
+
+    <Text style={audioStyles.optionLabel}>Tốc độ</Text>
+    <View style={audioStyles.options}>{TTS_SPEEDS.map((item) => <Pressable key={item} onPress={() => player.setSpeed(item)} style={[audioStyles.option, player.speed === item && audioStyles.optionActive]}><Text style={[audioStyles.optionText, player.speed === item && audioStyles.optionTextActive]}>{item}x</Text></Pressable>)}</View>
+
+    <Text style={audioStyles.optionLabel}>Giọng đọc</Text>
+    <Segment options={TTS_VOICES.map((item) => [item, item] as const)} value={player.voice} onChange={(value) => player.setVoice(value as TtsVoice)} />
+
+    <View style={audioStyles.autoNextRow}>
+      <View style={{ flex: 1 }}><Text style={audioStyles.autoNextTitle}>Tự động sang chương sau</Text><Text style={audioStyles.autoNextBody}>Khi đọc hết chương, CHƯƠNG tiếp tục phát chương kế tiếp nếu có.</Text></View>
+      <Switch value={player.autoNext} onValueChange={player.setAutoNext} trackColor={{ false: '#D8CEC1', true: '#79988B' }} thumbColor={player.autoNext ? xianxia.jadeDeep : '#FFF8EA'} />
+    </View>
+
+    <Text style={audioStyles.optionLabel}>Hẹn giờ ngủ {player.sleepTimer !== 'Tắt' ? `· ${player.sleepTimer}` : ''}</Text>
+    <View style={audioStyles.options}>{SLEEP_TIMERS.map((item) => <Pressable key={item} onPress={() => player.setSleepTimer(player.sleepTimer === item ? 'Tắt' : item)} style={[audioStyles.timerChoice, player.sleepTimer === item && audioStyles.optionActive]}><Text style={[audioStyles.timerChoiceText, player.sleepTimer === item && audioStyles.optionTextActive]}>{item}</Text></Pressable>)}</View>
   </BottomSheet>;
 }
 
@@ -536,6 +653,8 @@ const styles = StyleSheet.create({
   discussion: { marginTop: 28 }, discussionTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }, discussionHeading: { fontSize: 16, fontWeight: '900' },
   miniComment: { flexDirection: 'row', gap: 9, paddingVertical: 12 }, miniAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#E7D7DC', alignItems: 'center', justifyContent: 'center' }, miniAvatarText: { color: '#852545', fontSize: 9, fontWeight: '900' }, miniName: { fontSize: 11, fontWeight: '900' }, miniBody: { fontSize: 11, lineHeight: 17, marginTop: 3 },
   topbar: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 20 },
+  readingProgressTrack: { position: 'absolute', left: 0, right: 0, bottom: -1, height: 2 },
+  readingProgressFill: { height: 2, backgroundColor: xianxia.jadeDeep },
   topIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }, topCopy: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 40 }, topTitle: { fontSize: 13, fontWeight: '900', maxWidth: '95%' }, topSubtitle: { fontSize: 9, marginTop: 2 },
   floatingBack: { position: 'absolute', left: 12, zIndex: 30, minWidth: 88, height: 40, borderRadius: 20, borderWidth: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, elevation: 6, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   floatingBackText: { fontSize: 10, fontWeight: '900' },
@@ -556,9 +675,33 @@ const sheetStyles = StyleSheet.create({
 });
 
 const audioStyles = StyleSheet.create({
-  art: { width: 92, height: 92, borderRadius: 46, alignSelf: 'center', backgroundColor: '#6D1B36', alignItems: 'center', justifyContent: 'center', marginTop: 2 }, wave: { position: 'absolute', bottom: 16, flexDirection: 'row', alignItems: 'center', gap: 3 }, waveLine: { width: 2, height: 10, borderRadius: 2, backgroundColor: '#E6BECB' },
-  title: { color: '#2B2125', fontSize: 16, fontWeight: '900', textAlign: 'center', marginTop: 13 }, sub: { color: '#84787D', fontSize: 10, textAlign: 'center', marginTop: 4 }, track: { height: 4, backgroundColor: '#E4D8D2', borderRadius: 3, marginTop: 20 }, fill: { height: 4, backgroundColor: '#8F1D3F', borderRadius: 3, alignItems: 'flex-end', justifyContent: 'center' }, thumb: { width: 11, height: 11, borderRadius: 6, backgroundColor: '#8F1D3F' }, time: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }, timeText: { color: '#8B7E83', fontSize: 9 },
-  controls: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginTop: 8 }, play: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center' }, seconds: { position: 'absolute', top: 9, width: '100%', textAlign: 'center', color: '#55494E', fontSize: 7, fontWeight: '900' },
-  optionLabel: { color: '#55494E', fontSize: 10, fontWeight: '900', marginTop: 16, marginBottom: 7 }, options: { flexDirection: 'row', justifyContent: 'space-between' }, option: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: '#F3ECE8' }, optionActive: { backgroundColor: '#8F1D3F' }, optionText: { color: '#6F6267', fontSize: 10, fontWeight: '800' }, optionTextActive: { color: '#FFFFFF' },
-  timerChoice: { flex: 1, minHeight: 34, borderRadius: 9, backgroundColor: '#F3ECE8', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }, timerChoiceText: { color: '#6F6267', fontSize: 8, fontWeight: '800', textAlign: 'center' }
+  art: { width: 92, height: 92, borderRadius: 28, alignSelf: 'center', backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  artPlaying: { shadowColor: xianxia.gold, shadowOpacity: .25, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  wave: { position: 'absolute', bottom: 14, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  waveLine: { width: 2.5, borderRadius: 2, backgroundColor: xianxia.goldSoft },
+  title: { color: xianxia.ink, fontSize: 16, fontWeight: '900', textAlign: 'center', marginTop: 13 },
+  sub: { color: xianxia.jade, fontSize: 9.5, textAlign: 'center', marginTop: 4, fontWeight: '800' },
+  voiceHint: { color: xianxia.muted, fontSize: 8, lineHeight: 12, textAlign: 'center', marginTop: 5 },
+  error: { color: xianxia.danger, backgroundColor: '#F5E5E1', borderRadius: 10, padding: 9, fontSize: 9, lineHeight: 13, marginTop: 9, textAlign: 'center' },
+  sleepNotice: { color: '#47704D', backgroundColor: '#E8F3EC', borderRadius: 10, padding: 9, fontSize: 9, marginTop: 9, textAlign: 'center', fontWeight: '800' },
+  track: { height: 18, justifyContent: 'center', marginTop: 17 },
+  fill: { height: 5, backgroundColor: xianxia.jadeDeep, borderRadius: 3, alignItems: 'flex-end', justifyContent: 'center' },
+  thumb: { width: 12, height: 12, borderRadius: 6, backgroundColor: xianxia.gold, borderWidth: 2, borderColor: '#FFF8EA' },
+  time: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 1 },
+  timeText: { color: xianxia.muted, fontSize: 9 },
+  controls: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginTop: 10 },
+  play: { width: 60, height: 60, borderRadius: 30, backgroundColor: xianxia.jadeDeep, borderWidth: 2, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center' },
+  seconds: { position: 'absolute', top: 9, width: '100%', textAlign: 'center', color: xianxia.inkSoft, fontSize: 7, fontWeight: '900' },
+  pauseHint: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13, textAlign: 'center', marginTop: 8 },
+  optionLabel: { color: xianxia.inkSoft, fontSize: 10, fontWeight: '900', marginTop: 17, marginBottom: 7 },
+  options: { flexDirection: 'row', justifyContent: 'space-between', gap: 5 },
+  option: { flex: 1, paddingHorizontal: 7, paddingVertical: 8, borderRadius: 10, backgroundColor: '#EEE7DB', borderWidth: 1, borderColor: xianxia.line, alignItems: 'center' },
+  optionActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.gold },
+  optionText: { color: xianxia.inkSoft, fontSize: 9, fontWeight: '800' },
+  optionTextActive: { color: xianxia.goldSoft },
+  autoNextRow: { minHeight: 64, marginTop: 16, borderRadius: 13, padding: 11, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', flexDirection: 'row', alignItems: 'center', gap: 9 },
+  autoNextTitle: { color: xianxia.ink, fontSize: 10.5, fontWeight: '900' },
+  autoNextBody: { color: xianxia.muted, fontSize: 8, lineHeight: 12, marginTop: 3 },
+  timerChoice: { flex: 1, minHeight: 38, borderRadius: 10, backgroundColor: '#EEE7DB', borderWidth: 1, borderColor: xianxia.line, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  timerChoiceText: { color: xianxia.inkSoft, fontSize: 8, fontWeight: '800', textAlign: 'center' }
 });
