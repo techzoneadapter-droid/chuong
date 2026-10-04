@@ -4,7 +4,7 @@ import { extname, join, relative } from 'node:path';
 const root = new URL('../', import.meta.url);
 const roots = ['app', 'components', 'constants', 'data', 'hooks', 'services'];
 const allowedExt = new Set(['.ts', '.tsx', '.js', '.jsx', '.json']);
-const han = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/u;
+const han = /[㐀-䶿一-鿿豈-﫿]/u;
 const findings = [];
 
 function walk(dir) {
@@ -18,11 +18,11 @@ function walk(dir) {
     }
     if (!allowedExt.has(extname(path))) continue;
     const source = readFileSync(path, 'utf8');
-    source.split('\\n').forEach((line, index) => {
+    source.split(String.fromCharCode(10)).forEach((line, index) => {
       if (!han.test(line)) return;
       const chars = [...new Set([...line].filter((char) => han.test(char)))].join('');
       findings.push({
-        file: relative(new URL('../', import.meta.url).pathname, path).replaceAll('\\\\', '/'),
+        file: relative(new URL('../', import.meta.url).pathname, path).replaceAll(String.fromCharCode(92), '/'),
         line: index + 1,
         chars,
         text: line.trim().slice(0, 220),
