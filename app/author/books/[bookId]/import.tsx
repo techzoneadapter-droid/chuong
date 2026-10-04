@@ -14,7 +14,7 @@ import { getAuthorForUser, getMyBooks } from '../../../../services/authors';
 import { messageForError } from '../../../../services/errors';
 import { getPremiumAiStatus, PremiumStatus, runWholeBookTranslation } from '../../../../services/premiumAi';
 import { removeBookCover, replaceBookCover } from '../../../../services/storage';
-import { setAuthorBookStatus } from '../../../../services/books';
+import { setAuthorBookStatus, updateBook } from '../../../../services/books';
 import { Book, BookStatus } from '../../../../types';
 
 export default function AuthorImportBookScreen() {
@@ -29,6 +29,8 @@ export default function AuthorImportBookScreen() {
   const [paste, setPaste] = useState('');
   const [publish, setPublish] = useState(false);
   const [publishStatus, setPublishStatus] = useState<Exclude<BookStatus, 'draft'>>('ongoing');
+  const [isVip, setIsVip] = useState(false);
+  const [priceCoins, setPriceCoins] = useState(0);
   const [useAi, setUseAi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [parsing, setParsing] = useState(false);
@@ -55,6 +57,8 @@ export default function AuthorImportBookScreen() {
       if (!owned) throw new Error('Không tìm thấy truyện hoặc bạn không có quyền chỉnh sửa.');
       if (!active) return;
       setBook(owned);
+      setIsVip(Boolean(owned.isVip));
+      setPriceCoins(Number(owned.price || 0));
       setPremium(premiumStatus);
     }).catch((cause) => {
       if (active) setError(messageForError(cause, 'Không thể mở trình nhập truyện.'));
@@ -151,6 +155,10 @@ export default function AuthorImportBookScreen() {
 
   const startImport = async () => {
     if (!selected || !book || busy) return;
+    if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) {
+      setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
+      return;
+    }
     if (useAi && !premium?.premium) {
       setError('AI dịch toàn truyện chỉ dành cho tài khoản CHƯƠNG Premium đang hoạt động.');
       return;
@@ -165,6 +173,8 @@ export default function AuthorImportBookScreen() {
     setSuccess('');
     try {
       setProgress(`Đang nhập ${selected.chapters.length} chương vào “${book.title}”…`);
+      await updateBook(book.id, { is_vip: isVip, price_coins: isVip ? priceCoins : 0 });
+      setBook((current) => current ? { ...current, isVip, price: isVip ? priceCoins : 0 } : current);
       const imported = await importAuthorParsedBook(book.id, selected, { publish: useAi ? false : publish });
 
       if (!useAi && publish) {
@@ -292,6 +302,11 @@ export default function AuthorImportBookScreen() {
 
         {premium?.premium && !premium.providerReady ? <Text style={styles.warning}>Premium đã hợp lệ nhưng server chưa có API AI dịch truyện. Cần cấu hình AI_TRANSLATE_API_KEY và AI_TRANSLATE_MODEL trước khi dùng production.</Text> : null}
 
+        <View style={styles.vipCard}>
+          <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật để độc giả dùng Linh Thạch mở khóa toàn bộ truyện. Thiết lập này áp dụng cho cả truyện hiện tại.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
+          {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa toàn truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Linh Thạch</Text></View> : null}
+          <Text style={styles.vipHint}>Bạn vẫn có thể đặt VIP riêng cho từng chương sau khi nhập.</Text>
+        </View>
         {!useAi ? <>
           <View style={styles.publishRow}>
             <View style={{ flex: 1 }}><Text style={styles.optionTitle}>Xuất bản ngay sau khi nhập</Text><Text style={styles.optionBody}>Tắt: giữ chương ở bản nháp. Bật: xuất bản chương và công khai truyện theo trạng thái bạn chọn.</Text></View>
@@ -387,6 +402,15 @@ const styles = StyleSheet.create({
   premiumText: { flex: 1, color: xianxia.inkSoft, fontSize: 8.5, fontWeight: '900' },
   warning: { color: xianxia.cinnabar, fontSize: 8.5, lineHeight: 13, marginTop: 9 },
   publishRow: { marginTop: 14, paddingTop: 13, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: xianxia.line, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  vipCard: { marginTop: 12, padding: 11, borderRadius: 13, backgroundColor: '#F7F0DF', borderWidth: 1, borderColor: '#D8C6A0' },
+  vipRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  vipTitle: { color: '#5D431D', fontSize: 9.5, fontWeight: '900' },
+  vipBody: { color: '#7E6C51', fontSize: 8, lineHeight: 12, marginTop: 3 },
+  vipPriceRow: { marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  vipPriceLabel: { flex: 1, color: '#5D431D', fontSize: 8.5, fontWeight: '800' },
+  vipPriceInput: { width: 84, height: 36, borderRadius: 9, borderWidth: 1, borderColor: '#D8C6A0', backgroundColor: '#FFFDF7', textAlign: 'center', color: '#5D431D', fontWeight: '900' },
+  vipUnit: { color: '#7E6C51', fontSize: 8, fontWeight: '800' },
+  vipHint: { color: '#8A795F', fontSize: 7.8, lineHeight: 12, marginTop: 7 },
   publishStatusBox: { marginTop: 10, borderRadius: 13, padding: 11, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
   publishStatusTitle: { color: xianxia.ink, fontSize: 9.5, fontWeight: '900', marginBottom: 8 },
   publishStatusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
