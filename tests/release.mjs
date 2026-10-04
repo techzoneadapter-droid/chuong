@@ -68,9 +68,11 @@ const requiredFiles = [
   'assets/xianxia/button-jade.png',
   'assets/xianxia/divider.png',
   'assets/xianxia/badge-vip.png',
-  'assets/xianxia/cover-palace.png',
-  'assets/xianxia/cover-bamboo.png',
-  'assets/xianxia/cover-archive.png',
+  'constants/brand-logo.ts',
+  'constants/brand-logo/chunk1.ts',
+  'constants/brand-logo/chunk2.ts',
+  'constants/brand-logo/chunk3.ts',
+  'constants/brand-logo/chunk4.ts',
   'services/adminCatalog.ts',
   'services/community.ts',
   'services/offlineDownloads.ts',
@@ -90,9 +92,15 @@ for (const file of requiredFiles) {
 
 const homeSource = readFileSync(new URL('app/(tabs)/index.tsx', root), 'utf8');
 const artworkSource = readFileSync(new URL('constants/artwork.ts', root), 'utf8');
-check(homeSource.includes('BrandLockup'), 'Home uses text-safe CHƯƠNG brand lockup');
-check(!homeSource.includes('artwork.logo'), 'Home does not render ambiguous raster wordmark');
-check(!artworkSource.includes("logo: require"), 'Ambiguous horizontal logo is not registered for runtime use');
+const artworkComponentSource = readFileSync(new URL('components/Artwork.tsx', root), 'utf8');
+const brandLogoSource = readFileSync(new URL('constants/brand-logo.ts', root), 'utf8');
+check(homeSource.includes('BrandLockup'), 'Home uses the shared CHƯƠNG brand lockup');
+check(!homeSource.includes('artwork.logo'), 'Home does not render the retired raster wordmark');
+check(!artworkSource.includes("logo: require"), 'Retired horizontal logo is not registered for runtime use');
+check(brandLogoSource.includes('data:image/png;base64'), 'New supplied CHƯƠNG logo is wired into runtime branding');
+check(artworkComponentSource.includes("coverUrl"), 'Book covers still support uploaded cover_url values');
+check(artworkComponentSource.includes('Chưa có bìa'), 'Missing book covers use a neutral no-cover state');
+check(!artworkSource.includes('coverPalace') && !artworkSource.includes('coverBamboo') && !artworkSource.includes('coverArchive'), 'Demo cover assets are not registered at runtime');
 check(!homeSource.includes('CHƯỞNG'), 'Home source contains no CHƯỞNG typo');
 
 function walk(dir, files = []) {
