@@ -174,6 +174,7 @@ export async function speakTtsSegment(
   text: string,
   options: {
     rate: number;
+    pitch?: number;
     voice?: string;
     onStart?: () => void;
   },
@@ -196,7 +197,7 @@ export async function speakTtsSegment(
       Speech.speak(text.slice(0, Speech.maxSpeechInputLength), {
         language: 'vi-VN',
         rate: options.rate,
-        pitch: 1,
+        pitch: options.pitch ?? 1,
         voice: options.voice,
         onStart: options.onStart,
         onDone: () => finish('done'),
