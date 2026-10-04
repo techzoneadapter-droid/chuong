@@ -513,6 +513,7 @@ function AudioSheet({
   canNext: boolean;
 }) {
   const autoStartNext = useRef(false);
+  const playbackEndOptions = useRef<{ sleepTimer: SleepTimer; autoNext: boolean }>({ sleepTimer: 'Tắt', autoNext: true });
   const [trackWidth, setTrackWidth] = useState(1);
   const player = useTtsPlayer({
     chapterKey,
@@ -520,13 +521,14 @@ function AudioSheet({
     initialProgressPercent: initialProgress,
     onProgress,
     onEnded: () => {
-      if (player.sleepTimer === 'Hết chương') return;
-      if (player.autoNext && canNext) {
+      if (playbackEndOptions.current.sleepTimer === 'Hết chương') return;
+      if (playbackEndOptions.current.autoNext && canNext) {
         autoStartNext.current = true;
         onNext();
       }
     },
   });
+  playbackEndOptions.current = { sleepTimer: player.sleepTimer, autoNext: player.autoNext };
 
   useEffect(() => {
     if (!autoStartNext.current) return;
