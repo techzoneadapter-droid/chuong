@@ -82,7 +82,7 @@ function parseChapterNumber(token) {
 function splitChapters(raw) {
   const text=normalizeText(raw);
   if(!text)return[];
-  const re=/^(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet)\s*([0-9]{1,6}|[ivxlcdm]{1,12})|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:\s*[:.\-–—]\s*|\s+)?([^\n]*)$/gim;
+  const re=/^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?:\s*\/\s*\d{1,6})?|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
   const matches=[...text.matchAll(re)];
   if(!matches.length)return[{chapterNumber:1,title:'Chương 1',content:text}];
   const out=[];
@@ -90,7 +90,7 @@ function splitChapters(raw) {
     const m=matches[i],next=matches[i+1];
     const number=parseChapterNumber(m[1]||m[2]);
     if(!number)continue;
-    const tail=(m[3]||'').trim();
+    const tail=(m[3]||'').replace(/[*_#]+\s*$/g,'').trim();
     const start=(m.index||0)+m[0].length,end=next?.index??text.length;
     const content=normalizeText(text.slice(start,end));
     if(content)out.push({chapterNumber:number,title:tail||('Chương '+number),content});
