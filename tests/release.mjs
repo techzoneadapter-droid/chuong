@@ -32,6 +32,8 @@ check(Boolean(packageJson.dependencies?.['expo-router']), 'Expo Router dependenc
 check(Boolean(packageJson.dependencies?.['expo-notifications']), 'Push notification dependency exists');
 check(Boolean(packageJson.dependencies?.['expo-iap']), 'Store billing dependency exists');
 check(packageJson.dependencies?.['expo-speech'] === '~14.0.8', 'Expo Speech matches SDK 54 compatible version');
+check(packageJson.dependencies?.['react-native-google-mobile-ads'] === '16.5.0', 'Google Mobile Ads is pinned to the Expo SDK 54 / RN 0.81 compatible v16 line');
+check(existsSync(new URL('app.config.js', root)), 'Dynamic Expo config exists for AdMob App IDs');
 check(Boolean(easJson.build?.preview), 'EAS preview build profile exists');
 check(Boolean(easJson.build?.production), 'EAS production build profile exists');
 check(easJson.build?.production?.autoIncrement === true, 'Production build auto-increments native build numbers');
@@ -60,6 +62,9 @@ const requiredFiles = [
   'components/XianxiaBackdrop.tsx',
   'components/Artwork.tsx',
   'components/AdBanner.tsx',
+  'components/AdBanner.native.tsx',
+  'components/AdsBridge.tsx',
+  'components/AdsBridge.native.tsx',
   'constants/xianxia.ts',
   'constants/artwork.ts',
   'assets/xianxia/app-background.jpg',
@@ -84,10 +89,13 @@ const requiredFiles = [
   'services/adminImport.ts',
   'services/authorImport.ts',
   'services/membership.ts',
+  'services/subscriptions.ts',
   'services/premiumAi.ts',
   'services/tts.ts',
   'hooks/useTtsPlayer.ts',
   'hooks/useMembership.ts',
+  'hooks/usePremiumIap.ts',
+  'hooks/usePremiumIap.native.ts',
   'services/community.ts',
   'services/offlineDownloads.ts',
   'services/offlineSync.ts',
@@ -100,7 +108,11 @@ const requiredFiles = [
   'docs/READING_ANALYTICS.md',
   'docs/READ_ALOUD.md',
   'docs/PREMIUM_AI_TRANSLATION.md',
+  'docs/PREMIUM_MONETIZATION.md',
   'supabase/functions/ai-translate-book/index.ts',
+  'supabase/functions/subscription-verify/index.ts',
+  'supabase/functions/iap-events/index.ts',
+  'supabase/migrations/202610040003_phase4p_verified_premium_subscriptions.sql',
   'supabase/migrations/202610040001_phase4n_premium_ai_translation.sql',
   'supabase/migrations/202610040002_phase4n_premium_gate_hardening.sql',
   'docs/COMMUNITY_SOCIAL.md',
@@ -157,6 +169,20 @@ check(membershipSource.includes('100 * 1024 * 1024') && membershipSource.include
 check(downloadsSource.includes('applyOfflineStoragePlan') && downloadsSource.includes("router.push('/premium')"), 'Downloads enforce plan quota and expose VIP upgrade');
 check(adBannerSource.includes('!membership.showAds') && readerSource.includes('<AdBanner dark={dark} />'), 'Premium hides reader ads while Standard displays the ad surface');
 check(premiumSource.includes('2 GB') && premiumSource.includes('Không quảng cáo') && premiumSource.includes('AI dịch toàn truyện'), 'VIP screen explains storage, ad-free and AI benefits');
+const subscriptionSource = readFileSync(new URL('services/subscriptions.ts', root), 'utf8');
+const premiumIapSource = readFileSync(new URL('hooks/usePremiumIap.native.ts', root), 'utf8');
+const subscriptionWorkerSource = readFileSync(new URL('supabase/functions/subscription-verify/index.ts', root), 'utf8');
+const storeEventsSource = readFileSync(new URL('supabase/functions/iap-events/index.ts', root), 'utf8');
+const nativeAdSource = readFileSync(new URL('components/AdBanner.native.tsx', root), 'utf8');
+const adsBridgeSource = readFileSync(new URL('components/AdsBridge.native.tsx', root), 'utf8');
+const appConfigSource = readFileSync(new URL('app.config.js', root), 'utf8');
+check(subscriptionSource.includes("functions.invoke('subscription-verify'"), 'Premium client uses dedicated subscription verifier');
+check(premiumIapSource.includes("type: 'subs'") && premiumIapSource.includes('subscriptionOffers') && premiumIapSource.includes('isConsumable: false'), 'Native VIP flow uses real store subscriptions and finishes them as non-consumable');
+check(subscriptionWorkerSource.includes('purchases/subscriptionsv2/tokens') && subscriptionWorkerSource.includes('/inApps/v1/transactions/'), 'Server verifies Google and Apple subscription state independently');
+check(storeEventsSource.includes('subscriptionNotification') && storeEventsSource.includes('apple_server_notification_v2_subscription'), 'Store webhooks reconcile Premium renewal/cancellation state');
+check(nativeAdSource.includes('BannerAd') && nativeAdSource.includes('TestIds.BANNER'), 'Native Standard plan renders AdMob banners with safe test fallback');
+check(adsBridgeSource.includes('AdsConsent.gatherConsent') && adsBridgeSource.includes('mobileAds().initialize'), 'AdMob waits for UMP consent before initialization');
+check(appConfigSource.includes('react-native-google-mobile-ads') && appConfigSource.includes('EXPO_PUBLIC_ADMOB_ANDROID_APP_ID'), 'Expo config wires AdMob App IDs through environment variables');
 
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {
