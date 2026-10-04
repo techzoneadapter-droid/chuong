@@ -4,6 +4,9 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState, RetryState } from '../../components/States';
+import { ButtonArt } from '../../components/Artwork';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
+import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
 import { ReaderPrivacy, getMyReaderPrivacy, updateReaderPrivacy } from '../../services/community';
 
@@ -62,20 +65,21 @@ export default function ReaderPrivacyScreen() {
     }
   };
 
-  if (loading || authLoading) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải quyền riêng tư…" /></SafeAreaView>;
-  if (error && !settings) return <SafeAreaView style={styles.safe}><RetryState detail={error} onRetry={() => { void load(); }} /></SafeAreaView>;
+  if (loading || authLoading) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang tải quyền riêng tư…" /></SafeAreaView>;
+  if (error && !settings) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={error} onRetry={() => { void load(); }} /></SafeAreaView>;
   if (!settings) return null;
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
+    <XianxiaBackdrop />
     <View style={styles.topbar}>
-      <Pressable style={styles.iconButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable>
+      <Pressable style={styles.iconButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={21} color={xianxia.ink} /></Pressable>
       <Text style={styles.topTitle}>Quyền riêng tư</Text>
       <View style={styles.iconButton} />
     </View>
 
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
       <View style={styles.hero}>
-        <View style={styles.heroIcon}><Ionicons name="shield-checkmark-outline" size={25} color="#8F1D3F" /></View>
+        <View style={styles.heroIcon}><Ionicons name="shield-checkmark-outline" size={25} color={xianxia.goldSoft} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.heroTitle}>Bạn quyết định điều gì được công khai</Text>
           <Text style={styles.heroBody}>Tiến độ đọc, lịch sử đọc chi tiết, dấu trang và truyện “Đang đọc” luôn được giữ riêng tư.</Text>
@@ -129,11 +133,13 @@ export default function ReaderPrivacyScreen() {
       </View>
 
       {!settings.profilePublic ? <View style={styles.notice}>
-        <Ionicons name="eye-off-outline" size={18} color="#8F1D3F" />
+        <Ionicons name="eye-off-outline" size={18} color={xianxia.jadeDeep} />
         <Text style={styles.noticeText}>Khi hồ sơ công khai tắt, các mục kệ sách, đánh giá, bình luận và nhận theo dõi cũng không được hiển thị cho người khác.</Text>
       </View> : null}
 
       <Pressable disabled={saving} style={[styles.save, saving && styles.saveDisabled]} onPress={() => { void save(); }}>
+        <ButtonArt />
+        <Ionicons name="shield-checkmark-outline" size={18} color={xianxia.goldSoft} />
         <Text style={styles.saveText}>{saving ? 'Đang lưu…' : 'Lưu quyền riêng tư'}</Text>
       </Pressable>
     </ScrollView>
@@ -158,7 +164,7 @@ function SettingRow({
   last?: boolean;
 }) {
   return <View style={[styles.row, last && styles.rowLast, disabled && styles.rowDisabled]}>
-    <View style={styles.rowIcon}><Ionicons name={icon} size={18} color="#8F1D3F" /></View>
+    <View style={styles.rowIcon}><Ionicons name={icon} size={18} color={xianxia.jadeDeep} /></View>
     <View style={styles.rowCopy}>
       <Text style={styles.rowTitle}>{title}</Text>
       <Text style={styles.rowDetail}>{detail}</Text>
@@ -167,35 +173,35 @@ function SettingRow({
       value={value}
       onValueChange={onChange}
       disabled={disabled}
-      trackColor={{ false: '#D9CECA', true: '#C77890' }}
-      thumbColor={value ? '#8F1D3F' : '#F7F2EF'}
+      trackColor={{ false: '#D9CECA', true: '#7A9C8E' }}
+      thumbColor={value ? xianxia.jadeDeep : '#F7F2EF'}
     />
   </View>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F2E9' },
-  topbar: { height: 58, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DED1CA' },
+  safe: { flex: 1, backgroundColor: xianxia.paper },
+  topbar: { height: 58, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(244,235,216,.90)' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { flex: 1, textAlign: 'center', color: '#251D20', fontSize: 17, fontWeight: '900' },
+  topTitle: { flex: 1, textAlign: 'center', color: xianxia.ink, fontSize: 17, fontWeight: '900' },
   page: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 16, paddingBottom: 48 },
-  hero: { backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D1', borderRadius: 18, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' },
-  heroIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' },
-  heroTitle: { color: '#2B2226', fontSize: 14, fontWeight: '900' },
-  heroBody: { color: '#766A6F', fontSize: 10, lineHeight: 16, marginTop: 5 },
-  error: { color: '#A12B48', backgroundColor: '#F7E7EC', borderRadius: 12, padding: 10, fontSize: 10, marginTop: 12 },
-  saved: { color: '#376B4C', backgroundColor: '#E8F3EC', borderRadius: 12, padding: 10, fontSize: 10, fontWeight: '800', marginTop: 12 },
-  card: { marginTop: 14, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D1', borderRadius: 17, overflow: 'hidden' },
-  row: { minHeight: 86, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5D8D1' },
+  hero: { backgroundColor: '#23443A', borderWidth: 1, borderColor: xianxia.gold, borderRadius: 18, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' },
+  heroIcon: { width: 48, height: 48, borderRadius: 15, backgroundColor: 'rgba(185,137,69,.16)', borderWidth: 1, borderColor: 'rgba(229,209,163,.38)', alignItems: 'center', justifyContent: 'center' },
+  heroTitle: { color: xianxia.white, fontSize: 14, fontWeight: '900' },
+  heroBody: { color: 'rgba(255,253,248,.68)', fontSize: 10, lineHeight: 16, marginTop: 5 },
+  error: { color: xianxia.danger, backgroundColor: '#F5E5E1', borderWidth: 1, borderColor: '#E2C2BA', borderRadius: 12, padding: 10, fontSize: 10, marginTop: 12 },
+  saved: { color: '#376B4C', backgroundColor: '#E8F3EC', borderWidth: 1, borderColor: '#C9DDCD', borderRadius: 12, padding: 10, fontSize: 10, fontWeight: '800', marginTop: 12 },
+  card: { marginTop: 14, backgroundColor: 'rgba(255,248,234,.94)', borderWidth: 1, borderColor: xianxia.line, borderRadius: 17, overflow: 'hidden' },
+  row: { minHeight: 86, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line },
   rowLast: { borderBottomWidth: 0 },
   rowDisabled: { opacity: 0.48 },
-  rowIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' },
+  rowIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#BDD0C3', alignItems: 'center', justifyContent: 'center' },
   rowCopy: { flex: 1 },
-  rowTitle: { color: '#2B2226', fontSize: 12, fontWeight: '900' },
-  rowDetail: { color: '#82767B', fontSize: 9, lineHeight: 14, marginTop: 4 },
-  notice: { marginTop: 12, borderRadius: 14, padding: 13, backgroundColor: '#F0E1E5', flexDirection: 'row', gap: 9 },
-  noticeText: { flex: 1, color: '#65575D', fontSize: 9, lineHeight: 15 },
-  save: { height: 46, borderRadius: 14, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center', marginTop: 18 },
+  rowTitle: { color: xianxia.ink, fontSize: 12, fontWeight: '900' },
+  rowDetail: { color: xianxia.muted, fontSize: 9, lineHeight: 14, marginTop: 4 },
+  notice: { marginTop: 12, borderRadius: 14, padding: 13, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', flexDirection: 'row', gap: 9 },
+  noticeText: { flex: 1, color: xianxia.inkSoft, fontSize: 9, lineHeight: 15 },
+  save: { position: 'relative', overflow: 'hidden', minHeight: 50, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 18 },
   saveDisabled: { opacity: 0.55 },
-  saveText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
+  saveText: { color: xianxia.white, fontSize: 11, fontWeight: '900' },
 });
