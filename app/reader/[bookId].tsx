@@ -63,6 +63,7 @@ export default function ReaderScreen() {
   const [progressReady, setProgressReady] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
   const [aiResult, setAiResult] = useState('');
+  const [pageIndex, setPageIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scrollPosition = useRef(0);
 
@@ -86,6 +87,26 @@ export default function ReaderScreen() {
     router.replace({ pathname: '/book/[id]', params: { id: book.id } });
   };
   const content = useMemo(() => chapter.content ? chapter.content.split(/\n\s*\n/).filter(Boolean) : getChapterContent(chapterNumber), [chapter.content, chapterNumber]);
+  const pagedContent = useMemo(() => {
+    const spacingFactor = settings.spacing === 'compact' ? 1.12 : settings.spacing === 'relaxed' ? .82 : 1;
+    const target = Math.max(520, Math.round(1120 * (18 / settings.fontSize) * spacingFactor));
+    const pages: string[][] = [];
+    let current: string[] = [];
+    let size = 0;
+    for (const paragraph of content) {
+      const nextSize = size + paragraph.length + 2;
+      if (current.length && nextSize > target) {
+        pages.push(current);
+        current = [];
+        size = 0;
+      }
+      current.push(paragraph);
+      size += paragraph.length + 2;
+    }
+    if (current.length || !pages.length) pages.push(current);
+    return pages;
+  }, [content, settings.fontSize, settings.spacing]);
+  const visibleContent = settings.mode === 'page' ? (pagedContent[pageIndex] ?? pagedContent[0] ?? []) : content;
   const bookmark: Bookmark | null = bookmarked ? { chapter: chapterNumber, progress: readingProgress, updatedAt: new Date().toISOString() } : null;
   const palette = themes[settings.theme];
   const dark = settings.theme === 'night' || settings.theme === 'amoled';
@@ -197,6 +218,7 @@ export default function ReaderScreen() {
     setSheet(null);
     setChapterSearch('');
     setReadingProgress(0);
+    setPageIndex(0);
     setBookmarked(false);
     scrollPosition.current = 0;
     router.setParams({ chapter: String(next) });
@@ -204,11 +226,29 @@ export default function ReaderScreen() {
   };
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (settings.mode === 'page') return;
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     scrollPosition.current = contentOffset.y;
     const max = contentSize.height - layoutMeasurement.height;
     setReadingProgress(max > 0 ? Math.min(100, Math.round(contentOffset.y / max * 100)) : 100);
   };
+
+  const goReaderPage = (nextIndex: number) => {
+    const clamped = Math.min(Math.max(0, nextIndex), Math.max(0, pagedContent.length - 1));
+    setPageIndex(clamped);
+    const percent = pagedContent.length ? Math.round(((clamped + 1) / pagedContent.length) * 100) : 100;
+    setReadingProgress(percent);
+    scrollPosition.current = clamped;
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+  };
+
+  useEffect(() => {
+    if (settings.mode !== 'page') return;
+    setPageIndex(0);
+    setReadingProgress(pagedContent.length ? Math.round(100 / pagedContent.length) : 100);
+    scrollPosition.current = 0;
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+  }, [chapterNumber, settings.mode, settings.fontSize, settings.spacing, settings.padding, pagedContent.length]);
 
   const toggleBookmark = async () => {
     const previous = bookmarked; setBookmarked(!previous);
@@ -310,15 +350,22 @@ export default function ReaderScreen() {
         style={{ backgroundColor: dark ? palette.bg : settings.theme === 'paper' ? 'rgba(244,235,216,.88)' : 'rgba(255,255,255,.94)' }}
       >
         <Pressable onPress={() => setControlsVisible((value) => !value)}>
-          {settings.mode === 'page' ? <View style={[styles.preview, dark && styles.previewDark]}><Ionicons name="albums-outline" size={15} color="#8F1D3F" /><Text style={[styles.previewText, dark && styles.previewTextDark]}>Xem trước chế độ lật trang · Vuốt dọc vẫn khả dụng</Text></View> : null}
-          <Text style={[styles.bookKicker, { color: palette.muted }]}>{book.title.toUpperCase()}</Text>
-          <Text style={[styles.chapterNumber, { color: palette.text }]}>Chương {chapterNumber}</Text>
-          <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapter.title}</Text>
-          {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
-          {content.map((paragraph, index) => (
-            <Text key={`${chapterNumber}-${index}`} style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{paragraph}</Text>
+          {settings.mode === 'page' ? <View style={[styles.pageModeBadge, dark && styles.pageModeBadgeDark]}><Ionicons name="albums-outline" size={14} color={dark ? xianxia.goldSoft : xianxia.jadeDeep} /><Text style={[styles.pageModeText, dark && styles.pageModeTextDark]}>Lật trang · {pageIndex + 1}/{pagedContent.length}</Text></View> : null}
+          {settings.mode !== 'page' || pageIndex === 0 ? <>
+            <Text style={[styles.bookKicker, { color: palette.muted }]}>{book.title.toUpperCase()}</Text>
+            <Text style={[styles.chapterNumber, { color: palette.text }]}>Chương {chapterNumber}</Text>
+            <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapter.title}</Text>
+            {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
+          </> : null}
+          {visibleContent.map((paragraph, index) => (
+            <Text key={`${chapterNumber}-${pageIndex}-${index}`} style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{paragraph}</Text>
           ))}
-          <Text style={[styles.endMark, { color: palette.muted }]}>— Hết chương {chapterNumber} —</Text>
+          {settings.mode === 'page' ? <View style={[styles.pagePager, { borderColor: dark ? '#4C494B' : xianxia.line }]}>
+            <Pressable disabled={pageIndex === 0} onPress={() => goReaderPage(pageIndex - 1)} style={[styles.pageButton, pageIndex === 0 && styles.disabled]}><Ionicons name="chevron-back" size={17} color={palette.text} /><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang trước</Text></Pressable>
+            <Text style={[styles.pageCount, { color: palette.muted }]}>{pageIndex + 1} / {pagedContent.length}</Text>
+            <Pressable disabled={pageIndex >= pagedContent.length - 1} onPress={() => goReaderPage(pageIndex + 1)} style={[styles.pageButton, styles.pageButtonRight, pageIndex >= pagedContent.length - 1 && styles.disabled]}><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang sau</Text><Ionicons name="chevron-forward" size={17} color={palette.text} /></Pressable>
+          </View> : null}
+          {settings.mode !== 'page' || pageIndex === pagedContent.length - 1 ? <Text style={[styles.endMark, { color: palette.muted }]}>— Hết chương {chapterNumber} —</Text> : null}
         </Pressable>
 
         <View style={[styles.chapterNav, { borderColor: dark ? '#4C494B' : '#D9CCC4' }]}>
@@ -395,7 +442,7 @@ function SettingsSheet({ visible, onClose, settings, onChange }: { visible: bool
     <SettingLabel title="Lề trang" value={`${settings.padding}px`} />
     <View style={sheetStyles.paddingRow}><Pressable onPress={() => update('padding', Math.max(14, settings.padding - 4))}><Ionicons name="remove-circle-outline" size={28} color="#8F1D3F" /></Pressable><View style={sheetStyles.paddingDemo}><View style={{ width: `${Math.max(35, 92 - settings.padding)}%`, height: 3, backgroundColor: '#8F1D3F' }} /><View style={{ width: `${Math.max(28, 80 - settings.padding)}%`, height: 3, backgroundColor: '#CDBDC2' }} /></View><Pressable onPress={() => update('padding', Math.min(42, settings.padding + 4))}><Ionicons name="add-circle-outline" size={28} color="#8F1D3F" /></Pressable></View>
     <SettingLabel title="Chế độ đọc" />
-    <Segment options={[['scroll', 'Cuộn dọc'], ['page', 'Lật trang · Xem trước']]} value={settings.mode} onChange={(value) => update('mode', value as ReaderMode)} />
+    <Segment options={[['scroll', 'Cuộn dọc'], ['page', 'Lật trang']]} value={settings.mode} onChange={(value) => update('mode', value as ReaderMode)} />
   </BottomSheet>;
 }
 
@@ -472,8 +519,11 @@ const styles = StyleSheet.create({
   unlockDisabled: { opacity: .55 },
   paywallSafety: { color: '#95898D', fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 12 },
   readingPage: { width: '100%', maxWidth: 720, alignSelf: 'center' },
-  preview: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', padding: 8, borderRadius: 10, marginBottom: 25 },
-  previewDark: { backgroundColor: '#41343A' }, previewText: { color: xianxia.jadeDeep, fontSize: 10, fontWeight: '800' }, previewTextDark: { color: '#E2B7C5' },
+  pageModeBadge: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, marginBottom: 18 },
+  pageModeBadgeDark: { backgroundColor: '#263630', borderColor: '#4D5D56' }, pageModeText: { color: xianxia.jadeDeep, fontSize: 9, fontWeight: '900' }, pageModeTextDark: { color: xianxia.goldSoft },
+  pagePager: { minHeight: 56, marginTop: 8, marginBottom: 12, borderTopWidth: 1, borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center' },
+  pageButton: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 4 }, pageButtonRight: { justifyContent: 'flex-end' },
+  pageButtonText: { fontSize: 10, fontWeight: '900' }, pageCount: { minWidth: 58, textAlign: 'center', fontSize: 9, fontWeight: '800' },
   bookKicker: { fontSize: 10, letterSpacing: 1.7, fontWeight: '900', textAlign: 'center' },
   chapterNumber: { fontSize: 27, fontWeight: '900', textAlign: 'center', marginTop: 13 },
   chapterTitle: { fontSize: 19, lineHeight: 25, fontWeight: '600', textAlign: 'center', marginTop: 5 },
