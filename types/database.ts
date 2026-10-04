@@ -2576,6 +2576,7 @@ export type Database = {
         Args: { p_quest_key: string }
         Returns: Json
       }
+      claim_rewarded_ad_bonus: { Args: never; Returns: Json }
       get_daily_cultivation: { Args: never; Returns: Json }
       claim_push_deliveries: {
         Args: { p_limit?: number }
