@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { xianxia } from '../constants/xianxia';
+import { artwork } from '../constants/artwork';
 import { Book } from '../types';
-import { XianxiaCoverArt } from './XianxiaBackdrop';
 
 interface Props {
   book: Book;
@@ -22,19 +22,16 @@ export function BookCard({ book, compact = false }: Props) {
     >
       <View style={[styles.coverFrame, compact && styles.compactFrame]}>
         <View style={[styles.cover, compact && styles.compactCover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-          <XianxiaCoverArt compact={compact} seed={book.id} />
           {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} resizeMode="cover" /> : null}
-          {book.coverUrl ? <View pointerEvents="none" style={styles.imageShade} /> : null}
           <View style={styles.coverTop}>
             <Text style={styles.coverBrand}>CHƯƠNG</Text>
-            <View style={styles.seal}><Text style={styles.sealText}>仙</Text></View>
           </View>
           {!book.coverUrl ? <View style={styles.fallbackCopy}>
             <Text numberOfLines={4} style={[styles.coverTitle, compact && styles.compactCoverTitle]}>{book.title}</Text>
             <Text numberOfLines={1} style={styles.coverAuthor}>{book.author}</Text>
           </View> : null}
           <View style={styles.coverFooter}>
-            <Text style={styles.badge}>{badge}</Text>
+            {book.isVip ? <Image source={artwork.vip} accessibilityLabel="VIP" resizeMode="contain" style={{ width: 48, height: 27 }} /> : <Text style={styles.badge}>{badge}</Text>}
             <View style={styles.chapterPill}><Ionicons name="reader-outline" color={xianxia.goldSoft} size={12} /><Text style={styles.chapterText}>{book.totalChapters}</Text></View>
           </View>
         </View>
@@ -50,10 +47,10 @@ const styles = StyleSheet.create({
   card: { width: 146, marginRight: 14 },
   compact: { width: 122 },
   pressed: { opacity: 0.8, transform: [{ scale: 0.985 }] },
-  coverFrame: { borderRadius: 18, padding: 2, backgroundColor: xianxia.goldSoft, shadowColor: '#27342F', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
-  compactFrame: { borderRadius: 16 },
-  cover: { height: 202, borderRadius: 16, padding: 12, justifyContent: 'space-between', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,.16)' },
-  compactCover: { height: 168, borderRadius: 14, padding: 10 },
+  coverFrame: { borderRadius: 6, padding: 1, backgroundColor: xianxia.goldSoft },
+  compactFrame: { borderRadius: 6 },
+  cover: { height: 188, borderRadius: 5, padding: 12, justifyContent: 'space-between', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,.16)' },
+  compactCover: { height: 164, borderRadius: 5, padding: 10 },
   coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   imageShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,24,22,.16)' },
   coverTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 },
@@ -68,7 +65,7 @@ const styles = StyleSheet.create({
   badge: { color: '#FFF9EA', backgroundColor: 'rgba(20,34,31,.70)', borderWidth: 1, borderColor: 'rgba(229,209,163,.38)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 99, fontSize: 8, fontWeight: '900' },
   chapterPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(20,34,31,.58)', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 99 },
   chapterText: { color: xianxia.goldSoft, fontSize: 8, fontWeight: '900' },
-  title: { color: xianxia.ink, fontSize: 14, lineHeight: 19, fontWeight: '900', marginTop: 10 },
+  title: { color: xianxia.ink, fontSize: 14, lineHeight: 20, fontWeight: '600', marginTop: 10 },
   meta: { color: xianxia.jade, fontSize: 10, fontWeight: '700', marginTop: 3 },
   genreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   genre: { flexShrink: 1, color: xianxia.muted, fontSize: 9 },

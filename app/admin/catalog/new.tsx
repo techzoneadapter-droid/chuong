@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FormField } from '../../../components/Form';
-import { XianxiaBackdrop, XianxiaCoverArt } from '../../../components/XianxiaBackdrop';
+import { XianxiaBackdrop } from '../../../components/XianxiaBackdrop';
 import { xianxia } from '../../../constants/xianxia';
 import { useAuth } from '../../../contexts/AuthContext';
 import { createAdminCatalogBook, listAdminAuthors, AdminAuthorOption } from '../../../services/adminCatalog';
@@ -110,7 +110,6 @@ export default function AdminCreateCatalogBookScreen() {
       <Text style={styles.groupTitle}>Ảnh bìa</Text>
       <Pressable style={styles.coverPicker} onPress={pickCover}>
         <View style={styles.cover}>
-          <XianxiaCoverArt />
           {cover ? <Image source={{ uri: cover.uri }} style={styles.coverImage} /> : <View style={styles.coverEmpty}><Ionicons name="image-outline" size={27} color={xianxia.goldSoft} /><Text style={styles.coverEmptyTitle}>Bìa 2:3</Text><Text style={styles.coverEmptyMeta}>JPG · PNG · WebP</Text></View>}
         </View>
         <View style={styles.coverCopy}><Text style={styles.coverAction}>{cover ? 'Thay ảnh bìa' : 'Chọn ảnh bìa'}</Text><Text style={styles.coverNote}>Ảnh thật sẽ được dùng làm thumbnail ở Trang chủ, Khám phá và trang truyện.</Text></View>

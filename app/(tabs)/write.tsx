@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
-import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAuthorForUser, getMyBooks } from '../../services/authors';
@@ -95,7 +95,6 @@ export default function WriteScreen() {
       </View>
 
       <View style={styles.hero}>
-        <XianxiaCoverArt />
         <View style={styles.heroSeal}><Text style={styles.heroSealText}>文</Text></View>
         <View style={styles.heroCopy}>
           <Text style={styles.heroTitle}>Mỗi chương là một bước trên tiên lộ.</Text>
@@ -137,7 +136,6 @@ export default function WriteScreen() {
         {books.map((book) => <View style={styles.bookRow} key={book.id}>
           <View style={styles.coverFrame}>
             <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-              <XianxiaCoverArt compact />
               {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text numberOfLines={3} style={styles.coverText}>{book.title}</Text>}
               <View style={styles.coverSeal}><Text style={styles.coverSealText}>作</Text></View>
             </View>

@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../../components/States';
-import { XianxiaBackdrop, XianxiaCoverArt } from '../../../components/XianxiaBackdrop';
+import { XianxiaBackdrop } from '../../../components/XianxiaBackdrop';
 import { xianxia } from '../../../constants/xianxia';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
@@ -169,7 +169,6 @@ export default function AdminCatalogBookScreen() {
       <View style={styles.bookHero}>
         <Pressable onPress={changeCover} style={styles.coverWrap}>
           <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-            <XianxiaCoverArt />
             {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text numberOfLines={4} style={styles.coverText}>{book.title}</Text>}
             <View style={styles.coverEdit}><Ionicons name="camera" size={14} color={xianxia.white} /></View>
           </View>

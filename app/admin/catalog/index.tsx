@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../../components/States';
-import { XianxiaBackdrop, XianxiaCoverArt } from '../../../components/XianxiaBackdrop';
+import { XianxiaBackdrop } from '../../../components/XianxiaBackdrop';
 import { xianxia } from '../../../constants/xianxia';
 import { useAuth } from '../../../contexts/AuthContext';
 import { listAdminCatalogBooks } from '../../../services/adminCatalog';
@@ -73,7 +73,6 @@ export default function AdminCatalogScreen() {
       {loading ? <LoadingState label="Đang mở kho truyện…" /> : error ? <RetryState detail={error} onRetry={load} /> : books.length === 0 ? <EmptyState title="Kho truyện trống" detail="Hãy thêm truyện đầu tiên từ tài khoản quản trị." /> : books.map((book) => (
         <Pressable key={book.id} style={styles.bookRow} onPress={() => router.push({ pathname: '/admin/catalog/[bookId]', params: { bookId: book.id } })}>
           <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-            <XianxiaCoverArt compact />
             {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text numberOfLines={3} style={styles.coverText}>{book.title}</Text>}
           </View>
           <View style={styles.bookCopy}>
