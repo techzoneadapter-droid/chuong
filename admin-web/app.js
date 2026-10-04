@@ -313,7 +313,7 @@ async function pdfText(buffer,label){
     showParse('Đang đọc PDF trang '+n+'/'+pdf.numPages+'…','info');
     const page=await pdf.getPage(n);
     const tc=await page.getTextContent();
-    let text=normalizeText((tc.items||[]).map(x=>x.str||'').join(' '));
+    let text=normalizeText((tc.items||[]).map(x=>(x.str||'')+(x.hasEOL?'\n':' ')).join(''));
     if(text.replace(/\s/g,'').length<80){
       const viewport=page.getViewport({scale:1.65}),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
       canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
