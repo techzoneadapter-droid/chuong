@@ -39,6 +39,8 @@ export default function StudioUploadScreen() {
   const [sourceType, setSourceType] = useState<SourceType>('authorized');
   const [creditedAuthorName, setCreditedAuthorName] = useState('');
   const [publish, setPublish] = useState(false);
+  const [isVip, setIsVip] = useState(false);
+  const [priceCoins, setPriceCoins] = useState(0);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [pasteTitle, setPasteTitle] = useState('');
   const [pasteText, setPasteText] = useState('');
@@ -151,6 +153,7 @@ export default function StudioUploadScreen() {
     if (!user || profile?.role !== 'admin' || busy) return;
     if (!ownerAuthorId) return setError('Cần chọn tác giả sở hữu nội bộ.');
     if (!rightsConfirmed) return setError('Cần xác nhận quyền sử dụng nội dung.');
+    if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
     if (!selected.length) return setError('Chưa chọn truyện để nhập.');
 
     setBusy(true);
@@ -171,6 +174,8 @@ export default function StudioUploadScreen() {
           tags: [],
           language,
           sourceType,
+          isVip,
+          priceCoins: isVip ? priceCoins : 0,
         });
         await importAdminCatalogChapters(bookId, item.chapters, publish);
 
@@ -285,6 +290,10 @@ export default function StudioUploadScreen() {
             })}
           </View>
 
+          <View style={styles.vipCard}>
+            <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật để áp dụng khóa Linh Thạch cho toàn bộ truyện được đẩy trong lần này.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
+            {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa / truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Linh Thạch</Text></View> : null}
+          </View>
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Khuyên để tắt lần đầu, kiểm tra bìa/chương rồi mới công khai.</Text></View>
             <Switch value={publish} onValueChange={setPublish} />
@@ -375,6 +384,14 @@ const styles = StyleSheet.create({
   field: { minWidth: 220, flexGrow: 1, flexBasis: 240 },
   ownerBox: { minHeight: 40, borderRadius: 11, borderWidth: 1, borderColor: '#DDD4C8', backgroundColor: '#F4F1E9', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
   ownerText: { color: '#4E4743', fontSize: 9, fontWeight: '800' },
+  vipCard: { marginTop: 12, padding: 11, borderRadius: 13, backgroundColor: '#F7F0DF', borderWidth: 1, borderColor: '#D8C6A0' },
+  vipRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  vipTitle: { color: '#5D431D', fontSize: 9.5, fontWeight: '900' },
+  vipBody: { color: '#7E6C51', fontSize: 8, lineHeight: 12, marginTop: 3 },
+  vipPriceRow: { marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  vipPriceLabel: { flex: 1, color: '#5D431D', fontSize: 8.5, fontWeight: '800' },
+  vipPriceInput: { width: 84, height: 36, borderRadius: 9, borderWidth: 1, borderColor: '#D8C6A0', backgroundColor: '#FFFDF7', textAlign: 'center', color: '#5D431D', fontWeight: '900' },
+  vipUnit: { color: '#7E6C51', fontSize: 8, fontWeight: '800' },
   switchRow: { minHeight: 64, marginTop: 13, borderRadius: 13, padding: 11, backgroundColor: '#F4F1E9', borderWidth: 1, borderColor: '#DED5C8', flexDirection: 'row', alignItems: 'center', gap: 10 },
   switchTitle: { color: '#2B2528', fontSize: 9.5, fontWeight: '900' },
   switchBody: { color: '#7B726D', fontSize: 8, lineHeight: 12, marginTop: 3 },
