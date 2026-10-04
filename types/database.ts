@@ -1040,8 +1040,6 @@ export type Database = {
           moderation_note: string | null
           moderation_state: Database["public"]["Enums"]["moderation_state"]
           parent_id: string | null
-          paragraph_excerpt: string | null
-          paragraph_index: number | null
           updated_at: string
           user_id: string
         }
@@ -1056,8 +1054,6 @@ export type Database = {
           moderation_note?: string | null
           moderation_state?: Database["public"]["Enums"]["moderation_state"]
           parent_id?: string | null
-          paragraph_excerpt?: string | null
-          paragraph_index?: number | null
           updated_at?: string
           user_id: string
         }
@@ -1072,8 +1068,6 @@ export type Database = {
           moderation_note?: string | null
           moderation_state?: Database["public"]["Enums"]["moderation_state"]
           parent_id?: string | null
-          paragraph_excerpt?: string | null
-          paragraph_index?: number | null
           updated_at?: string
           user_id?: string
         }
