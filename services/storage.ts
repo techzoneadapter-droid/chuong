@@ -8,7 +8,9 @@ export const defaultReaderSettings: ReaderSettings = {
   spacing: 'normal',
   theme: 'paper',
   padding: 22,
-  mode: 'scroll'
+  mode: 'scroll',
+  autoScrollSpeed: 2,
+  keepAwake: false
 };
 
 const memory = new Map<string, string>();
