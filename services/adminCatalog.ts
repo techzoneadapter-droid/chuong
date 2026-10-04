@@ -331,32 +331,67 @@ export async function importAdminCatalogChapters(
     if (publish && chapter.content.trim().length < 50) throw new Error(`Chương ${chapter.chapterNumber} cần ít nhất 50 ký tự để xuất bản.`);
   }
 
-  const { data: existing, error: existingError } = await client
-    .from('chapters')
-    .select('chapter_number')
-    .eq('book_id', bookId)
-    .in('chapter_number', [...seen]);
-  if (existingError) throw existingError;
-  if (existing?.length) throw new Error(`Kho truyện đã có Chương ${existing.map((row) => row.chapter_number).join(', ')}.`);
+  const numbers = [...seen];
+  for (let offset = 0; offset < numbers.length; offset += 200) {
+    const slice = numbers.slice(offset, offset + 200);
+    const { data: existing, error: existingError } = await client
+      .from('chapters')
+      .select('chapter_number')
+      .eq('book_id', bookId)
+      .in('chapter_number', slice);
+    if (existingError) throw toServiceError(existingError, 'Không thể kiểm tra chương đã có.');
+    if (existing?.length) throw new Error(`Kho truyện đã có Chương ${existing.map((row) => row.chapter_number).join(', ')}.`);
+  }
 
-  const { data, error } = await client
-    .from('chapters')
-    .insert(
-      chapters.map((chapter) => ({
-        book_id: bookId,
-        chapter_number: chapter.chapterNumber,
-        title: chapter.title.trim(),
-        content: chapter.content.trim(),
-        status: publish ? 'published' : 'draft',
-        published_at: publish ? new Date().toISOString() : null,
-        is_vip: false,
-        price_coins: 0,
-      })),
-    )
-    .select('id,chapter_number');
+  // Large novels are inserted in bounded batches as drafts first. This avoids
+  // one oversized HTTP payload and guarantees that partially uploaded batches
+  // never become public content.
+  const batchSize = 25;
+  const inserted: { id: string; chapter_number: number }[] = [];
+  try {
+    for (let offset = 0; offset < chapters.length; offset += batchSize) {
+      const batch = chapters.slice(offset, offset + batchSize);
+      const { data, error } = await client
+        .from('chapters')
+        .insert(
+          batch.map((chapter) => ({
+            book_id: bookId,
+            chapter_number: chapter.chapterNumber,
+            title: chapter.title.trim(),
+            content: chapter.content.trim(),
+            status: 'draft' as const,
+            published_at: null,
+            is_vip: false,
+            price_coins: 0,
+          })),
+        )
+        .select('id,chapter_number');
+      if (error) throw error;
+      inserted.push(...(data ?? []));
+    }
+  } catch (cause) {
+    if (inserted.length) {
+      await client.from('chapters').delete().in('id', inserted.map((item) => item.id)).eq('status', 'draft');
+    }
+    throw toServiceError(cause, 'Không thể nhập chương hàng loạt.');
+  }
 
-  if (error) throw toServiceError(error, 'Không thể nhập chương hàng loạt.');
-  return data ?? [];
+  if (publish && inserted.length) {
+    const publishedAt = new Date().toISOString();
+    for (let offset = 0; offset < inserted.length; offset += 200) {
+      const ids = inserted.slice(offset, offset + 200).map((item) => item.id);
+      const { error } = await client
+        .from('chapters')
+        .update({ status: 'published', published_at: publishedAt })
+        .in('id', ids)
+        .eq('book_id', bookId);
+      if (error) {
+        throw toServiceError(error, 'Đã nhập chương dưới dạng bản nháp nhưng chưa thể xuất bản toàn bộ. Hãy kiểm tra trong Content Studio.');
+      }
+    }
+  }
+
+  return inserted;
 }
 
 export async function setAdminCatalogBookStatus(bookId: string, status: BookStatus) {
