@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
+import { AssetBookCover, VipArt } from '../../components/Artwork';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
 import {
@@ -264,17 +265,16 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; onOpen: () => void }) {
   return <Pressable onPress={onOpen} style={({ pressed }) => [styles.bookRow, pressed && styles.pressed]}>
     {rank ? <View style={[styles.rank, rank <= 3 && styles.rankTop]}><Text style={[styles.rankText, rank <= 3 && styles.rankTextTop]}>{rank}</Text></View> : null}
-    <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-      {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : null}
-      {book.coverUrl ? <View pointerEvents="none" style={styles.coverShade} /> : null}
+    <View style={styles.cover}>
+      <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+      <View pointerEvents="none" style={styles.coverShade} />
       <Text style={styles.coverBrand}>CHƯƠNG</Text>
-      {!book.coverUrl ? <Text numberOfLines={3} style={styles.coverTitle}>{book.title}</Text> : null}
       <View style={styles.coverSeal}><Text style={styles.coverSealText}>仙</Text></View>
     </View>
     <View style={styles.bookInfo}>
       <View style={styles.bookTitleRow}>
         <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
-        {book.isVip ? <View style={styles.vip}><Text style={styles.vipText}>VIP</Text></View> : null}
+        {book.isVip ? <VipArt width={48} /> : null}
       </View>
       <Text numberOfLines={1} style={styles.author}>{book.author}</Text>
       <View style={styles.metaRow}>
@@ -338,18 +338,14 @@ const styles = StyleSheet.create({
   rankTop: { backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold },
   rankText: { color: '#786D71', fontSize: 12, fontWeight: '900' },
   rankTextTop: { color: '#FFF' },
-  cover: { width: 78, height: 116, borderRadius: 13, padding: 8, overflow: 'hidden', justifyContent: 'space-between', borderWidth: 1, borderColor: xianxia.goldSoft },
-  coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  cover: { width: 78, height: 116, borderRadius: 8, overflow: 'hidden', justifyContent: 'space-between', borderWidth: 2, borderColor: xianxia.gold, shadowColor: '#2B342E', shadowOpacity: .14, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,24,22,.12)' },
   coverSeal: { position: 'absolute', right: 6, top: 6, width: 20, height: 20, borderRadius: 6, backgroundColor: 'rgba(132,50,41,.82)', borderWidth: 1, borderColor: 'rgba(229,209,163,.7)', alignItems: 'center', justifyContent: 'center' },
   coverSealText: { color: '#F3D99D', fontSize: 9, fontWeight: '900' },
   coverBrand: { color: 'rgba(255,255,255,.78)', fontSize: 6, fontWeight: '900', letterSpacing: .8 },
-  coverTitle: { color: '#FFF', fontSize: 11, lineHeight: 14, fontWeight: '900' },
   bookInfo: { flex: 1, minWidth: 0 },
   bookTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
   bookTitle: { flex: 1, color: '#2A2024', fontSize: 14, lineHeight: 18, fontWeight: '900' },
-  vip: { borderRadius: 7, backgroundColor: '#F0E1E5', paddingHorizontal: 6, paddingVertical: 3 },
-  vipText: { color: '#8F1D3F', fontSize: 7, fontWeight: '900' },
   author: { color: xianxia.jade, fontSize: 9, fontWeight: '800', marginTop: 3 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 6 },
   genre: { color: '#63565C', fontSize: 8, fontWeight: '800', backgroundColor: '#F5EFEB', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 },
