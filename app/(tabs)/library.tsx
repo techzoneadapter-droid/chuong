@@ -4,8 +4,10 @@ import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState } from '../../components/States';
+import { ArtIcon, AssetBookCover, ButtonArt } from '../../components/Artwork';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
+import { artwork } from '../../constants/artwork';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBooks } from '../../services/books';
 import { getChaptersByBook } from '../../services/chapters';
@@ -111,8 +113,10 @@ export default function LibraryScreen() {
           const overall = progress ? Math.min(100, ((Math.max(0, book.chapters.findIndex((chapter) => chapter.number === progress.chapterNumber))) + progress.progressPercent / 100) / Math.max(1, book.totalChapters) * 100) : 0;
           return <Pressable onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })} style={({ pressed }) => [styles.row, pressed && styles.pressed]} key={entry.bookId}>
             <View style={styles.coverFrame}>
-              <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-                {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text style={styles.coverText}>{book.title.slice(0, 1).toUpperCase()}</Text>}
+              <View style={styles.cover}>
+                <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+                <View pointerEvents="none" style={styles.coverShade} />
+                <View style={styles.coverSeal}><Text style={styles.coverSealText}>藏</Text></View>
               </View>
             </View>
             <View style={styles.meta}>
@@ -127,6 +131,7 @@ export default function LibraryScreen() {
               <View style={styles.track}><View style={[styles.fill, { width: `${overall}%` }]} /></View>
               <View style={styles.readRow}>
                 <Pressable style={styles.readButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: book.id, chapter: progress?.chapterNumber ?? 1 } })}>
+                  <ButtonArt />
                   <Ionicons name="book-outline" size={14} color={xianxia.goldSoft} /><Text style={styles.readText}>Đọc tiếp</Text>
                 </Pressable>
                 <Text style={styles.percent}>{Math.round(overall)}%</Text>
@@ -135,6 +140,22 @@ export default function LibraryScreen() {
             </View>
           </Pressable>;
         })}</View>}
+
+      <View style={styles.explorePanel}>
+        <Image source={artwork.banner} resizeMode="cover" style={styles.exploreImage} />
+        <View style={styles.exploreShade} />
+        <View style={styles.exploreCopy}>
+          <ArtIcon source={artwork.discover} size={48} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.exploreTitle}>Khám phá thêm thế giới mới</Text>
+            <Text style={styles.exploreBody}>Tàng Kinh Các luôn có những linh quyển mới để bạn tiếp tục hành trình.</Text>
+          </View>
+          <Pressable style={styles.exploreButton} onPress={() => router.push('/discover')}>
+            <ButtonArt />
+            <Text style={styles.exploreButtonText}>Khám phá</Text>
+          </Pressable>
+        </View>
+      </View>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -161,9 +182,8 @@ const styles = StyleSheet.create({
   row: { minHeight: 154, borderRadius: 19, backgroundColor: 'rgba(255,253,247,.90)', borderWidth: 1, borderColor: xianxia.line, padding: 11, flexDirection: 'row', gap: 12, shadowColor: '#5A5148', shadowOpacity: .04, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 1 },
   pressed: { opacity: .82, transform: [{ scale: .997 }] },
   coverFrame: { padding: 2, alignSelf: 'flex-start', borderRadius: 14, backgroundColor: xianxia.goldSoft },
-  cover: { width: 78, height: 116, borderRadius: 12, overflow: 'hidden', justifyContent: 'center', padding: 8 },
-  coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
-  coverText: { color: xianxia.white, fontSize: 11, lineHeight: 14, fontWeight: '900', textAlign: 'center', zIndex: 2 },
+  cover: { width: 78, height: 116, borderRadius: 8, overflow: 'hidden', justifyContent: 'center', borderWidth: 1, borderColor: xianxia.gold },
+  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,24,22,.08)' },
   coverSeal: { position: 'absolute', right: 5, top: 5, width: 19, height: 19, borderRadius: 6, backgroundColor: 'rgba(132,50,41,.82)', borderWidth: 1, borderColor: 'rgba(229,209,163,.7)', alignItems: 'center', justifyContent: 'center' },
   coverSealText: { color: '#F3D99D', fontSize: 8, fontWeight: '900' },
   meta: { flex: 1, justifyContent: 'center' },
@@ -175,7 +195,7 @@ const styles = StyleSheet.create({
   track: { height: 4, backgroundColor: '#E3D9CC', borderRadius: 99, marginTop: 8, overflow: 'hidden' },
   fill: { height: 4, backgroundColor: xianxia.gold },
   readRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  readButton: { minHeight: 32, borderRadius: 10, paddingHorizontal: 10, backgroundColor: xianxia.jadeDeep, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  readButton: { minHeight: 36, minWidth: 96, borderRadius: 10, paddingHorizontal: 11, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   readText: { color: xianxia.white, fontSize: 8.5, fontWeight: '900' },
   percent: { color: xianxia.gold, fontSize: 8.5, fontWeight: '900' },
   statuses: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 },
@@ -185,4 +205,12 @@ const styles = StyleSheet.create({
   removeText: { color: xianxia.cinnabar, fontSize: 9, fontWeight: '900', marginTop: 5 },
   retryButton: { alignSelf: 'center', marginTop: -18, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 11, backgroundColor: xianxia.jadeMist },
   retry: { color: xianxia.jadeDeep, fontWeight: '900', textAlign: 'center', fontSize: 10 },
+  explorePanel: { marginTop: 22, minHeight: 150, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: xianxia.gold, backgroundColor: xianxia.jadeDeep },
+  exploreImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  exploreShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,43,37,.48)' },
+  exploreCopy: { minHeight: 150, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  exploreTitle: { color: xianxia.white, fontSize: 13, fontWeight: '900' },
+  exploreBody: { color: 'rgba(255,253,248,.72)', fontSize: 8.5, lineHeight: 13, marginTop: 4 },
+  exploreButton: { width: 88, height: 36, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  exploreButtonText: { color: xianxia.white, fontSize: 8.5, fontWeight: '900' },
 });
