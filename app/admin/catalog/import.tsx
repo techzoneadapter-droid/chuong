@@ -20,7 +20,7 @@ import {
 import { parseAdminImportFile, parseAdminImportPaste, ParsedImportBook } from '../../../services/adminImport';
 import { messageForError } from '../../../services/errors';
 import { replaceBookCover } from '../../../services/storage';
-import { SourceType } from '../../../types';
+import { BookStatus, SourceType } from '../../../types';
 
 type MutableCandidate = ParsedImportBook & { enabled: boolean };
 
@@ -41,6 +41,7 @@ export default function AdminBulkImportScreen() {
   const [creditedAuthorName, setCreditedAuthorName] = useState('');
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [publish, setPublish] = useState(false);
+  const [publishStatus, setPublishStatus] = useState<Exclude<BookStatus, 'draft'>>('ongoing');
   const [pasteTitle, setPasteTitle] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [candidates, setCandidates] = useState<MutableCandidate[]>([]);
@@ -172,7 +173,7 @@ export default function AdminBulkImportScreen() {
         if (item.coverDataUri && item.coverMimeType) {
           await replaceBookCover(user.id, bookId, item.coverDataUri, item.coverMimeType);
         }
-        if (publish) await setAdminCatalogBookStatus(bookId, 'ongoing');
+        if (publish) await setAdminCatalogBookStatus(bookId, publishStatus);
         imported.push(`${item.title} (${item.chapters.length} chương)`);
       } catch (cause) {
         if (bookId) await deleteAdminDraftBook(bookId).catch(() => undefined);
@@ -249,9 +250,19 @@ export default function AdminBulkImportScreen() {
         <View style={styles.sourceRow}>{sources.map((item) => <Pressable key={item.value} onPress={() => setSourceType(item.value)} style={[styles.sourceChip, sourceType === item.value && styles.sourceChipActive]}><Text style={[styles.sourceText, sourceType === item.value && styles.sourceTextActive]}>{item.label}</Text></Pressable>)}</View>
 
         <View style={styles.switchRow}>
-          <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Tắt: nhập thành bản nháp để kiểm tra. Bật: chương được xuất bản và truyện chuyển sang “Đang ra”.</Text></View>
+          <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Tắt: nhập thành bản nháp để kiểm tra. Bật: chương được xuất bản và áp dụng trạng thái bên dưới.</Text></View>
           <Switch value={publish} onValueChange={setPublish} trackColor={{ false: '#D8CEC1', true: '#79988B' }} thumbColor={publish ? xianxia.jadeDeep : '#FFF8EA'} />
         </View>
+        {publish ? <View style={styles.publishStatusBox}>
+          <Text style={styles.fieldLabel}>Trạng thái truyện sau khi xuất bản</Text>
+          <View style={styles.sourceRow}>
+            {([
+              ['ongoing', 'Đang ra'],
+              ['completed', 'Hoàn thành'],
+              ['paused', 'Tạm dừng / Drop'],
+            ] as const).map(([value, label]) => <Pressable key={value} onPress={() => setPublishStatus(value)} style={[styles.sourceChip, publishStatus === value && styles.sourceChipActive]}><Text style={[styles.sourceText, publishStatus === value && styles.sourceTextActive]}>{label}</Text></Pressable>)}
+          </View>
+        </View> : null}
       </View>
 
       <Text style={styles.sectionTitle}>3. Kiểm tra trước khi nhập</Text>
@@ -331,6 +342,7 @@ const styles = StyleSheet.create({
   sourceChipActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.gold },
   sourceText: { color: xianxia.inkSoft, fontSize: 8.5, fontWeight: '800' },
   sourceTextActive: { color: xianxia.goldSoft },
+  publishStatusBox: { marginTop: 9, padding: 10, borderRadius: 12, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
   switchRow: { marginTop: 16, minHeight: 66, borderRadius: 13, padding: 11, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', flexDirection: 'row', alignItems: 'center', gap: 10 },
   switchTitle: { color: xianxia.ink, fontSize: 10.5, fontWeight: '900' },
   switchBody: { color: xianxia.muted, fontSize: 8, lineHeight: 12, marginTop: 3 },
