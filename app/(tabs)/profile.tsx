@@ -61,6 +61,11 @@ export default function ProfileScreen() {
         <View style={{ flex: 1 }}><Text style={styles.walletTitle}>Ví CHƯƠNG</Text><Text style={styles.walletBody}>Số dư Linh Thạch · Lịch sử giao dịch</Text></View>
         <Ionicons name="chevron-forward" size={18} color={xianxia.jade} />
       </Pressable>
+      <Pressable style={styles.rewards} onPress={() => router.push('/rewards')}>
+        <View style={styles.rewardsIcon}><Ionicons name="flame-outline" size={20} color={xianxia.goldSoft} /></View>
+        <View style={{ flex: 1 }}><Text style={styles.rewardsTitle}>Nhật Ký Tu Luyện</Text><Text style={styles.rewardsBody}>Điểm danh · nhiệm vụ hằng ngày · nhận Linh Thạch</Text></View>
+        <Ionicons name="chevron-forward" size={18} color={xianxia.goldSoft} />
+      </Pressable>
       <Pressable style={[styles.premium, membership.isPremium && styles.premiumActive]} onPress={() => router.push('/premium')}>
         <View style={styles.premiumIcon}><Ionicons name="diamond" size={20} color={xianxia.goldSoft} /></View>
         <View style={{ flex: 1 }}>
@@ -146,6 +151,10 @@ const styles = StyleSheet.create({
   walletIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,253,247,.66)', borderWidth: 1, borderColor: '#C8D6CC', alignItems: 'center', justifyContent: 'center' },
   walletTitle: { color: xianxia.ink, fontSize: 12, fontWeight: '900' },
   walletBody: { color: xianxia.jade, fontSize: 9, marginTop: 3 },
+  rewards: { marginTop: 10, minHeight: 66, borderRadius: 16, backgroundColor: '#6E1832', borderWidth: 1, borderColor: xianxia.gold, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  rewardsIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(229,209,163,.12)', borderWidth: 1, borderColor: 'rgba(229,209,163,.35)', alignItems: 'center', justifyContent: 'center' },
+  rewardsTitle: { color: xianxia.white, fontSize: 12, fontWeight: '900' },
+  rewardsBody: { color: 'rgba(255,253,248,.82)', fontSize: 8.5, lineHeight: 13, marginTop: 3 },
   premium: { marginTop: 12, minHeight: 68, borderRadius: 16, backgroundColor: '#6E1832', borderWidth: 1, borderColor: xianxia.gold, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
   premiumActive: { backgroundColor: '#27423B' },
   premiumIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(229,209,163,.11)', borderWidth: 1, borderColor: 'rgba(229,209,163,.35)', alignItems: 'center', justifyContent: 'center' },
