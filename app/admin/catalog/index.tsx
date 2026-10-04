@@ -51,7 +51,7 @@ export default function AdminCatalogScreen() {
 
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.summary}>
-        <View style={styles.summarySeal}><Text style={styles.summarySealText}>藏</Text></View>
+        <View style={styles.summarySeal}><Ionicons name="library-outline" size={22} color={xianxia.goldSoft} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.summaryTitle}>Quản trị nội dung nền tảng</Text>
           <Text style={styles.summaryBody}>Admin có thể thêm truyện vào kho, gắn tác giả hiển thị, tải bìa và nhập nhiều chương. Truyện mới luôn bắt đầu ở trạng thái riêng tư.</Text>
