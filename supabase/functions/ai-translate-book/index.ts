@@ -49,23 +49,52 @@ function cleanJson(raw: string) {
   return raw.trim().replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/i, "").trim();
 }
 
-async function translateChapter(input: {
+function splitChapterContent(content: string, maxChars = 12000) {
+  const paragraphs = content.replace(/\r\n?/g, "\n").split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
+  const chunks: string[] = [];
+  let current = "";
+
+  const pushCurrent = () => {
+    if (current.trim()) chunks.push(current.trim());
+    current = "";
+  };
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.length > maxChars) {
+      pushCurrent();
+      for (let offset = 0; offset < paragraph.length; offset += maxChars) {
+        chunks.push(paragraph.slice(offset, offset + maxChars).trim());
+      }
+      continue;
+    }
+    const candidate = current ? `${current}\n\n${paragraph}` : paragraph;
+    if (candidate.length > maxChars) pushCurrent();
+    current = current ? `${current}\n\n${paragraph}` : paragraph;
+  }
+  pushCurrent();
+  return chunks.length ? chunks : [content.trim()];
+}
+
+async function translatePiece(input: {
   baseUrl: string;
   apiKey: string;
   model: string;
   genre: string;
   title: string;
   content: string;
+  part: number;
+  totalParts: number;
 }) {
   const system = [
     "Bạn là biên tập viên/biên dịch tiểu thuyết tiếng Việt chuyên nghiệp.",
-    "Nhiệm vụ: chuyển toàn bộ nội dung đầu vào thành tiếng Việt tự nhiên, mạch lạc, đúng văn phong thể loại.",
+    "Nhiệm vụ: chuyển TOÀN BỘ nội dung đầu vào thành tiếng Việt tự nhiên, mạch lạc, đúng văn phong thể loại.",
     `Thể loại: ${input.genre || "tiểu thuyết"}.`,
     "Nếu đầu vào là tiếng Trung/Anh/ngôn ngữ khác: dịch đầy đủ sang tiếng Việt.",
     "Nếu đầu vào là bản convert tiếng Việt thô: biên tập lại thành tiếng Việt văn học tự nhiên.",
     "Giữ nhất quán tên riêng, cảnh giới, công pháp, địa danh, cách xưng hô và thuật ngữ.",
-    "Không tóm tắt, không bỏ đoạn, không thêm tình tiết, không kiểm duyệt nội dung hợp pháp.",
-    "Giữ cấu trúc đoạn văn. Tiêu đề phải tự nhiên nhưng không đổi ý.",
+    "Không tóm tắt, không bỏ câu/đoạn, không thêm tình tiết, không đổi ngôi kể.",
+    "Giữ cấu trúc đoạn văn và dấu hội thoại hợp lý.",
+    `Đây là phần ${input.part}/${input.totalParts} của cùng một chương; phải giữ văn phong và thuật ngữ nhất quán với toàn chương.`,
     "Chỉ trả JSON hợp lệ dạng {\"title\":\"...\",\"content\":\"...\"}.",
   ].join("\n");
 
@@ -77,13 +106,15 @@ async function translateChapter(input: {
     },
     body: JSON.stringify({
       model: input.model,
-      temperature: 0.25,
+      temperature: 0.2,
       messages: [
         { role: "system", content: system },
         {
           role: "user",
           content: JSON.stringify({
             title: input.title,
+            part: input.part,
+            totalParts: input.totalParts,
             content: input.content,
           }),
         },
@@ -111,10 +142,40 @@ async function translateChapter(input: {
 
   const title = String(parsed.title || input.title).trim();
   const content = String(parsed.content || "").trim();
-  if (!title || content.length < Math.min(50, Math.max(10, input.content.trim().length * .25))) {
+  if (!title || content.length < Math.min(50, Math.max(10, input.content.trim().length * .2))) {
     throw new Error("ai_result_too_short");
   }
   return { title, content };
+}
+
+async function translateChapter(input: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  genre: string;
+  title: string;
+  content: string;
+}) {
+  const chunks = splitChapterContent(input.content);
+  let translatedTitle = input.title;
+  const translatedChunks: string[] = [];
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    const translated = await translatePiece({
+      ...input,
+      title: translatedTitle,
+      content: chunks[index],
+      part: index + 1,
+      totalParts: chunks.length,
+    });
+    if (index === 0) translatedTitle = translated.title;
+    translatedChunks.push(translated.content);
+  }
+
+  return {
+    title: translatedTitle,
+    content: translatedChunks.join("\n\n"),
+  };
 }
 
 async function premiumFor(admin: ReturnType<typeof createClient>, userId: string) {
