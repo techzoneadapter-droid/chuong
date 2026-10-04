@@ -14,7 +14,8 @@ import { getAuthorForUser, getMyBooks } from '../../../../services/authors';
 import { messageForError } from '../../../../services/errors';
 import { getPremiumAiStatus, PremiumStatus, runWholeBookTranslation } from '../../../../services/premiumAi';
 import { removeBookCover, replaceBookCover } from '../../../../services/storage';
-import { Book } from '../../../../types';
+import { updateBook } from '../../../../services/books';
+import { Book, BookStatus } from '../../../../types';
 
 export default function AuthorImportBookScreen() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function AuthorImportBookScreen() {
   const [selectedId, setSelectedId] = useState('');
   const [paste, setPaste] = useState('');
   const [publish, setPublish] = useState(false);
+  const [publishStatus, setPublishStatus] = useState<Exclude<BookStatus, 'draft'>>('ongoing');
   const [useAi, setUseAi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [parsing, setParsing] = useState(false);
@@ -165,6 +167,11 @@ export default function AuthorImportBookScreen() {
       setProgress(`Đang nhập ${selected.chapters.length} chương vào “${book.title}”…`);
       const imported = await importAuthorParsedBook(book.id, selected, { publish: useAi ? false : publish });
 
+      if (!useAi && publish) {
+        await updateBook(book.id, { status: publishStatus, visibility: 'public' });
+        setBook((current) => current ? { ...current, backendStatus: publishStatus, visibility: 'public', status: publishStatus === 'ongoing' ? 'Đang ra' : publishStatus === 'completed' ? 'Đã hoàn thành' : 'Tạm dừng / Drop' } : current);
+      }
+
       if (useAi) {
         setProgress(`Đã nhập ${imported.imported} chương. Đang AI biên dịch theo văn phong ${book.genre || 'tiểu thuyết'}…`);
         const job = await runWholeBookTranslation(book.id, book.genre || 'Tiểu thuyết', (current) => {
@@ -172,7 +179,8 @@ export default function AuthorImportBookScreen() {
         });
         setSuccess(`Hoàn tất AI dịch toàn truyện: ${job.completedChapters}/${job.totalChapters} chương. Các chương vẫn giữ trạng thái nháp để bạn kiểm tra trước khi xuất bản.`);
       } else {
-        setSuccess(`Đã nhập thành công ${imported.imported} chương ${publish ? 'và xuất bản các chương đủ điều kiện.' : 'dưới dạng bản nháp.'}`);
+        const statusLabel = publishStatus === 'completed' ? 'Hoàn thành' : publishStatus === 'paused' ? 'Tạm dừng / Drop' : 'Đang ra';
+        setSuccess(`Đã nhập thành công ${imported.imported} chương ${publish ? `và công khai truyện ở trạng thái “${statusLabel}”.` : 'dưới dạng bản nháp.'}`);
       }
       setProgress('');
       setCandidates([]);
@@ -284,10 +292,29 @@ export default function AuthorImportBookScreen() {
 
         {premium?.premium && !premium.providerReady ? <Text style={styles.warning}>Premium đã hợp lệ nhưng server chưa có API AI dịch truyện. Cần cấu hình AI_TRANSLATE_API_KEY và AI_TRANSLATE_MODEL trước khi dùng production.</Text> : null}
 
-        {!useAi ? <View style={styles.publishRow}>
-          <View style={{ flex: 1 }}><Text style={styles.optionTitle}>Xuất bản ngay sau khi nhập</Text><Text style={styles.optionBody}>Khuyến nghị để tắt và kiểm tra bản nháp trước.</Text></View>
-          <Switch value={publish} onValueChange={setPublish} trackColor={{ false: '#D7CFC1', true: '#77988A' }} thumbColor={publish ? xianxia.jadeDeep : '#FFF8EA'} />
-        </View> : <Text style={styles.aiDraftNote}>Khi dùng AI, tất cả chương được giữ ở bản nháp sau khi dịch để tác giả kiểm tra rồi mới xuất bản.</Text>}
+        {!useAi ? <>
+          <View style={styles.publishRow}>
+            <View style={{ flex: 1 }}><Text style={styles.optionTitle}>Xuất bản ngay sau khi nhập</Text><Text style={styles.optionBody}>Tắt: giữ chương ở bản nháp. Bật: xuất bản chương và công khai truyện theo trạng thái bạn chọn.</Text></View>
+            <Switch value={publish} onValueChange={setPublish} trackColor={{ false: '#D7CFC1', true: '#77988A' }} thumbColor={publish ? xianxia.jadeDeep : '#FFF8EA'} />
+          </View>
+          {publish ? <View style={styles.publishStatusBox}>
+            <Text style={styles.publishStatusTitle}>Trạng thái truyện sau khi đăng</Text>
+            <View style={styles.publishStatusRow}>
+              {([
+                ['ongoing', 'Đang ra', 'radio-outline'],
+                ['completed', 'Hoàn thành', 'checkmark-done-outline'],
+                ['paused', 'Tạm dừng / Drop', 'pause-circle-outline'],
+              ] as const).map(([value, label, icon]) => {
+                const active = publishStatus === value;
+                return <Pressable key={value} onPress={() => setPublishStatus(value)} style={[styles.publishStatusChip, active && styles.publishStatusChipActive]}>
+                  <Ionicons name={icon} size={15} color={active ? xianxia.goldSoft : xianxia.jadeDeep} />
+                  <Text style={[styles.publishStatusText, active && styles.publishStatusTextActive]}>{label}</Text>
+                </Pressable>;
+              })}
+            </View>
+            <Text style={styles.publishStatusHint}>Bạn có thể đổi lại trạng thái này bất cứ lúc nào trong màn Quản lý chương.</Text>
+          </View> : null}
+        </> : <Text style={styles.aiDraftNote}>Khi dùng AI, tất cả chương được giữ ở bản nháp sau khi dịch để tác giả kiểm tra rồi mới xuất bản.</Text>}
       </View>
 
       <Pressable disabled={!selected || busy} style={[styles.primary, (!selected || busy) && styles.disabled]} onPress={startImport}>
@@ -360,6 +387,14 @@ const styles = StyleSheet.create({
   premiumText: { flex: 1, color: xianxia.inkSoft, fontSize: 8.5, fontWeight: '900' },
   warning: { color: xianxia.cinnabar, fontSize: 8.5, lineHeight: 13, marginTop: 9 },
   publishRow: { marginTop: 14, paddingTop: 13, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: xianxia.line, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  publishStatusBox: { marginTop: 10, borderRadius: 13, padding: 11, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
+  publishStatusTitle: { color: xianxia.ink, fontSize: 9.5, fontWeight: '900', marginBottom: 8 },
+  publishStatusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  publishStatusChip: { minHeight: 36, borderRadius: 10, paddingHorizontal: 10, borderWidth: 1, borderColor: '#C5D2C9', backgroundColor: '#FFFDF7', flexDirection: 'row', alignItems: 'center', gap: 5 },
+  publishStatusChipActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.gold },
+  publishStatusText: { color: xianxia.jadeDeep, fontSize: 8.5, fontWeight: '900' },
+  publishStatusTextActive: { color: '#FFF8EA' },
+  publishStatusHint: { color: xianxia.muted, fontSize: 8, lineHeight: 12, marginTop: 8 },
   aiDraftNote: { color: xianxia.jade, fontSize: 8.5, lineHeight: 13, marginTop: 12, fontWeight: '800' },
   safety: { marginTop: 13, borderRadius: 13, padding: 11, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', flexDirection: 'row', gap: 8 },
   safetyText: { flex: 1, color: xianxia.inkSoft, fontSize: 8.5, lineHeight: 13 },
