@@ -5,7 +5,7 @@ const routes = [
   ['/', 'Mỗi chương, một thế giới.'], ['/discover', 'Khám phá'], ['/library', 'Tủ sách'], ['/profile', 'Đọc tự do'],
   ['/auth/login', 'Đăng nhập'], ['/auth/register', 'Đăng ký'], ['/auth/forgot', 'Quên mật khẩu'],
   ['/book/kiem-yen-van', 'Kiếm Yên Vân'], ['/book/kiem-yen-van/chapters', 'Danh sách chương'],
-  ['/reader/kiem-yen-van?chapter=1', 'Chương 1'], ['/ai/convert', 'Convert'], ['/ai/recap', 'Tóm tắt'], ['/ai/chat', 'Hỏi truyện'],
+  ['/reader/kiem-yen-van?chapter=1', 'Chương 1'],
   ['/author/onboarding', 'Trở thành tác giả'], ['/author/books/new', 'Tạo truyện'],
   ['/author/books/demo/chapters/new', 'Trình soạn thảo chương'], ['/profile/edit', 'Chỉnh sửa hồ sơ'],
   ['/community', 'Cộng đồng'], ['/user/demo', 'Hồ sơ này không công khai'], ['/profile/privacy', 'Đăng nhập'],
@@ -47,7 +47,7 @@ test('anonymous library and reader progress/bookmarks persist across reload', as
   await expect(page.getByText(/Đọc tiếp · Chương/)).toBeVisible();
 });
 
-test('reader settings and real TTS/AI controls remain interactive', async ({ page }) => {
+test('reader settings and real Vietnamese TTS controls remain interactive', async ({ page }) => {
   await page.goto('/settings/reading');
   await page.getByText('Lật trang', { exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('reader:settings'))).toContain('"mode":"page"');
@@ -66,6 +66,7 @@ test('reader settings and real TTS/AI controls remain interactive', async ({ pag
   await page.goto('/reader/kiem-yen-van?chapter=1');
   await page.getByText('Nghe', { exact: true }).click();
   await expect(page.locator('body')).toContainText('TTS hệ thống');
+  await expect(page.locator('body')).not.toContainText('Google UK English');
   await expect(page.getByText('Tự động sang chương sau', { exact: true })).toBeVisible();
   await page.getByText('1.25x', { exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('reader:tts'))).toContain('"speed":1.25');
