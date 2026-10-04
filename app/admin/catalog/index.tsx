@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../../components/States';
+import { AssetBookCover, ButtonArt } from '../../../components/Artwork';
 import { XianxiaBackdrop } from '../../../components/XianxiaBackdrop';
 import { xianxia } from '../../../constants/xianxia';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -64,6 +65,7 @@ export default function AdminCatalogScreen() {
       </View>
 
       <Pressable style={styles.createCard} onPress={() => router.push('/admin/catalog/new')}>
+        <ButtonArt opacity={.86} />
         <View style={styles.createIcon}><Ionicons name="library-outline" size={22} color={xianxia.goldSoft} /></View>
         <View style={{ flex: 1 }}><Text style={styles.createTitle}>Thêm truyện vào kho</Text><Text style={styles.createBody}>Chọn tác giả sở hữu nội bộ, khai báo nguồn, ảnh bìa và tác giả hiển thị.</Text></View>
         <Ionicons name="chevron-forward" size={18} color={xianxia.goldSoft} />
@@ -72,8 +74,9 @@ export default function AdminCatalogScreen() {
       <Text style={styles.sectionTitle}>Danh mục hiện tại</Text>
       {loading ? <LoadingState label="Đang mở kho truyện…" /> : error ? <RetryState detail={error} onRetry={load} /> : books.length === 0 ? <EmptyState title="Kho truyện trống" detail="Hãy thêm truyện đầu tiên từ tài khoản quản trị." /> : books.map((book) => (
         <Pressable key={book.id} style={styles.bookRow} onPress={() => router.push({ pathname: '/admin/catalog/[bookId]', params: { bookId: book.id } })}>
-          <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-            {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text numberOfLines={3} style={styles.coverText}>{book.title}</Text>}
+          <View style={styles.cover}>
+            <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+            <View pointerEvents="none" style={styles.coverShade} />
           </View>
           <View style={styles.bookCopy}>
             <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
@@ -108,15 +111,14 @@ const styles = StyleSheet.create({
   metric: { flex: 1, minHeight: 76, borderRadius: 16, backgroundColor: 'rgba(255,253,247,.88)', borderWidth: 1, borderColor: xianxia.line, alignItems: 'center', justifyContent: 'center' },
   metricValue: { color: xianxia.jadeDeep, fontSize: 23, fontWeight: '900' },
   metricLabel: { color: xianxia.muted, fontSize: 8, marginTop: 3, fontWeight: '800' },
-  createCard: { marginTop: 14, minHeight: 78, borderRadius: 18, padding: 14, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  createCard: { position: 'relative', overflow: 'hidden', marginTop: 14, minHeight: 78, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   createIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: 'rgba(229,209,163,.10)', borderWidth: 1, borderColor: 'rgba(229,209,163,.35)', alignItems: 'center', justifyContent: 'center' },
   createTitle: { color: xianxia.white, fontSize: 13, fontWeight: '900' },
   createBody: { color: 'rgba(255,253,248,.64)', fontSize: 8.5, lineHeight: 13, marginTop: 4 },
   sectionTitle: { color: xianxia.ink, fontSize: 17, fontWeight: '900', marginTop: 27, marginBottom: 8 },
   bookRow: { minHeight: 112, borderRadius: 18, padding: 10, marginTop: 9, backgroundColor: 'rgba(255,253,247,.90)', borderWidth: 1, borderColor: xianxia.line, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cover: { width: 62, height: 92, borderRadius: 11, overflow: 'hidden', borderWidth: 1, borderColor: xianxia.goldSoft, justifyContent: 'center', padding: 7 },
-  coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
-  coverText: { color: xianxia.white, fontSize: 9, lineHeight: 12, fontWeight: '900', textAlign: 'center' },
+  cover: { width: 62, height: 92, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: xianxia.gold, justifyContent: 'center' },
+  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,20,18,.05)' },
   bookCopy: { flex: 1 },
   bookTitle: { color: xianxia.ink, fontSize: 13, lineHeight: 18, fontWeight: '900' },
   bookAuthor: { color: xianxia.jade, fontSize: 9, fontWeight: '700', marginTop: 4 },
