@@ -1,6 +1,6 @@
 import { books as demoBooks, getBook as getDemoBook } from '../data/books';
 import { requireSupabase, supabase } from '../lib/supabase';
-import { AuthorBookInput, Book, ServiceResult } from '../types';
+import { AuthorBookInput, Book, BookStatus, ServiceResult } from '../types';
 import { Database } from '../types/database';
 import { deleteOwnBookCover } from './storage';
 import { toServiceError } from './errors';
@@ -199,6 +199,34 @@ export async function updateBook(id: string, updates: Partial<Pick<BookRow, 'tit
   const { data, error } = await requireSupabase().from('books').update(updates).eq('id', id).select('*').single();
   if (error) throw toServiceError(error, 'Không thể cập nhật truyện.');
   return (await hydrateBooks([data]))[0];
+}
+export async function setAuthorBookStatus(id: string, status: BookStatus) {
+  const client = requireSupabase();
+  try {
+    if (status !== 'draft') {
+      const { count, error: countError } = await client
+        .from('chapters')
+        .select('id', { count: 'exact', head: true })
+        .eq('book_id', id)
+        .eq('status', 'published');
+      if (countError) throw countError;
+      if (!count) throw new Error('Hãy xuất bản ít nhất một chương trước khi công khai truyện.');
+    }
+
+    const { data, error } = await client
+      .from('books')
+      .update({
+        status,
+        visibility: status === 'draft' ? 'private' : 'public',
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return (await hydrateBooks([data]))[0];
+  } catch (error) {
+    throw toServiceError(error, 'Không thể đổi trạng thái truyện.');
+  }
 }
 export async function deleteDraftBook(id: string) {
   const client = requireSupabase();
