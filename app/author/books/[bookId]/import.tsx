@@ -14,7 +14,7 @@ import { getAuthorForUser, getMyBooks } from '../../../../services/authors';
 import { messageForError } from '../../../../services/errors';
 import { getPremiumAiStatus, PremiumStatus, runWholeBookTranslation } from '../../../../services/premiumAi';
 import { removeBookCover, replaceBookCover } from '../../../../services/storage';
-import { updateBook } from '../../../../services/books';
+import { setAuthorBookStatus } from '../../../../services/books';
 import { Book, BookStatus } from '../../../../types';
 
 export default function AuthorImportBookScreen() {
@@ -168,7 +168,7 @@ export default function AuthorImportBookScreen() {
       const imported = await importAuthorParsedBook(book.id, selected, { publish: useAi ? false : publish });
 
       if (!useAi && publish) {
-        await updateBook(book.id, { status: publishStatus, visibility: 'public' });
+        await setAuthorBookStatus(book.id, publishStatus);
         setBook((current) => current ? { ...current, backendStatus: publishStatus, visibility: 'public', status: publishStatus === 'ongoing' ? 'Đang ra' : publishStatus === 'completed' ? 'Đã hoàn thành' : 'Tạm dừng / Drop' } : current);
       }
 
