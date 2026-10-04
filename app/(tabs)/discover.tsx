@@ -269,7 +269,7 @@ function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; o
       <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
       <View pointerEvents="none" style={styles.coverShade} />
       <Text style={styles.coverBrand}>CHƯƠNG</Text>
-      <View style={styles.coverSeal}><Text style={styles.coverSealText}>仙</Text></View>
+      <View style={styles.coverSeal}><Ionicons name="sparkles-outline" size={15} color={xianxia.goldSoft} /></View>
     </View>
     <View style={styles.bookInfo}>
       <View style={styles.bookTitleRow}>
