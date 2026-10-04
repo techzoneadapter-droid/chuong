@@ -48,10 +48,10 @@
           <section class="card">
             <div class="section-head"><span>1</span><div><h2>Nguồn truyện</h2><p>Chọn file hoặc dán nguyên truyện.</p></div></div>
             <div id="dropZone" class="drop-zone">
-              <input id="storyFile" type="file" accept=".txt,.docx,.zip,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip" />
+              <input id="storyFile" type="file" accept=".txt,.md,.html,.htm,.rtf,.fb2,.docx,.odt,.epub,.pdf,.zip,.jpg,.jpeg,.png,.webp,text/plain,text/markdown,text/html,application/rtf,application/pdf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,application/zip,image/jpeg,image/png,image/webp" />
               <div class="drop-icon">↑</div>
-              <strong>Chọn TXT / DOCX / ZIP</strong>
-              <p>Hoặc kéo thả file vào đây</p>
+              <strong>Chọn truyện · TXT / DOCX / EPUB / PDF / ZIP / ảnh…</strong>
+              <p>Tự nhận dạng định dạng. PDF/ảnh sẽ tự đọc nội dung ngầm, không cần bấm OCR.</p>
             </div>
             <div class="or"><span></span>hoặc<span></span></div>
             <label>Tên truyện<input id="pasteTitle" type="text" placeholder="Tên truyện" /></label>
@@ -59,6 +59,7 @@
               <textarea id="pasteText" rows="14" placeholder="Chương 1: Khởi đầu&#10;&#10;Nội dung...&#10;&#10;Chương 2: ..."></textarea>
             </label>
             <button id="parsePasteBtn" class="secondary" type="button">Tự tách chương từ nội dung dán</button>
+            <div id="parseMessage" class="message hidden"></div>
           </section>
 
           <section class="card">
@@ -92,7 +93,9 @@
               </div>
             </label>
 
-            <label class="check-row"><input id="publishNow" type="checkbox" checked /> <span><strong>Xuất bản ngay</strong><small>Để bật nếu muốn truyện xuất hiện trong app ngay sau khi xác minh đủ chương.</small></span></label>
+            <label class="check-row ai-row"><input id="aiTranslate" type="checkbox" /> <span><strong>AI dịch / làm mượt sang tiếng Việt</strong><small>Tự nhận diện ngôn ngữ nguồn, dịch đủ từng chương, giữ nguyên ý và không tóm tắt. Admin được phép dùng khi máy chủ AI đã cấu hình.</small></span></label>
+            <div id="aiStatus" class="ai-status">Đang kiểm tra máy chủ AI…</div>
+            <label class="check-row"><input id="publishNow" type="checkbox" checked /> <span><strong>Xuất bản ngay</strong><small>Để bật nếu muốn truyện xuất hiện trong app sau khi xác minh và hoàn tất AI (nếu bật).</small></span></label>
             <label class="check-row"><input id="rightsConfirmed" type="checkbox" /> <span><strong>Xác nhận quyền nội dung</strong><small>Tôi xác nhận CHƯƠNG có quyền hợp pháp để lưu trữ và phân phối nội dung này.</small></span></label>
           </section>
         </div>
@@ -116,6 +119,8 @@
       </div>
     </section>
   </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
