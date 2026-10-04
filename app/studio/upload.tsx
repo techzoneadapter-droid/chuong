@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { StudioShell } from '../../components/StudioShell';
 import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
@@ -25,6 +25,8 @@ const sourceOptions: { value: SourceType; label: string }[] = [
   { value: 'licensed_translation', label: 'Bản dịch có bản quyền' },
   { value: 'authorized', label: 'Được cấp phép đăng' },
 ];
+
+const genreOptions = ['Tiên hiệp', 'Huyền huyễn', 'Đô thị', 'Kiếm hiệp', 'Ngôn tình', 'Kinh dị', 'Fantasy', 'Khoa huyễn', 'Hệ thống'];
 
 export default function StudioUploadScreen() {
   const router = useRouter();
@@ -114,6 +116,36 @@ export default function StudioUploadScreen() {
     setCandidates((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
   };
 
+  const pickCover = async (candidateId: string) => {
+    if (Platform.OS !== 'web') return setError('Chọn ảnh bìa trong Content Studio chỉ hỗ trợ trình duyệt Web.');
+    try {
+      const doc = globalThis.document;
+      if (!doc) throw new Error('Trình duyệt không hỗ trợ chọn ảnh.');
+      const input = doc.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/jpeg,image/png,image/webp';
+      const file = await new Promise<File | null>((resolve) => {
+        input.onchange = () => resolve(input.files?.[0] ?? null);
+        input.oncancel = () => resolve(null);
+        input.click();
+      });
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) throw new Error('Ảnh bìa cần nhỏ hơn 5 MB.');
+
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Không thể đọc ảnh bìa.'));
+        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Không thể đọc ảnh bìa.'));
+        reader.readAsDataURL(file);
+      });
+
+      updateCandidate(candidateId, { coverDataUri: dataUri, coverMimeType: file.type || 'image/jpeg' });
+      setError('');
+    } catch (cause) {
+      setError(messageForError(cause, 'Không thể chọn ảnh bìa.'));
+    }
+  };
+
   const importAll = async () => {
     if (!user || profile?.role !== 'admin' || busy) return;
     if (!ownerAuthorId) return setError('Cần chọn tác giả sở hữu nội bộ.');
@@ -173,19 +205,19 @@ export default function StudioUploadScreen() {
 
     <View style={styles.columns}>
       <View style={styles.left}>
-        <Section title="1. Nguồn truyện" subtitle="Ưu tiên ZIP khi cần đẩy nhiều truyện hoặc nhiều file chương một lần.">
+        <Section title="1. Dán truyện hoặc tải file" subtitle="TXT, DOCX, ZIP hoặc dán thẳng nội dung. Studio sẽ tự nhận diện và tách Chương 1, Chương 2…">
           <Pressable disabled={parsing || busy} style={styles.fileButton} onPress={pickFile}>
             <Ionicons name="folder-open-outline" size={22} color={xianxia.goldSoft} />
             <View style={{ flex: 1 }}>
               <Text style={styles.fileTitle}>{parsing ? 'Đang phân tích…' : 'Chọn TXT / DOCX / ZIP'}</Text>
-              <Text style={styles.fileBody}>Có thể nhận diện nhiều truyện, nhiều chương và ảnh bìa đặt cạnh nội dung trong ZIP.</Text>
+              <Text style={styles.fileBody}>Chọn file từ máy tính. TXT/DOCX sẽ tự tách chương; ZIP có thể chứa nhiều truyện, nhiều chương và ảnh bìa.</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={xianxia.goldSoft} />
           </Pressable>
 
           <Text style={styles.label}>Tên truyện khi dán</Text>
           <TextInput value={pasteTitle} onChangeText={setPasteTitle} placeholder="Ví dụ: Vạn Cổ Tiên Tông" placeholderTextColor="#9C938C" style={styles.input} />
-          <Text style={styles.label}>Dán nội dung nhiều chương</Text>
+          <Text style={styles.label}>Hoặc dán toàn bộ nội dung truyện</Text>
           <TextInput
             multiline
             value={pasteText}
@@ -195,25 +227,31 @@ export default function StudioUploadScreen() {
             textAlignVertical="top"
             style={styles.textarea}
           />
-          <Pressable style={styles.parse} onPress={parsePaste}><Ionicons name="cut-outline" size={16} color={xianxia.jadeDeep} /><Text style={styles.parseText}>Phân tích nội dung dán</Text></Pressable>
+          <Pressable style={styles.parse} onPress={parsePaste}><Ionicons name="cut-outline" size={16} color={xianxia.jadeDeep} /><Text style={styles.parseText}>Tự tách chương</Text></Pressable>
         </Section>
 
-        <Section title="2. Thiết lập xuất bản" subtitle="Các giá trị này áp dụng cho toàn bộ truyện đang chọn.">
-          <Text style={styles.label}>Tác giả sở hữu nội bộ</Text>
+        <Section title="2. Thông tin truyện" subtitle="Chỉ cần điền các thông tin cơ bản trước khi đẩy vào app.">
+          <View style={styles.formGrid}>
+            <Field label="Tên tác giả hiển thị" value={creditedAuthorName} onChangeText={setCreditedAuthorName} placeholder={owner?.penName || 'Ví dụ: Nguyễn Văn A'} />
+            <Field label="Thể loại" value={genre} onChangeText={setGenre} placeholder="Tiên hiệp" />
+          </View>
+
+          <Text style={styles.label}>Phân loại nhanh</Text>
           <View style={styles.chips}>
-            {authors.map((item) => {
-              const active = ownerAuthorId === item.id;
-              return <Pressable key={item.id} style={[styles.chip, active && styles.chipActive]} onPress={() => setOwnerAuthorId(item.id)}>
-                <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={14} color={active ? xianxia.goldSoft : xianxia.jade} />
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.penName}{item.verified ? ' ✓' : ''}</Text>
+            {genreOptions.map((item) => {
+              const active = genre === item;
+              return <Pressable key={item} style={[styles.chip, active && styles.chipActive]} onPress={() => setGenre(item)}>
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
               </Pressable>;
             })}
           </View>
 
           <View style={styles.formGrid}>
-            <Field label="Tác giả hiển thị" value={creditedAuthorName} onChangeText={setCreditedAuthorName} placeholder={owner?.penName || 'Để trống dùng tác giả nội bộ'} />
-            <Field label="Thể loại" value={genre} onChangeText={setGenre} placeholder="Tiên hiệp" />
             <Field label="Ngôn ngữ" value={language} onChangeText={setLanguage} placeholder="vi" />
+            <View style={styles.field}>
+              <Text style={styles.label}>Tài khoản lưu nội bộ</Text>
+              <View style={styles.ownerBox}><Ionicons name="person-circle-outline" size={18} color={xianxia.jadeDeep} /><Text style={styles.ownerText}>{owner?.penName || 'Đang tải tác giả nội bộ…'}</Text></View>
+            </View>
           </View>
 
           <Text style={styles.label}>Nguồn nội dung</Text>
@@ -227,13 +265,13 @@ export default function StudioUploadScreen() {
           </View>
 
           <View style={styles.switchRow}>
-            <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Tắt để giữ toàn bộ ở bản nháp và kiểm tra trước trong mobile app.</Text></View>
+            <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Khuyên để tắt lần đầu, kiểm tra bìa/chương rồi mới công khai.</Text></View>
             <Switch value={publish} onValueChange={setPublish} />
           </View>
 
           <Pressable style={[styles.rights, rightsConfirmed && styles.rightsActive]} onPress={() => setRightsConfirmed((value) => !value)}>
             <Ionicons name={rightsConfirmed ? 'checkbox' : 'square-outline'} size={20} color={rightsConfirmed ? xianxia.jadeDeep : xianxia.muted} />
-            <Text style={styles.rightsText}>Xác nhận CHƯƠNG có quyền hợp pháp để lưu trữ và phân phối nội dung đã chọn.</Text>
+            <Text style={styles.rightsText}>Tôi xác nhận nội dung này có quyền hợp pháp để đăng lên CHƯƠNG.</Text>
           </Pressable>
         </Section>
       </View>
@@ -243,14 +281,20 @@ export default function StudioUploadScreen() {
           {!candidates.length ? <View style={styles.empty}>
             <Ionicons name="documents-outline" size={36} color={xianxia.jade} />
             <Text style={styles.emptyTitle}>Chọn file hoặc dán nội dung</Text>
-            <Text style={styles.emptyBody}>Studio sẽ hiển thị tên truyện, số chương, ảnh bìa và cảnh báo trước khi ghi vào database.</Text>
+            <Text style={styles.emptyBody}>Studio tự tách chương. Sau đó bạn chỉnh tên truyện, chọn ảnh bìa và kiểm tra trước khi đẩy.</Text>
           </View> : candidates.map((item) => <View key={item.id} style={[styles.candidate, !item.enabled && styles.candidateOff]}>
             <Pressable onPress={() => updateCandidate(item.id, { enabled: !item.enabled })}><Ionicons name={item.enabled ? 'checkbox' : 'square-outline'} size={22} color={item.enabled ? xianxia.jadeDeep : xianxia.muted} /></Pressable>
+            <Pressable style={styles.coverPicker} onPress={() => void pickCover(item.id)}>
+              {item.coverDataUri ? <Image source={{ uri: item.coverDataUri }} style={styles.coverPreview} resizeMode="cover" /> : <View style={styles.coverEmpty}><Ionicons name="image-outline" size={24} color={xianxia.jadeDeep} /><Text style={styles.coverEmptyText}>Chọn bìa</Text></View>}
+              <View style={styles.coverEditBadge}><Ionicons name="camera-outline" size={12} color="#FFF" /></View>
+            </Pressable>
             <View style={{ flex: 1 }}>
+              <Text style={styles.candidateLabel}>Tên truyện</Text>
               <TextInput value={item.title} onChangeText={(title) => updateCandidate(item.id, { title })} style={styles.candidateTitle} />
-              <Text style={styles.candidateMeta}>{item.chapters.length} chương · {item.coverDataUri ? 'có bìa' : 'chưa có bìa'} · {item.sourceName}</Text>
-              <Text numberOfLines={2} style={styles.preview}>{item.chapters.slice(0, 4).map((chapter) => `${chapter.chapterNumber}. ${chapter.title}`).join('  •  ')}</Text>
+              <Text style={styles.candidateMeta}>{item.chapters.length} chương · {item.coverDataUri ? 'đã có ảnh bìa' : 'chưa có ảnh bìa'} · {item.sourceName}</Text>
+              <Text numberOfLines={3} style={styles.preview}>{item.chapters.slice(0, 5).map((chapter) => `${chapter.chapterNumber}. ${chapter.title}`).join('  •  ')}</Text>
               {item.warnings.map((warning) => <Text key={warning} style={styles.warning}>⚠ {warning}</Text>)}
+              <Pressable style={styles.coverButton} onPress={() => void pickCover(item.id)}><Ionicons name="image-outline" size={14} color={xianxia.jadeDeep} /><Text style={styles.coverButtonText}>{item.coverDataUri ? 'Đổi ảnh bìa' : 'Chọn ảnh bìa'}</Text></Pressable>
             </View>
           </View>)}
 
@@ -279,9 +323,9 @@ const styles = StyleSheet.create({
   errorText: { flex: 1, color: xianxia.danger, fontSize: 9, lineHeight: 14 },
   success: { borderRadius: 13, padding: 11, backgroundColor: '#E8F3EC', borderWidth: 1, borderColor: '#C9DDCD', flexDirection: 'row', gap: 8, marginBottom: 14 },
   successText: { flex: 1, color: '#47704D', fontSize: 9, lineHeight: 14, whiteSpace: 'pre-wrap' } as never,
-  columns: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' },
-  left: { flex: 1.2, minWidth: 520, gap: 16 },
-  right: { flex: .8, minWidth: 390, gap: 16 },
+  columns: { flexDirection: 'row', flexWrap: 'nowrap', gap: 18, alignItems: 'flex-start' },
+  left: { flex: 1.15, minWidth: 620, gap: 16 },
+  right: { flex: .85, minWidth: 430, gap: 16 },
   section: { borderRadius: 18, padding: 16, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E1D9CC' },
   sectionTitle: { color: '#251F22', fontSize: 16, fontWeight: '900' },
   sectionSub: { color: '#7B726D', fontSize: 8.5, lineHeight: 13, marginTop: 3 },
@@ -291,7 +335,7 @@ const styles = StyleSheet.create({
   fileBody: { color: 'rgba(255,248,234,.66)', fontSize: 8, lineHeight: 12, marginTop: 3 },
   label: { color: '#4C4440', fontSize: 8.5, fontWeight: '900', marginTop: 12, marginBottom: 5 },
   input: { minHeight: 40, borderRadius: 11, borderWidth: 1, borderColor: '#DDD4C8', backgroundColor: '#FAF7F1', paddingHorizontal: 10, color: '#2B2528', fontSize: 9.5 },
-  textarea: { minHeight: 180, borderRadius: 12, borderWidth: 1, borderColor: '#DDD4C8', backgroundColor: '#FAF7F1', padding: 11, color: '#2B2528', fontSize: 10, lineHeight: 16 },
+  textarea: { minHeight: 280, borderRadius: 12, borderWidth: 1, borderColor: '#DDD4C8', backgroundColor: '#FAF7F1', padding: 11, color: '#2B2528', fontSize: 10, lineHeight: 16 },
   parse: { alignSelf: 'flex-end', minHeight: 38, marginTop: 8, borderRadius: 10, paddingHorizontal: 11, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 6 },
   parseText: { color: xianxia.jadeDeep, fontSize: 8.5, fontWeight: '900' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -300,7 +344,9 @@ const styles = StyleSheet.create({
   chipText: { color: '#6D6560', fontSize: 8, fontWeight: '800' },
   chipTextActive: { color: '#FFF8EA' },
   formGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  field: { minWidth: 180, flexGrow: 1, flexBasis: 200 },
+  field: { minWidth: 220, flexGrow: 1, flexBasis: 240 },
+  ownerBox: { minHeight: 40, borderRadius: 11, borderWidth: 1, borderColor: '#DDD4C8', backgroundColor: '#F4F1E9', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  ownerText: { color: '#4E4743', fontSize: 9, fontWeight: '800' },
   switchRow: { minHeight: 64, marginTop: 13, borderRadius: 13, padding: 11, backgroundColor: '#F4F1E9', borderWidth: 1, borderColor: '#DED5C8', flexDirection: 'row', alignItems: 'center', gap: 10 },
   switchTitle: { color: '#2B2528', fontSize: 9.5, fontWeight: '900' },
   switchBody: { color: '#7B726D', fontSize: 8, lineHeight: 12, marginTop: 3 },
@@ -310,12 +356,20 @@ const styles = StyleSheet.create({
   empty: { minHeight: 220, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyTitle: { color: '#2B2528', fontSize: 12, fontWeight: '900', marginTop: 8 },
   emptyBody: { color: '#7B726D', fontSize: 8.5, lineHeight: 13, textAlign: 'center', marginTop: 4 },
-  candidate: { minHeight: 104, borderRadius: 14, padding: 11, marginBottom: 8, backgroundColor: '#FAF7F1', borderWidth: 1, borderColor: '#DED5C8', flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
+  candidate: { minHeight: 142, borderRadius: 14, padding: 11, marginBottom: 8, backgroundColor: '#FAF7F1', borderWidth: 1, borderColor: '#DED5C8', flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
   candidateOff: { opacity: .45 },
-  candidateTitle: { color: '#2B2528', fontSize: 11, fontWeight: '900', padding: 0 },
+  coverPicker: { width: 78, height: 112, borderRadius: 10, overflow: 'hidden', backgroundColor: '#EEE7DB', borderWidth: 1, borderColor: '#D9CFC0' },
+  coverPreview: { width: '100%', height: '100%' },
+  coverEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5 },
+  coverEmptyText: { color: xianxia.jadeDeep, fontSize: 7.5, fontWeight: '900' },
+  coverEditBadge: { position: 'absolute', right: 5, bottom: 5, width: 24, height: 24, borderRadius: 8, backgroundColor: 'rgba(19,49,43,.86)', alignItems: 'center', justifyContent: 'center' },
+  candidateLabel: { color: '#776E68', fontSize: 7.5, fontWeight: '900', marginBottom: 3 },
+  candidateTitle: { minHeight: 36, borderRadius: 9, borderWidth: 1, borderColor: '#DDD4C8', backgroundColor: '#FFFDFC', paddingHorizontal: 9, color: '#2B2528', fontSize: 11, fontWeight: '900' },
   candidateMeta: { color: xianxia.jade, fontSize: 7.5, fontWeight: '800', marginTop: 3 },
   preview: { color: '#7B726D', fontSize: 8, lineHeight: 12, marginTop: 5 },
   warning: { color: xianxia.cinnabar, fontSize: 7.5, lineHeight: 11, marginTop: 4 },
+  coverButton: { alignSelf: 'flex-start', minHeight: 32, marginTop: 7, borderRadius: 9, paddingHorizontal: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 5 },
+  coverButtonText: { color: xianxia.jadeDeep, fontSize: 7.5, fontWeight: '900' },
   submit: { minHeight: 50, borderRadius: 13, marginTop: 10, paddingHorizontal: 14, backgroundColor: xianxia.jadeDeep, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   submitText: { color: '#FFF8EA', fontSize: 9.5, fontWeight: '900' },
   disabled: { opacity: .45 },
