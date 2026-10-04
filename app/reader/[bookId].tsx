@@ -10,7 +10,9 @@ import { useReadingAnalytics } from '../../hooks/useReadingAnalytics';
 import { messageForError } from '../../services/errors';
 import { Comments } from '../../components/Comments';
 import { BottomSheet } from '../../components/BottomSheet';
-import { ArtDivider } from '../../components/Artwork';
+import { ArtDivider, ButtonArt } from '../../components/Artwork';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
+import { xianxia } from '../../constants/xianxia';
 import { ChapterRow } from '../../components/ChapterRow';
 import { ReaderToolbar, ReaderTool } from '../../components/ReaderToolbar';
 import { getBook as getDemoBook } from '../../data/books';
@@ -244,13 +246,14 @@ export default function ReaderScreen() {
     }
   };
 
-  if (loading) return <View style={styles.root}><LoadingState label="Đang tải chương…" /></View>;
-  if (loadError) return <View style={styles.root}><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></View>;
+  if (loading) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><LoadingState label="Đang mở linh quyển…" /></View>;
+  if (loadError) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></View>;
 
   if (lockedContent) {
     const enough = walletBalance === null || walletBalance >= lockedContent.priceCoins;
     return (
       <View style={[styles.root, styles.paywallRoot, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 16 }]}>
+        <XianxiaBackdrop opacity={.42} />
         <StatusBar style="dark" />
         <View style={styles.paywallTop}>
           <Pressable accessibilityRole="button" accessibilityLabel="Quay lại trang truyện" style={styles.topIcon} onPress={exitReader}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable>
@@ -271,14 +274,17 @@ export default function ReaderScreen() {
           {unlockError ? <Text style={styles.unlockError}>{unlockError}</Text> : null}
           {!user ? (
             <Pressable style={styles.unlockButton} onPress={() => router.push('/auth/login')}>
+              <ButtonArt />
               <Text style={styles.unlockButtonText}>Đăng nhập để mở khóa</Text>
             </Pressable>
           ) : !enough ? (
             <Pressable style={styles.unlockButton} onPress={() => router.push('/wallet')}>
+              <ButtonArt />
               <Text style={styles.unlockButtonText}>Không đủ Linh Thạch · Xem Ví CHƯƠNG</Text>
             </Pressable>
           ) : (
             <Pressable style={[styles.unlockButton, unlocking && styles.unlockDisabled]} disabled={unlocking} onPress={unlockCurrent}>
+              <ButtonArt />
               <Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa · ${lockedContent.priceCoins} Linh Thạch`}</Text>
             </Pressable>
           )}
@@ -292,6 +298,7 @@ export default function ReaderScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg }]}>
+      {!dark ? <XianxiaBackdrop opacity={settings.theme === 'paper' ? .16 : .07} /> : null}
       {sync.error ? <Text style={{ color: '#A12B48', padding: 8 }}>{sync.error}</Text> : null}
       <StatusBar style={dark ? 'light' : 'dark'} />
       <ScrollView
@@ -300,7 +307,7 @@ export default function ReaderScreen() {
         scrollEventThrottle={120}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.readingPage, { paddingHorizontal: settings.padding, paddingTop: insets.top + 72, paddingBottom: insets.bottom + 105 }]}
-        style={{ backgroundColor: palette.bg }}
+        style={{ backgroundColor: dark ? palette.bg : settings.theme === 'paper' ? 'rgba(244,235,216,.88)' : 'rgba(255,255,255,.94)' }}
       >
         <Pressable onPress={() => setControlsVisible((value) => !value)}>
           {settings.mode === 'page' ? <View style={[styles.preview, dark && styles.previewDark]}><Ionicons name="albums-outline" size={15} color="#8F1D3F" /><Text style={[styles.previewText, dark && styles.previewTextDark]}>Xem trước chế độ lật trang · Vuốt dọc vẫn khả dụng</Text></View> : null}
@@ -448,25 +455,25 @@ function MoreSheet({ visible, onClose, bookmark, chapter, onBookmark, onComments
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  paywallRoot: { backgroundColor: '#F8F2E9', paddingHorizontal: 16 },
+  paywallRoot: { backgroundColor: xianxia.paper, paddingHorizontal: 16 },
   paywallTop: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  paywallTopTitle: { flex: 1, color: '#2D2327', fontSize: 13, fontWeight: '900', textAlign: 'center' },
-  paywallCard: { width: '100%', maxWidth: 520, alignSelf: 'center', marginTop: 38, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D2', borderRadius: 24, padding: 24, alignItems: 'center' },
-  lockCircle: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#F2E1E6', alignItems: 'center', justifyContent: 'center' },
-  paywallKicker: { color: '#8F1D3F', fontSize: 10, fontWeight: '900', letterSpacing: 1.3, marginTop: 16 },
+  paywallTopTitle: { flex: 1, color: xianxia.ink, fontSize: 13, fontWeight: '900', textAlign: 'center' },
+  paywallCard: { width: '100%', maxWidth: 520, alignSelf: 'center', marginTop: 38, backgroundColor: 'rgba(255,248,234,.94)', borderWidth: 1, borderColor: xianxia.goldSoft, borderRadius: 22, padding: 24, alignItems: 'center', shadowColor: '#3C332C', shadowOpacity: .10, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  lockCircle: { width: 62, height: 62, borderRadius: 19, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', alignItems: 'center', justifyContent: 'center' },
+  paywallKicker: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900', letterSpacing: 1.3, marginTop: 16 },
   paywallTitle: { color: '#251C20', fontSize: 20, lineHeight: 27, fontWeight: '900', textAlign: 'center', marginTop: 7 },
   paywallBody: { color: '#756A6E', fontSize: 12, lineHeight: 19, textAlign: 'center', marginTop: 10 },
-  pricePill: { marginTop: 18, backgroundColor: '#741632', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
+  pricePill: { marginTop: 18, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
   priceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   balanceText: { color: '#756A6E', fontSize: 10, marginTop: 13 },
   unlockError: { color: '#A12B48', fontSize: 10, textAlign: 'center', marginTop: 10 },
-  unlockButton: { width: '100%', minHeight: 50, borderRadius: 14, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center', marginTop: 18, paddingHorizontal: 12 },
+  unlockButton: { width: '100%', minHeight: 52, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginTop: 18, paddingHorizontal: 18 },
   unlockButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900', textAlign: 'center' },
   unlockDisabled: { opacity: .55 },
   paywallSafety: { color: '#95898D', fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 12 },
   readingPage: { width: '100%', maxWidth: 720, alignSelf: 'center' },
-  preview: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F0E1E5', padding: 8, borderRadius: 8, marginBottom: 25 },
-  previewDark: { backgroundColor: '#41343A' }, previewText: { color: '#7E2845', fontSize: 10, fontWeight: '800' }, previewTextDark: { color: '#E2B7C5' },
+  preview: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', padding: 8, borderRadius: 10, marginBottom: 25 },
+  previewDark: { backgroundColor: '#41343A' }, previewText: { color: xianxia.jadeDeep, fontSize: 10, fontWeight: '800' }, previewTextDark: { color: '#E2B7C5' },
   bookKicker: { fontSize: 10, letterSpacing: 1.7, fontWeight: '900', textAlign: 'center' },
   chapterNumber: { fontSize: 27, fontWeight: '900', textAlign: 'center', marginTop: 13 },
   chapterTitle: { fontSize: 19, lineHeight: 25, fontWeight: '600', textAlign: 'center', marginTop: 5 },
@@ -475,7 +482,7 @@ const styles = StyleSheet.create({
   endMark: { textAlign: 'center', fontSize: 11, fontWeight: '700', marginTop: 17, marginBottom: 35 },
   chapterNav: { borderTopWidth: 1, borderBottomWidth: 1, paddingVertical: 18, flexDirection: 'row', alignItems: 'center' },
   navButton: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }, navRight: { justifyContent: 'flex-end' }, disabled: { opacity: .3 },
-  navText: { fontSize: 11, fontWeight: '800' }, navCenter: { alignItems: 'center', paddingHorizontal: 8 }, navCenterText: { color: '#9C3153', fontSize: 9, fontWeight: '900', marginTop: 3 },
+  navText: { fontSize: 11, fontWeight: '800' }, navCenter: { alignItems: 'center', paddingHorizontal: 8 }, navCenterText: { color: xianxia.jadeDeep, fontSize: 9, fontWeight: '900', marginTop: 3 },
   discussion: { marginTop: 28 }, discussionTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }, discussionHeading: { fontSize: 16, fontWeight: '900' },
   miniComment: { flexDirection: 'row', gap: 9, paddingVertical: 12 }, miniAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#E7D7DC', alignItems: 'center', justifyContent: 'center' }, miniAvatarText: { color: '#852545', fontSize: 9, fontWeight: '900' }, miniName: { fontSize: 11, fontWeight: '900' }, miniBody: { fontSize: 11, lineHeight: 17, marginTop: 3 },
   topbar: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 20 },
