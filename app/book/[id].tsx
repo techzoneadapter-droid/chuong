@@ -94,6 +94,7 @@ export default function BookDetailScreen() {
         downloadSelection[option],
         currentChapter || 1,
         (next) => setDownloadProgress({ completed: next.completed, total: next.total }),
+        user?.id,
       );
 
       const records = await getOfflineBookRecords(book.id);
