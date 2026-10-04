@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ButtonArt } from '../../../../components/Artwork';
 import { XianxiaBackdrop } from '../../../../components/XianxiaBackdrop';
@@ -12,6 +13,7 @@ import { importAuthorParsedBook } from '../../../../services/authorImport';
 import { getAuthorForUser, getMyBooks } from '../../../../services/authors';
 import { messageForError } from '../../../../services/errors';
 import { getPremiumAiStatus, PremiumStatus, runWholeBookTranslation } from '../../../../services/premiumAi';
+import { removeBookCover, replaceBookCover } from '../../../../services/storage';
 import { Book } from '../../../../types';
 
 export default function AuthorImportBookScreen() {
@@ -72,6 +74,40 @@ export default function AuthorImportBookScreen() {
     setError('');
     setSuccess('');
     setProgress('');
+  };
+
+  const changeCover = async () => {
+    if (!user || !book || busy) return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [2, 3], quality: .88 });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) return setError('Ảnh bìa cần nhỏ hơn 5 MB.');
+      setBusy(true);
+      setError('');
+      await replaceBookCover(user.id, book.id, asset.uri, asset.mimeType, book.coverUrl);
+      setBook((current) => current ? { ...current, coverUrl: asset.uri } : current);
+      setSuccess('Đã cập nhật ảnh bìa.');
+    } catch (cause) {
+      setError(messageForError(cause, 'Không thể thay ảnh bìa.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clearCover = async () => {
+    if (!user || !book || busy || !book.coverUrl) return;
+    setBusy(true);
+    setError('');
+    try {
+      await removeBookCover(user.id, book.id, book.coverUrl);
+      setBook((current) => current ? { ...current, coverUrl: null } : current);
+      setSuccess('Đã xóa ảnh bìa.');
+    } catch (cause) {
+      setError(messageForError(cause, 'Không thể xóa ảnh bìa.'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const pickFile = async () => {
@@ -169,7 +205,17 @@ export default function AuthorImportBookScreen() {
           <Text style={styles.heroBody}>Nhập TXT / DOCX / ZIP hoặc dán toàn bộ bản convert. AI chỉ xuất hiện ở bước tải truyện này, không còn nằm trong màn đọc.</Text>
         </View>
       </View>
-      <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Nhắc về ảnh bìa</Text><Text style={styles.coverGuideText}>Bìa đẹp nhất: tỷ lệ 2:3 · 1200 × 1800 px · tối thiểu 800 × 1200 px · 300 KB – 1.5 MB là lý tưởng · tối đa 5 MB · ưu tiên WebP/JPG. Bạn có thể chọn bìa khi tạo/chỉnh thông tin truyện.</Text></View>
+      <View style={styles.coverPanel}>
+        {book?.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverThumb} /> : <View style={styles.coverThumbEmpty}><Ionicons name="image-outline" size={22} color={xianxia.jade} /><Text style={styles.coverThumbEmptyText}>Chưa có bìa</Text></View>}
+        <View style={styles.coverPanelBody}>
+          <Text style={styles.coverGuideTitle}>Ảnh bìa truyện</Text>
+          <Text style={styles.coverGuideText}>2:3 · đẹp nhất 1200 × 1800 px · tối thiểu 800 × 1200 px · 300 KB – 1.5 MB là lý tưởng · tối đa 5 MB · ưu tiên WebP/JPG.</Text>
+          <View style={styles.coverActions}>
+            <Pressable disabled={busy} style={styles.coverSelect} onPress={changeCover}><Ionicons name="images-outline" size={14} color={xianxia.jadeDeep} /><Text style={styles.coverSelectText}>{book?.coverUrl ? 'Chọn lại ảnh' : 'Chọn ảnh bìa'}</Text></Pressable>
+            {book?.coverUrl ? <Pressable disabled={busy} style={styles.coverDelete} onPress={clearCover}><Ionicons name="trash-outline" size={14} color={xianxia.danger} /><Text style={styles.coverDeleteText}>Xóa ảnh</Text></Pressable> : null}
+          </View>
+        </View>
+      </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {success ? <Text style={styles.success}>{success}</Text> : null}
@@ -268,7 +314,16 @@ const styles = StyleSheet.create({
   kicker: { color: xianxia.cinnabar, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.2 },
   topTitle: { color: xianxia.ink, fontSize: 18, fontWeight: '900', marginTop: 2 },
   page: { width: '100%', maxWidth: 780, alignSelf: 'center', padding: 16, paddingBottom: 54 },
-  coverGuide: { marginTop: 10, borderRadius: 13, padding: 11, backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#C4D7C8' },
+  coverPanel: { marginTop: 10, borderRadius: 13, padding: 11, backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#C4D7C8', flexDirection: 'row', gap: 11, alignItems: 'center' },
+  coverThumb: { width: 58, height: 87, borderRadius: 8, backgroundColor: '#E8E2D8' },
+  coverThumbEmpty: { width: 58, height: 87, borderRadius: 8, backgroundColor: '#F3EEE6', borderWidth: 1, borderStyle: 'dashed', borderColor: xianxia.line, alignItems: 'center', justifyContent: 'center', padding: 4 },
+  coverThumbEmptyText: { color: xianxia.muted, fontSize: 6.5, textAlign: 'center', marginTop: 4 },
+  coverPanelBody: { flex: 1 },
+  coverActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  coverSelect: { minHeight: 34, borderRadius: 9, paddingHorizontal: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 5 },
+  coverSelectText: { color: xianxia.jadeDeep, fontSize: 7.8, fontWeight: '900' },
+  coverDelete: { minHeight: 34, borderRadius: 9, paddingHorizontal: 9, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', flexDirection: 'row', alignItems: 'center', gap: 5 },
+  coverDeleteText: { color: xianxia.danger, fontSize: 7.8, fontWeight: '900' },
   coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900', marginBottom: 4 },
   coverGuideText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13 },
   hero: { minHeight: 104, borderRadius: 20, padding: 16, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, flexDirection: 'row', alignItems: 'center', gap: 13 },
