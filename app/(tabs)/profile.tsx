@@ -40,7 +40,7 @@ export default function ProfileScreen() {
   }, [user]));
   if (loading) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang khôi phục phiên đăng nhập…" /></SafeAreaView>;
   return <SafeAreaView style={styles.safe} edges={['top']}><XianxiaBackdrop /><ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
-    <View style={styles.header}><View><Text style={styles.eyebrow}>ĐẠO HỮU</Text><Text style={styles.title}>Ta</Text><Text style={styles.subtitle}>Hồ sơ, cộng đồng và hành trình trên CHƯƠNG.</Text></View><View style={styles.headerSeal}><Text style={styles.headerSealText}>我</Text></View></View>
+    <View style={styles.header}><View><Text style={styles.eyebrow}>ĐẠO HỮU</Text><Text style={styles.title}>Ta</Text><Text style={styles.subtitle}>Hồ sơ, cộng đồng và hành trình trên CHƯƠNG.</Text></View><View style={styles.headerSeal}><Ionicons name="person-outline" size={21} color={xianxia.goldSoft} /></View></View>
     {error ? <Pressable onPress={refreshProfile}><Text style={styles.demo}>{error} · Thử lại</Text></Pressable> : null}
     {!user ? <View style={styles.guest}>
       <View style={styles.guestIcon}><Ionicons name="person-outline" size={28} color={xianxia.jadeDeep} /></View>
