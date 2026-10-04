@@ -98,8 +98,8 @@ function romanToNumber(value: string) {
 
 function chineseToNumber(value: string) {
   if (/^\d+$/.test(value)) return Number(value);
-  const digits: Record<string, number> = { '零': 0, '〇': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
-  const units: Record<string, number> = { '十': 10, '百': 100, '千': 1000, '万': 10000 };
+  const digits: Record<string, number> = { '\u96f6': 0, '\u3007': 0, '\u4e00': 1, '\u4e8c': 2, '\u4e24': 2, '\u4e09': 3, '\u56db': 4, '\u4e94': 5, '\u516d': 6, '\u4e03': 7, '\u516b': 8, '\u4e5d': 9 };
+  const units: Record<string, number> = { '\u5341': 10, '\u767e': 100, '\u5343': 1000, '\u4e07': 10000 };
   let total = 0;
   let section = 0;
   let number = 0;
@@ -136,7 +136,7 @@ export function splitChaptersFromText(raw: string): ParsedImportChapter[] {
 
   // Supports plain headings, Markdown headings/bold, blockquotes, Vietnamese/English
   // chapter labels, Roman numerals and common Chinese web-novel headings.
-  const re = /^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?:\s*\/\s*\d{1,6})?|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
+  const re = /^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?:\s*\/\s*\d{1,6})?|\u7b2c\s*([0-9\u96f6\u3007\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07]{1,16})\s*[\u7ae0\u8282\u56de\u5377\u90e8\u7bc7])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
   const matches = [...text.matchAll(re)];
 
   if (!matches.length) {
