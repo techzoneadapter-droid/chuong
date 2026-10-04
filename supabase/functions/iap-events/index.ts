@@ -7,6 +7,11 @@ const ANDROID_SCOPE = "https://www.googleapis.com/auth/androidpublisher";
 type Provider = "google_play" | "app_store";
 type SupabaseAdmin = ReturnType<typeof createClient>;
 
+function premiumProduct(provider: Provider) {
+  if (provider === "google_play") return Deno.env.get("PREMIUM_GOOGLE_PRODUCT_ID") || "chuong.vip.monthly";
+  return Deno.env.get("PREMIUM_APPLE_PRODUCT_ID") || "chuong.vip.monthly";
+}
+
 function reply(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
@@ -147,6 +152,89 @@ async function getGooglePurchase(purchaseToken: string) {
   };
 }
 
+
+async function getGoogleSubscription(purchaseToken: string) {
+  const packageName = Deno.env.get("ANDROID_PACKAGE_NAME");
+  if (!packageName) throw new Error("google_play_not_configured");
+  const accessToken = await getGoogleAccessToken();
+  const response = await fetch(
+    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(packageName)}/purchases/subscriptionsv2/tokens/${encodeURIComponent(purchaseToken)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!response.ok) throw new Error(`google_subscription_lookup_failed_${response.status}`);
+  return await response.json() as {
+    subscriptionState?: string;
+    acknowledgementState?: string;
+    latestOrderId?: string;
+    startTime?: string;
+    regionCode?: string;
+    testPurchase?: unknown;
+    externalAccountIdentifiers?: { obfuscatedExternalAccountId?: string };
+    lineItems?: Array<{
+      productId?: string;
+      expiryTime?: string;
+      autoRenewingPlan?: { autoRenewEnabled?: boolean };
+    }>;
+  };
+}
+
+async function upsertGooglePremiumSubscription(
+  admin: SupabaseAdmin,
+  purchaseToken: string,
+  hintedProductId: string,
+  metadata: Record<string, unknown>,
+) {
+  const expectedProduct = premiumProduct("google_play");
+  if (hintedProductId !== expectedProduct) return { ignored: true as const };
+
+  const sub = await getGoogleSubscription(purchaseToken);
+  const lineItems = (sub.lineItems ?? []).filter((item) => item.productId === expectedProduct);
+  if (!lineItems.length) throw new Error("google_subscription_product_mismatch");
+
+  const tokenHash = await sha256Hex(purchaseToken);
+  const externalId = `google:${tokenHash}`;
+  let userId = sub.externalAccountIdentifiers?.obfuscatedExternalAccountId || null;
+
+  if (!userId) {
+    const { data: existing } = await admin
+      .from("account_subscriptions")
+      .select("user_id")
+      .eq("provider", "google_play")
+      .eq("external_subscription_id", externalId)
+      .maybeSingle();
+    userId = existing?.user_id ?? null;
+  }
+  if (!userId) throw new Error("google_subscription_account_binding_missing");
+
+  const expiryMillis = Math.max(...lineItems.map((item) => Date.parse(item.expiryTime || "") || 0));
+  const validState = ["SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD", "SUBSCRIPTION_STATE_CANCELED"]
+    .includes(sub.subscriptionState || "");
+  const active = Boolean(validState && expiryMillis > Date.now());
+  const autoRenewEnabled = lineItems.some((item) => item.autoRenewingPlan?.autoRenewEnabled === true);
+
+  const { data: subscription, error } = await admin.rpc("upsert_verified_premium_subscription", {
+    p_user_id: userId,
+    p_provider: "google_play",
+    p_external_subscription_id: externalId,
+    p_store_product_id: expectedProduct,
+    p_latest_transaction_id: sub.latestOrderId ?? null,
+    p_current_period_start: sub.startTime && !Number.isNaN(Date.parse(sub.startTime)) ? sub.startTime : null,
+    p_current_period_end: expiryMillis ? new Date(expiryMillis).toISOString() : null,
+    p_active: active,
+    p_cancel_at_period_end: active && !autoRenewEnabled,
+    p_metadata: {
+      ...metadata,
+      providerState: sub.subscriptionState ?? null,
+      acknowledgementState: sub.acknowledgementState ?? null,
+      regionCode: sub.regionCode ?? null,
+      latestOrderId: sub.latestOrderId ?? null,
+      testPurchase: Boolean(sub.testPurchase),
+    },
+  });
+  if (error) throw new Error(`google_subscription_upsert_failed:${error.message}`);
+  return { ignored: false as const, subscription, active };
+}
+
 let googleJwksCache: { expiresAt: number; keys: Array<Record<string, unknown>> } | null = null;
 
 async function googleJwks() {
@@ -269,6 +357,7 @@ async function fetchAppleTransaction(transactionId: string) {
         quantity?: number;
         environment?: string;
         purchaseDate?: number;
+        expiresDate?: number;
         revocationDate?: number;
         revocationReason?: number;
         type?: string;
@@ -375,6 +464,11 @@ async function processGoogle(req: Request, bodyText: string, body: any, admin: S
       purchaseToken?: string;
       sku?: string;
     };
+    subscriptionNotification?: {
+      notificationType?: number;
+      purchaseToken?: string;
+      subscriptionId?: string;
+    };
     voidedPurchaseNotification?: {
       purchaseToken?: string;
       orderId?: string;
@@ -391,7 +485,9 @@ async function processGoogle(req: Request, bodyText: string, body: any, admin: S
 
   const payloadHash = await sha256Hex(bodyText);
   let eventType = "google_unknown";
-  if (payload.oneTimeProductNotification) {
+  if (payload.subscriptionNotification) {
+    eventType = `subscription_${payload.subscriptionNotification.notificationType ?? "unknown"}`;
+  } else if (payload.oneTimeProductNotification) {
     eventType = payload.oneTimeProductNotification.notificationType === 1
       ? "one_time_product_purchased"
       : payload.oneTimeProductNotification.notificationType === 2
@@ -423,6 +519,36 @@ async function processGoogle(req: Request, bodyText: string, body: any, admin: S
         metadata: { test: true },
       });
       return reply(200, { ok: true, ignored: true });
+    }
+
+    const subscriptionNotice = payload.subscriptionNotification;
+    if (subscriptionNotice?.purchaseToken && subscriptionNotice.subscriptionId) {
+      const result = await upsertGooglePremiumSubscription(
+        admin,
+        subscriptionNotice.purchaseToken,
+        subscriptionNotice.subscriptionId,
+        {
+          source: "google_rtdn_subscription",
+          eventMessageId: message.messageId,
+          notificationType: subscriptionNotice.notificationType ?? null,
+          eventTimeMillis: payload.eventTimeMillis ?? null,
+        },
+      );
+
+      if (result.ignored) {
+        await finishWebhookEvent(admin, event.row.id, "ignored", {
+          metadata: { action: "non_premium_subscription", subscriptionId: subscriptionNotice.subscriptionId },
+        });
+        return reply(200, { ok: true, ignored: true });
+      }
+
+      await finishWebhookEvent(admin, event.row.id, "processed", {
+        metadata: {
+          action: result.active ? "premium_active" : "premium_inactive",
+          subscriptionId: subscriptionNotice.subscriptionId,
+        },
+      });
+      return reply(200, { ok: true, action: result.active ? "premium_active" : "premium_inactive" });
     }
 
     const oneTime = payload.oneTimeProductNotification;
@@ -647,6 +773,55 @@ async function processApple(bodyText: string, body: any, admin: SupabaseAdmin) {
     if (transaction.transactionId !== hinted.transactionId) throw new Error("apple_transaction_mismatch");
     if (transaction.bundleId !== bundleId) throw new Error("apple_bundle_mismatch");
     if ((transaction.quantity ?? 1) !== 1) throw new Error("apple_multi_quantity_not_supported");
+
+    if (/auto.?renewable subscription/i.test(transaction.type || "") && transaction.productId === premiumProduct("app_store")) {
+      const externalId = transaction.originalTransactionId || transaction.transactionId || hinted.transactionId;
+      let userId = transaction.appAccountToken || null;
+      if (!userId) {
+        const { data: existing } = await admin
+          .from("account_subscriptions")
+          .select("user_id")
+          .eq("provider", "app_store")
+          .eq("external_subscription_id", externalId)
+          .maybeSingle();
+        userId = existing?.user_id ?? null;
+      }
+      if (!userId) throw new Error("apple_subscription_account_binding_missing");
+
+      const expiry = Number(transaction.expiresDate || 0);
+      const active = Boolean(!transaction.revocationDate && expiry > Date.now());
+      const cancelAtPeriodEnd = decoded.notificationType === "DID_CHANGE_RENEWAL_STATUS"
+        && decoded.subtype === "AUTO_RENEW_DISABLED";
+
+      const { error: subError } = await admin.rpc("upsert_verified_premium_subscription", {
+        p_user_id: userId,
+        p_provider: "app_store",
+        p_external_subscription_id: externalId,
+        p_store_product_id: transaction.productId,
+        p_latest_transaction_id: transaction.transactionId ?? hinted.transactionId,
+        p_current_period_start: transaction.purchaseDate ? new Date(transaction.purchaseDate).toISOString() : null,
+        p_current_period_end: expiry ? new Date(expiry).toISOString() : null,
+        p_active: active,
+        p_cancel_at_period_end: cancelAtPeriodEnd,
+        p_metadata: {
+          source: "apple_server_notification_v2_subscription",
+          notificationUUID: decoded.notificationUUID ?? null,
+          notificationType: decoded.notificationType ?? null,
+          subtype: decoded.subtype ?? null,
+          environment: transaction.environment ?? null,
+        },
+      });
+      if (subError) throw new Error(`apple_subscription_upsert_failed:${subError.message}`);
+
+      await finishWebhookEvent(admin, event.row.id, "processed", {
+        metadata: {
+          action: active ? "premium_active" : "premium_inactive",
+          originalTransactionId: externalId,
+          transactionId: transaction.transactionId ?? hinted.transactionId,
+        },
+      });
+      return reply(200, { ok: true, action: active ? "premium_active" : "premium_inactive" });
+    }
 
     const local = await localPurchase(admin, "app_store", hinted.transactionId);
 
