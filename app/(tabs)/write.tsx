@@ -5,6 +5,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
+import { AssetBookCover, ButtonArt } from '../../components/Artwork';
 import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAuthorForUser, getMyBooks } from '../../services/authors';
@@ -135,8 +136,9 @@ export default function WriteScreen() {
       {books.length === 0 ? <EmptyState title="Chưa có truyện" detail="Tạo linh quyển đầu tiên để bắt đầu viết chương." /> : <View style={styles.bookList}>
         {books.map((book) => <View style={styles.bookRow} key={book.id}>
           <View style={styles.coverFrame}>
-            <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-              {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text numberOfLines={3} style={styles.coverText}>{book.title}</Text>}
+            <View style={styles.cover}>
+              <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+              <View pointerEvents="none" style={styles.coverShade} />
               <View style={styles.coverSeal}><Text style={styles.coverSealText}>作</Text></View>
             </View>
           </View>
@@ -154,6 +156,7 @@ export default function WriteScreen() {
       </View>}
 
       <Pressable style={styles.primaryButton} onPress={() => router.push('/author/books/new')}>
+        <ButtonArt />
         <Ionicons name="add-circle-outline" size={18} color={xianxia.goldSoft} />
         <Text style={styles.primaryButtonText}>Tạo truyện mới</Text>
         <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
@@ -201,9 +204,8 @@ const styles = StyleSheet.create({
   bookList: { gap: 9 },
   bookRow: { minHeight: 132, borderRadius: 18, backgroundColor: 'rgba(255,253,247,.90)', borderWidth: 1, borderColor: xianxia.line, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 11 },
   coverFrame: { padding: 2, borderRadius: 13, backgroundColor: xianxia.goldSoft },
-  cover: { width: 67, height: 100, borderRadius: 11, overflow: 'hidden', justifyContent: 'center', padding: 7 },
-  coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
-  coverText: { color: xianxia.white, fontSize: 9, lineHeight: 12, fontWeight: '900', textAlign: 'center', zIndex: 2 },
+  cover: { width: 67, height: 100, borderRadius: 8, overflow: 'hidden', justifyContent: 'center', borderWidth: 1, borderColor: xianxia.gold },
+  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,20,18,.05)' },
   coverSeal: { position: 'absolute', right: 4, top: 4, width: 18, height: 18, borderRadius: 5, backgroundColor: 'rgba(132,50,41,.82)', borderWidth: 1, borderColor: 'rgba(229,209,163,.7)', alignItems: 'center', justifyContent: 'center' },
   coverSealText: { color: '#F3D99D', fontSize: 7.5, fontWeight: '900' },
   bookInfo: { flex: 1 },
@@ -213,6 +215,6 @@ const styles = StyleSheet.create({
   statusPillText: { color: xianxia.jadeDeep, fontSize: 6.8, fontWeight: '900' },
   write: { minWidth: 48, minHeight: 50, borderRadius: 12, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
   writeText: { color: xianxia.white, fontSize: 8, fontWeight: '900', marginTop: 2 },
-  primaryButton: { marginTop: 20, minHeight: 53, borderRadius: 16, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', paddingHorizontal: 15, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center' },
+  primaryButton: { position: 'relative', overflow: 'hidden', marginTop: 20, minHeight: 53, paddingHorizontal: 18, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { flex: 1, color: xianxia.white, fontSize: 12, fontWeight: '900', textAlign: 'center' },
 });
