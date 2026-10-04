@@ -21,6 +21,7 @@ import {
   recommendationReasonText,
 } from '../../services/recommendations';
 import { Book, ReadingProgress } from '../../types';
+import { getHomeRankingGroups, RankedBook, rankingReason } from '../../services/rankings';
 
 function SectionTitle({ title, action, onPress, subtitle }: { title: string; action?: string; onPress?: () => void; subtitle?: string }) {
   return <View style={styles.sectionHead}>
@@ -41,6 +42,7 @@ export default function HomeScreen() {
   const [books, setBooks] = useState<Book[]>(demoBooks);
   const [savedProgress, setSavedProgress] = useState<ReadingProgress | null>(null);
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendation[]>([]);
+  const [rankings, setRankings] = useState<{ trending: RankedBook[]; hot: RankedBook[]; newest: RankedBook[]; top: RankedBook[] }>({ trending: [], hot: [], newest: [], top: [] });
   const [recommendError, setRecommendError] = useState('');
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
@@ -73,11 +75,13 @@ export default function HomeScreen() {
         if (active) setRecommendError(cause instanceof Error ? cause.message : 'Không thể tải đề xuất.');
         return [] as PersonalizedRecommendation[];
       }),
-    ]).then(([result, progress, personalized]) => {
+      getHomeRankingGroups(8),
+    ]).then(([result, progress, personalized, rankingGroups]) => {
       if (!active) return;
       setBooks(result.data);
       setSavedProgress(progress);
       setRecommendations(personalized);
+      setRankings(rankingGroups);
     }).catch((cause) => {
       if (active) setLoadError(cause instanceof Error ? cause.message : 'Không thể tải truyện.');
     }).finally(() => {
@@ -171,10 +175,33 @@ export default function HomeScreen() {
         </View>
 
         <ArtDivider />
-        <SectionTitle title="Đang thịnh hành" action="Xem tất cả" onPress={() => router.push('/discover')} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-          {books.slice(0, 8).map((book) => <BookCard book={book} key={book.id} />)}
-        </ScrollView>
+        {rankings.trending.length ? <>
+          <SectionTitle title="Đang thịnh hành" subtitle="Theo độc giả, phiên đọc, hoàn thành chương và thời gian đọc trong 7 ngày gần nhất" action="Xem tất cả" onPress={() => router.push('/discover')} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
+            {rankings.trending.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('trending', item)}</Text></View>)}
+          </ScrollView>
+        </> : null}
+
+        {rankings.hot.length ? <>
+          <SectionTitle title="Hot" subtitle="Tương tác 7 ngày + theo dõi mới + lượt đọc + đánh giá thực tế" action="Xem tất cả" onPress={() => router.push('/discover')} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
+            {rankings.hot.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('hot', item)}</Text></View>)}
+          </ScrollView>
+        </> : null}
+
+        {rankings.newest.length ? <>
+          <SectionTitle title="Truyện mới ra" subtitle="Theo thời điểm chương công khai đầu tiên của từng truyện" action="Xem tất cả" onPress={() => router.push('/discover')} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
+            {rankings.newest.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('new', item)}</Text></View>)}
+          </ScrollView>
+        </> : null}
+
+        {rankings.top.length ? <>
+          <SectionTitle title="Top CHƯƠNG" subtitle="Dữ liệu toàn thời gian: lượt đọc, theo dõi, hoàn thành chương, thời gian đọc và đánh giá có trọng số" action="Xem tất cả" onPress={() => router.push('/discover')} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
+            {rankings.top.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('top', item)}</Text></View>)}
+          </ScrollView>
+        </> : null}
 
         <SectionTitle
           title="Cơ duyên dành cho bạn"
@@ -300,6 +327,9 @@ const styles = StyleSheet.create({
   sectionSub: { color: xianxia.muted, fontSize: 9, lineHeight: 13, marginTop: 3 },
   seeAll: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900' },
   row: { paddingLeft: 16, paddingRight: 2, paddingBottom: 12, backgroundColor: 'rgba(255,248,234,.9)' },
+  rankingRow: { paddingLeft: 16, paddingRight: 2, paddingBottom: 9, gap: 10 },
+  rankingItem: { width: 146, marginRight: 4 },
+  rankingReason: { color: xianxia.muted, fontSize: 7.5, lineHeight: 11, marginTop: 5, paddingHorizontal: 2 },
   recommendRow: { paddingLeft: 16, paddingRight: 2, paddingBottom: 5 },
   recommendItem: { width: 146, marginRight: 14 },
   reasonRow: { marginTop: 7, minHeight: 30, flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
