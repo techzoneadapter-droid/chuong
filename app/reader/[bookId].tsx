@@ -22,6 +22,7 @@ import { usePersistentState } from '../../hooks/usePersistentState';
 import { useTtsPlayer } from '../../hooks/useTtsPlayer';
 import { defaultReaderSettings } from '../../services/storage';
 import { getBookById } from '../../services/books';
+import { getParagraphCommentCounts } from '../../services/comments';
 import { ContentLockedError, getChapter, getChaptersByBook } from '../../services/chapters';
 import { unlockBook, unlockChapter, UnlockError } from '../../services/entitlements';
 import { getWallet } from '../../services/wallet';
@@ -65,6 +66,8 @@ export default function ReaderScreen() {
   const [progressReady, setProgressReady] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
+  const [paragraphCounts, setParagraphCounts] = useState<Record<number, number>>({});
+  const [paragraphDiscussion, setParagraphDiscussion] = useState<{ index: number; text: string } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scrollPosition = useRef(0);
 
@@ -108,6 +111,12 @@ export default function ReaderScreen() {
     return pages;
   }, [content, settings.fontSize, settings.spacing]);
   const visibleContent = settings.mode === 'page' ? (pagedContent[pageIndex] ?? pagedContent[0] ?? []) : content;
+  const visibleParagraphs = useMemo(() => {
+    const pageStart = settings.mode === 'page'
+      ? pagedContent.slice(0, pageIndex).reduce((sum, page) => sum + page.length, 0)
+      : 0;
+    return visibleContent.map((text, index) => ({ text, index: pageStart + index }));
+  }, [pageIndex, pagedContent, settings.mode, visibleContent]);
   const bookmark: Bookmark | null = bookmarked ? { chapter: chapterNumber, progress: readingProgress, updatedAt: new Date().toISOString() } : null;
   const palette = themes[settings.theme];
   const dark = settings.theme === 'night' || settings.theme === 'amoled';
@@ -221,6 +230,8 @@ export default function ReaderScreen() {
     setReadingProgress(0);
     setPageIndex(0);
     setBookmarked(false);
+    setParagraphDiscussion(null);
+    setParagraphCounts({});
     scrollPosition.current = 0;
     router.setParams({ chapter: String(next) });
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
@@ -269,6 +280,22 @@ export default function ReaderScreen() {
     setPageIndex(target);
     scrollPosition.current = target;
   }, [chapterNumber, pagedContent.length, progressReady, settings.mode]);
+
+  const refreshParagraphCounts = useMemo(() => async () => {
+    if (!chapter.id || offlineReading) {
+      setParagraphCounts({});
+      return;
+    }
+    try {
+      setParagraphCounts(await getParagraphCommentCounts(chapter.id));
+    } catch {
+      setParagraphCounts({});
+    }
+  }, [chapter.id, offlineReading]);
+
+  useEffect(() => {
+    void refreshParagraphCounts();
+  }, [refreshParagraphCounts]);
 
   const toggleBookmark = async () => {
     const previous = bookmarked; setBookmarked(!previous);
@@ -379,8 +406,25 @@ export default function ReaderScreen() {
             <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapter.title}</Text>
             {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
           </> : null}
-          {visibleContent.map((paragraph, index) => (
-            <Text key={`${chapterNumber}-${pageIndex}-${index}`} style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{paragraph}</Text>
+          {visibleParagraphs.map((paragraph) => (
+            <View key={`${chapterNumber}-${paragraph.index}`} style={styles.paragraphBlock}>
+              <Text style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{paragraph.text}</Text>
+              {!offlineReading && chapter.id ? <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Cảm nhận về đoạn ${paragraph.index + 1}`}
+                onPress={(event) => {
+                  event.stopPropagation?.();
+                  setParagraphDiscussion({ index: paragraph.index, text: paragraph.text });
+                  setControlsVisible(true);
+                }}
+                style={[styles.paragraphComment, dark && styles.paragraphCommentDark]}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={13} color={dark ? '#B7B0A8' : '#8F1D3F'} />
+                <Text style={[styles.paragraphCommentText, dark && styles.paragraphCommentTextDark]}>
+                  {paragraphCounts[paragraph.index] ? `${paragraphCounts[paragraph.index]} cảm nhận` : 'Cảm nhận'}
+                </Text>
+              </Pressable> : null}
+            </View>
           ))}
           {settings.mode === 'page' ? <View style={[styles.pagePager, { borderColor: dark ? '#4C494B' : xianxia.line }]}>
             <Pressable disabled={pageIndex === 0} onPress={() => goReaderPage(pageIndex - 1)} style={[styles.pageButton, pageIndex === 0 && styles.disabled]}><Ionicons name="chevron-back" size={17} color={palette.text} /><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang trước</Text></Pressable>
@@ -436,6 +480,21 @@ export default function ReaderScreen() {
         </>
       ) : null}
 
+      <BottomSheet
+        visible={Boolean(paragraphDiscussion)}
+        title={paragraphDiscussion ? `Cảm nhận đoạn ${paragraphDiscussion.index + 1}` : 'Cảm nhận đoạn văn'}
+        onClose={() => setParagraphDiscussion(null)}
+        scroll
+        tall
+      >
+        {paragraphDiscussion && chapter.id ? <Comments
+          bookId={book.id}
+          chapterId={chapter.id}
+          paragraphIndex={paragraphDiscussion.index}
+          paragraphExcerpt={paragraphDiscussion.text}
+          onChanged={() => void refreshParagraphCounts()}
+        /> : null}
+      </BottomSheet>
       <ChapterSheet visible={sheet === 'chapters'} onClose={() => setSheet(null)} chapters={filteredChapters} query={chapterSearch} onQuery={setChapterSearch} onSelect={goChapter} current={chapterNumber} />
       <SettingsSheet visible={sheet === 'settings'} onClose={() => setSheet(null)} settings={settings} onChange={setSettings} />
       <AudioSheet
@@ -631,7 +690,12 @@ const styles = StyleSheet.create({
   chapterNumber: { fontSize: 27, fontWeight: '900', textAlign: 'center', marginTop: 13 },
   chapterTitle: { fontSize: 19, lineHeight: 25, fontWeight: '600', textAlign: 'center', marginTop: 5 },
   rule: { width: 30, height: 1, alignSelf: 'center', marginTop: 23, marginBottom: 26, opacity: .5 },
-  paragraph: { marginBottom: 20, textAlign: 'left' },
+  paragraphBlock: { marginBottom: 20 },
+  paragraph: { textAlign: 'left' },
+  paragraphComment: { alignSelf: 'flex-end', minHeight: 28, marginTop: 4, borderRadius: 14, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,253,247,.88)', borderWidth: 1, borderColor: '#E0D3C7' },
+  paragraphCommentDark: { backgroundColor: 'rgba(41,40,44,.92)', borderColor: '#4C494B' },
+  paragraphCommentText: { color: '#8F1D3F', fontSize: 8.5, fontWeight: '800' },
+  paragraphCommentTextDark: { color: '#C8C0B7' },
   endMark: { textAlign: 'center', fontSize: 11, fontWeight: '700', marginTop: 17, marginBottom: 35 },
   chapterNav: { borderTopWidth: 1, borderBottomWidth: 1, paddingVertical: 18, flexDirection: 'row', alignItems: 'center' },
   navButton: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }, navRight: { justifyContent: 'flex-end' }, disabled: { opacity: .3 },
