@@ -9,6 +9,9 @@ const state = {
   sourceName: '',
   coverBlob: null,
   coverMime: '',
+  aiReady: false,
+  aiProvider: '',
+  ocrLang: '',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -56,19 +59,41 @@ function cleanTitle(value) {
 function normalizeText(text) {
   return String(text || '').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').replace(/\n{4,}/g,'\n\n\n').trim();
 }
+function romanToNumber(value) {
+  const map={I:1,V:5,X:10,L:50,C:100,D:500,M:1000};
+  let total=0,prev=0;
+  for(const ch of String(value).toUpperCase().split('').reverse()){const n=map[ch]||0;total+=n<prev?-n:n;prev=Math.max(prev,n);}
+  return total||0;
+}
+function chineseToNumber(value) {
+  if (/^\d+$/.test(value)) return Number(value);
+  const digit={零:0,〇:0,一:1,二:2,两:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9};
+  const unit={十:10,百:100,千:1000,万:10000};
+  let total=0,section=0,num=0;
+  for(const ch of String(value)){if(ch in digit){num=digit[ch];continue;}const u=unit[ch];if(!u)continue;if(u===10000){section=(section+(num||0))*u;total+=section;section=0;num=0;}else{section+=(num||1)*u;num=0;}}
+  return total+section+num;
+}
+function parseChapterNumber(token) {
+  const raw=String(token||'').trim();
+  if(/^\d+$/.test(raw)) return Number(raw);
+  if(/^[ivxlcdm]+$/i.test(raw)) return romanToNumber(raw);
+  return chineseToNumber(raw);
+}
 function splitChapters(raw) {
-  const text = normalizeText(raw);
-  if (!text) return [];
-  const re = /^(?:chương|chuong|chapter|chap)\s*(\d{1,6})(?:\s*[:.\-–—]\s*|\s+)?([^\n]*)$/gim;
-  const matches = [...text.matchAll(re)];
-  if (!matches.length) return [{ chapterNumber: 1, title: 'Chương 1', content: text }];
-  const out = [];
-  for (let i=0;i<matches.length;i++) {
-    const m=matches[i], next=matches[i+1];
-    const number=Number(m[1]), tail=(m[2]||'').trim();
-    const start=(m.index||0)+m[0].length, end=next?.index ?? text.length;
+  const text=normalizeText(raw);
+  if(!text)return[];
+  const re=/^(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet)\s*([0-9]{1,6}|[ivxlcdm]{1,12})|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:\s*[:.\-–—]\s*|\s+)?([^\n]*)$/gim;
+  const matches=[...text.matchAll(re)];
+  if(!matches.length)return[{chapterNumber:1,title:'Chương 1',content:text}];
+  const out=[];
+  for(let i=0;i<matches.length;i++){
+    const m=matches[i],next=matches[i+1];
+    const number=parseChapterNumber(m[1]||m[2]);
+    if(!number)continue;
+    const tail=(m[3]||'').trim();
+    const start=(m.index||0)+m[0].length,end=next?.index??text.length;
     const content=normalizeText(text.slice(start,end));
-    if (content) out.push({ chapterNumber:number, title:tail || ('Chương ' + number), content });
+    if(content)out.push({chapterNumber:number,title:tail||('Chương '+number),content});
   }
   return out.sort((a,b)=>a.chapterNumber-b.chapterNumber);
 }
