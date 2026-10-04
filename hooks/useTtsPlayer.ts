@@ -88,7 +88,9 @@ export function useTtsPlayer({
     const token = runId.current;
     await stopTts();
     const prefs = preferencesRef.current;
+    const distinctGenderVoices = hasDistinctGenderVoices(voices);
     const voiceId = chooseTtsVoice(voices, prefs.voice);
+    const pitch = distinctGenderVoices ? 1 : prefs.voice === 'Nam' ? 0.82 : 1.08;
     setError('');
     setPaused(false);
     setPlaying(true);
@@ -103,6 +105,7 @@ export function useTtsPlayer({
         onProgressRef.current?.(percent);
         const status = await speakTtsSegment(segments[index].text, {
           rate: prefs.speed,
+          pitch,
           voice: voiceId,
         });
         if (token !== runId.current || status === 'stopped') return;
