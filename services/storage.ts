@@ -70,6 +70,17 @@ export async function deleteOwnBookCover(userId: string, bookId: string, url: st
   if (error) throw toServiceError(error, 'Bìa đã lưu nhưng chưa xóa được ảnh cũ.');
 }
 
+export async function removeBookCover(userId: string, bookId: string, oldUrl?: string | null) {
+  const client = requireSupabase();
+  try {
+    const { error } = await client.from('books').update({ cover_url: null }).eq('id', bookId).select('id').single();
+    if (error) throw error;
+    if (oldUrl) await deleteOwnBookCover(userId, bookId, oldUrl);
+  } catch (error) {
+    throw toServiceError(error, 'Không thể xóa ảnh bìa. Vui lòng thử lại.');
+  }
+}
+
 export async function replaceBookCover(userId: string, bookId: string, uri: string, mimeType?: string, oldUrl?: string | null) {
   const client = requireSupabase();
   const url = await uploadBookCover(userId, bookId, uri, mimeType);
