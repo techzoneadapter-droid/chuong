@@ -11,11 +11,13 @@ No paid AI/TTS API is required for normal read-aloud.
 The player:
 
 - reads the actual current chapter text
-- prefers Vietnamese voices exposed by the device
+- uses only Vietnamese (`vi-*`) voices exposed by the device and never intentionally falls back to an English/foreign voice
+- refuses playback when no Vietnamese voice pack can be discovered, rather than reading Vietnamese text with a foreign voice
 - supports 0.75x, 1x, 1.25x, 1.5x and 2x speed
 - supports two user-facing voice preferences (Nam / Nữ)
+- uses separate Vietnamese male/female voices when the OS exposes both
+- when the OS exposes only one Vietnamese voice, keeps that Vietnamese voice but applies a conservative pitch fallback so Nam/Nữ remain audibly different
 - exposes the actual selected system voice name
-- degrades safely when the device exposes only one Vietnamese voice
 - splits long chapters into short speech segments instead of sending a whole chapter to the speech engine
 - handles `onDone`, `onStopped` and errors so stopping playback cannot leave an unresolved player
 - supports approximate ±15 second seek by moving through speech segments
