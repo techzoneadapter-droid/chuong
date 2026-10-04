@@ -188,35 +188,203 @@ async function parseTextBytes(name,bytes){
   if(ext==='docx')return docxText(bytes.slice().buffer);
   throw new Error('Không hỗ trợ .'+ext);
 }
-async function parseStoryFile(file){
-  hideMessage(uploadMessage);
-  const ext=extOf(file.name),buffer=await file.arrayBuffer();
-  state.sourceName=file.name;
-  let chapters=[],title=cleanTitle(baseName(file.name)),zipCover=null,zipCoverMime='';
-  if(ext==='txt'){
-    chapters=splitChapters(new TextDecoder('utf-8').decode(buffer));
-  }else if(ext==='docx'){
-    chapters=splitChapters(await docxText(buffer));
-  }else if(ext==='zip'){
-    const entries=readZipEntries(buffer);
-    const docs=entries.filter(e=>['txt','docx'].includes(extOf(e.name))).sort((a,b)=>naturalNumber(a.name)-naturalNumber(b.name)||a.name.localeCompare(b.name,'vi'));
-    if(!docs.length)throw new Error('ZIP chưa có TXT hoặc DOCX.');
-    const top=docs[0].name.replace(/\\/g,'/').split('/').filter(Boolean);
-    if(top.length>1)title=cleanTitle(top[0]); else title=cleanTitle(baseName(file.name));
+function showParse(text,type='info'){const el=$('parseMessage');if(!el)return;showMessage(el,text,type);}
+function hideParse(){const el=$('parseMessage');if(el)hideMessage(el);}
+function htmlToText(html){
+  const prepared=String(html||'')
+    .replace(/<br\s*\/?\s*>/gi,'\n')
+    .replace(/<\/(?:p|div|h[1-6]|li|tr|section|article)>/gi,'\n')
+    .replace(/<(?:p|div|h[1-6]|li|tr|section|article)\b[^>]*>/gi,'\n');
+  const doc=new DOMParser().parseFromString(prepared,'text/html');
+  return normalizeText(doc.body?.textContent||doc.documentElement?.textContent||'');
+}
+function htmlTitle(html){
+  const doc=new DOMParser().parseFromString(String(html||''),'text/html');
+  return normalizeText(doc.querySelector('h1,h2,title')?.textContent||'').split('\n')[0]||'';
+}
+function rtfToText(rtf){
+  let text=String(rtf||'')
+    .replace(/\\par[d]?\b/gi,'\n')
+    .replace(/\\line\b/gi,'\n')
+    .replace(/\\tab\b/gi,'\t')
+    .replace(/\\u(-?\d+)\??/g,(_,n)=>String.fromCodePoint((Number(n)+65536)%65536))
+    .replace(/\\'([0-9a-f]{2})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)))
+    .replace(/\\[a-z]+-?\d* ?/gi,'')
+    .replace(/[{}]/g,'');
+  return normalizeText(text);
+}
+function xmlToText(xml){
+  return normalizeText(decodeXmlEntities(String(xml||'')
+    .replace(/<text:(?:line-break|tab)[^>]*\/>/gi,'\n')
+    .replace(/<\/(?:text:p|text:h|p|section|title)>/gi,'\n')
+    .replace(/<[^>]+>/g,'')));
+}
+function normalizeZipPath(path){
+  const parts=[];
+  for(const part of String(path||'').replace(/\\/g,'/').split('/')){
+    if(!part||part==='.')continue;
+    if(part==='..')parts.pop(); else parts.push(part);
+  }
+  return parts.join('/');
+}
+function resolveZipPath(baseFile,href){
+  const base=String(baseFile||'').replace(/\\/g,'/').split('/');base.pop();
+  return normalizeZipPath([...base,String(href||'')].join('/'));
+}
+async function odtText(buffer){
+  const entries=readZipEntries(buffer),content=entries.find(e=>e.name==='content.xml');
+  if(!content)throw new Error('ODT không có content.xml.');
+  return xmlToText(new TextDecoder('utf-8').decode(await extractZipEntry(buffer,content)));
+}
+async function epubBook(buffer,sourceName){
+  const entries=readZipEntries(buffer);
+  const byName=new Map(entries.map(e=>[normalizeZipPath(e.name),e]));
+  const container=byName.get('META-INF/container.xml');
+  let opfPath='';
+  if(container){
+    const xml=new TextDecoder('utf-8').decode(await extractZipEntry(buffer,container));
+    const doc=new DOMParser().parseFromString(xml,'application/xml');
+    opfPath=doc.querySelector('rootfile')?.getAttribute('full-path')||'';
+  }
+  if(!opfPath){
+    opfPath=[...byName.keys()].find(n=>n.toLowerCase().endsWith('.opf'))||'';
+  }
+  if(!opfPath)throw new Error('EPUB không tìm thấy package OPF.');
+  const opfEntry=byName.get(normalizeZipPath(opfPath));
+  if(!opfEntry)throw new Error('EPUB không đọc được package OPF.');
+  const opfXml=new TextDecoder('utf-8').decode(await extractZipEntry(buffer,opfEntry));
+  const opf=new DOMParser().parseFromString(opfXml,'application/xml');
+  const firstNs=(tag)=>opf.getElementsByTagNameNS('*',tag)?.[0]?.textContent?.trim()||'';
+  const title=firstNs('title')||cleanTitle(baseName(sourceName));
+  const author=firstNs('creator')||'';
+  const manifest=new Map();
+  for(const item of [...opf.getElementsByTagNameNS('*','item')]){
+    const id=item.getAttribute('id')||'',href=item.getAttribute('href')||'',media=item.getAttribute('media-type')||'',props=item.getAttribute('properties')||'';
+    if(id&&href)manifest.set(id,{path:resolveZipPath(opfPath,decodeURIComponent(href)),media,props});
+  }
+  const spineIds=[...opf.getElementsByTagNameNS('*','itemref')].map(x=>x.getAttribute('idref')||'').filter(Boolean);
+  let ordered=spineIds.map(id=>manifest.get(id)).filter(Boolean).filter(x=>/html|xhtml/i.test(x.media)&&!/nav/i.test(x.props));
+  if(!ordered.length)ordered=[...manifest.values()].filter(x=>/html|xhtml/i.test(x.media)&&!/nav/i.test(x.props));
+  const chapters=[];let fallback=1;
+  for(let i=0;i<ordered.length;i++){
+    const item=ordered[i],entry=byName.get(normalizeZipPath(item.path));if(!entry)continue;
+    const html=new TextDecoder('utf-8').decode(await extractZipEntry(buffer,entry));
+    const text=htmlToText(html);if(text.length<20)continue;
+    const embedded=splitChapters(text);
+    const startsWithHeading=/^(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet)\s*(?:\d+|[ivxlcdm]+)|^第\s*[0-9零〇一二两三四五六七八九十百千万]+\s*[章节回卷部篇]/i.test(text);
+    if(embedded.length>1||startsWithHeading){
+      chapters.push(...embedded);fallback=Math.max(fallback,...embedded.map(x=>x.chapterNumber))+1;
+    }else{
+      chapters.push({chapterNumber:fallback,title:htmlTitle(html)||('Chương '+fallback),content:text});fallback++;
+    }
+  }
+  if(!chapters.length)throw new Error('EPUB không tách được nội dung đọc.');
+  const coverMeta=[...opf.getElementsByTagNameNS('*','meta')].find(x=>(x.getAttribute('name')||'').toLowerCase()==='cover');
+  const coverId=coverMeta?.getAttribute('content')||'';
+  let coverItem=coverId?manifest.get(coverId):null;
+  if(!coverItem)coverItem=[...manifest.values()].find(x=>/cover-image/i.test(x.props)||/^image\//i.test(x.media)&&/cover|bia|bìa/i.test(x.path));
+  let coverBlob=null,coverMime='';
+  if(coverItem){
+    const ce=byName.get(normalizeZipPath(coverItem.path));
+    if(ce){const bytes=await extractZipEntry(buffer,ce);coverMime=coverItem.media||imageMime(coverItem.path);coverBlob=new Blob([bytes],{type:coverMime});}
+  }
+  return {title,author,chapters:chapters.sort((a,b)=>a.chapterNumber-b.chapterNumber),coverBlob,coverMime};
+}
+async function ocrRecognize(source,label){
+  if(!globalThis.Tesseract)throw new Error('Bộ OCR chưa tải được. Hãy kiểm tra mạng rồi tải file lại.');
+  const candidates=state.ocrLang?[state.ocrLang]:['vie+eng+chi_sim','vie+eng','eng'];
+  let lastError=null;
+  for(const lang of candidates){
+    try{
+      const result=await globalThis.Tesseract.recognize(source,lang,{logger:m=>{if(m?.status==='recognizing text'&&typeof m.progress==='number')showParse(label+' · OCR '+Math.round(m.progress*100)+'%','info');}});
+      state.ocrLang=lang;
+      return normalizeText(result?.data?.text||'');
+    }catch(err){lastError=err;}
+  }
+  throw lastError||new Error('OCR thất bại.');
+}
+async function pdfText(buffer,label){
+  const pdfjs=globalThis.pdfjsLib;
+  if(!pdfjs)throw new Error('Bộ đọc PDF chưa tải được. Hãy kiểm tra mạng rồi tải lại.');
+  pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await pdfjs.getDocument({data:new Uint8Array(buffer)}).promise;
+  const pages=[];
+  for(let n=1;n<=pdf.numPages;n++){
+    showParse('Đang đọc PDF trang '+n+'/'+pdf.numPages+'…','info');
+    const page=await pdf.getPage(n);
+    const tc=await page.getTextContent();
+    let text=normalizeText((tc.items||[]).map(x=>x.str||'').join(' '));
+    if(text.replace(/\s/g,'').length<80){
+      const viewport=page.getViewport({scale:1.65}),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+      canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+      await page.render({canvasContext:ctx,viewport}).promise;
+      text=await ocrRecognize(canvas,'PDF trang '+n+'/'+pdf.numPages);
+    }
+    if(text)pages.push(text);
+  }
+  const all=normalizeText(pages.join('\n\n'));
+  if(!all)throw new Error('PDF không nhận diện được chữ.');
+  return all;
+}
+async function parseBytesToText(name,bytes){
+  const ext=extOf(name);
+  if(ext==='txt'||ext==='md')return normalizeText(new TextDecoder('utf-8').decode(bytes));
+  if(ext==='html'||ext==='htm')return htmlToText(new TextDecoder('utf-8').decode(bytes));
+  if(ext==='rtf')return rtfToText(new TextDecoder('utf-8').decode(bytes));
+  if(ext==='fb2')return xmlToText(new TextDecoder('utf-8').decode(bytes));
+  if(ext==='docx')return docxText(bytes.slice().buffer);
+  if(ext==='odt')return odtText(bytes.slice().buffer);
+  if(ext==='pdf')return pdfText(bytes.slice().buffer,name);
+  throw new Error('Không hỗ trợ .'+ext);
+}
+async function parseZipStory(buffer,fileName){
+  const entries=readZipEntries(buffer);
+  const contentExts=new Set(['txt','md','html','htm','rtf','fb2','docx','odt','pdf']);
+  const docs=entries.filter(e=>contentExts.has(extOf(e.name))).sort((a,b)=>naturalNumber(a.name)-naturalNumber(b.name)||a.name.localeCompare(b.name,'vi'));
+  const images=entries.filter(e=>['jpg','jpeg','png','webp'].includes(extOf(e.name)));
+  let chapters=[],title=cleanTitle(baseName(fileName)),coverBlob=null,coverMime='';
+  if(docs.length){
+    const top=docs[0].name.replace(/\\/g,'/').split('/').filter(Boolean);if(top.length>1)title=cleanTitle(top[0]);
     let fallback=1;
     for(const entry of docs){
-      const bytes=await extractZipEntry(buffer,entry),text=await parseTextBytes(entry.name,bytes),embedded=splitChapters(text),num=naturalNumber(entry.name);
+      showParse('Đang đọc '+entry.name+'…','info');
+      const bytes=await extractZipEntry(buffer,entry),text=await parseBytesToText(entry.name,bytes),embedded=splitChapters(text),num=naturalNumber(entry.name);
       if(embedded.length>1){chapters.push(...embedded);fallback=Math.max(fallback,...embedded.map(x=>x.chapterNumber))+1;}
       else{const n=Number.isFinite(num)&&num!==Number.MAX_SAFE_INTEGER?num:fallback++;chapters.push({chapterNumber:n,title:chapterTitleFromFilename(entry.name,n),content:embedded[0]?.content||text});}
     }
-    const images=entries.filter(e=>['jpg','jpeg','png','webp'].includes(extOf(e.name)));
     const cover=images.find(e=>/(?:^|[\/_-])(cover|bia|bìa)(?:[._-]|$)/i.test(e.name))||images[0];
-    if(cover){const bytes=await extractZipEntry(buffer,cover);zipCoverMime=extOf(cover.name)==='png'?'image/png':extOf(cover.name)==='webp'?'image/webp':'image/jpeg';zipCover=new Blob([bytes],{type:zipCoverMime});}
-  }else throw new Error('Chỉ hỗ trợ TXT, DOCX hoặc ZIP.');
+    if(cover){const bytes=await extractZipEntry(buffer,cover);coverMime=imageMime(cover.name);coverBlob=new Blob([bytes],{type:coverMime});}
+  }else if(images.length){
+    const sorted=images.sort((a,b)=>naturalNumber(a.name)-naturalNumber(b.name)||a.name.localeCompare(b.name,'vi'));
+    const pageTexts=[];
+    for(let i=0;i<sorted.length;i++){const bytes=await extractZipEntry(buffer,sorted[i]);pageTexts.push(await ocrRecognize(new Blob([bytes],{type:imageMime(sorted[i].name)}),'Ảnh '+(i+1)+'/'+sorted.length));}
+    chapters=splitChapters(pageTexts.join('\n\n'));
+  }else throw new Error('ZIP chưa có định dạng truyện hỗ trợ.');
+  return {title,chapters:chapters.filter(x=>x.content.trim()).sort((a,b)=>a.chapterNumber-b.chapterNumber),coverBlob,coverMime};
+}
+async function parseStoryFile(file){
+  hideMessage(uploadMessage);hideParse();
+  state.coverBlob=null;state.coverMime='';
+  const ext=extOf(file.name),buffer=await file.arrayBuffer();
+  state.sourceName=file.name;
+  let chapters=[],title=cleanTitle(baseName(file.name)),detectedAuthor='',coverBlob=null,coverMime='';
+  showParse('Đang tự nhận dạng '+file.name+'…','info');
+  if(ext==='epub'){
+    const epub=await epubBook(buffer,file.name);chapters=epub.chapters;title=epub.title;detectedAuthor=epub.author;coverBlob=epub.coverBlob;coverMime=epub.coverMime;
+  }else if(ext==='zip'){
+    const parsed=await parseZipStory(buffer,file.name);chapters=parsed.chapters;title=parsed.title;coverBlob=parsed.coverBlob;coverMime=parsed.coverMime;
+  }else if(['jpg','jpeg','png','webp'].includes(ext)){
+    const text=await ocrRecognize(file,'Đang đọc ảnh');chapters=splitChapters(text);
+  }else{
+    const text=await parseBytesToText(file.name,new Uint8Array(buffer));chapters=splitChapters(text);
+  }
   state.chapters=chapters.filter(x=>x.content.trim()).sort((a,b)=>a.chapterNumber-b.chapterNumber);
+  if(!state.chapters.length)throw new Error('Không nhận diện được chương/nội dung hợp lệ từ file.');
   $('bookTitle').value=title;$('pasteTitle').value=title;
-  if(zipCover)setCover(zipCover,zipCoverMime);
+  if(detectedAuthor&&!$('authorName').value.trim())$('authorName').value=detectedAuthor;
+  if(coverBlob)setCover(coverBlob,coverMime);
   renderPreview();
+  showParse('✓ Đã nhận dạng '+file.name+' · '+state.chapters.length+' chương.','success');
 }
 async function ensureAdmin(){
   if(!state.token||!state.userId)return false;
