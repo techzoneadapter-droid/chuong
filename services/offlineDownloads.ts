@@ -5,9 +5,11 @@ import { Book, Chapter } from '../types';
 const MANIFEST_KEY = 'chuong:offline-manifest:v2';
 const WEB_PAYLOAD_PREFIX = 'chuong:offline-payload:v2:';
 const ROOT_DIRECTORY = 'chuong-offline-v2';
-const DEFAULT_QUOTA_BYTES = 250 * 1024 * 1024;
+export const STANDARD_OFFLINE_QUOTA_BYTES = 100 * 1024 * 1024;
+export const PREMIUM_OFFLINE_QUOTA_BYTES = 2 * 1024 * 1024 * 1024;
+const DEFAULT_QUOTA_BYTES = STANDARD_OFFLINE_QUOTA_BYTES;
 const MIN_QUOTA_BYTES = 50 * 1024 * 1024;
-const MAX_QUOTA_BYTES = 1024 * 1024 * 1024;
+const MAX_QUOTA_BYTES = PREMIUM_OFFLINE_QUOTA_BYTES;
 const VIP_OFFLINE_LICENSE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export class OfflineLicenseExpiredError extends Error {
@@ -459,6 +461,17 @@ export async function setOfflineQuotaBytes(bytes: number) {
   return getOfflineStorageStats();
 }
 
+export async function applyOfflineStoragePlan(isPremium: boolean) {
+  const manifest = await readManifest();
+  const target = isPremium ? PREMIUM_OFFLINE_QUOTA_BYTES : STANDARD_OFFLINE_QUOTA_BYTES;
+  if (manifest.quotaBytes !== target) {
+    manifest.quotaBytes = target;
+    await enforceQuota(manifest);
+    await writeManifest(manifest);
+  }
+  return getOfflineStorageStats();
+}
+
 export async function clearOfflineDownloads() {
   const manifest = await readManifest();
   await Promise.all(manifest.chapters.map((item) => deletePayload(item.key)));
@@ -480,5 +493,6 @@ export async function pruneExpiredVipDownloads() {
 export function formatOfflineBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 * 1024 ? 1 : 0)} GB`;
 }
