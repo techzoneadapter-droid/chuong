@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FormField } from '../../../components/Form';
 import { XianxiaBackdrop } from '../../../components/XianxiaBackdrop';
@@ -31,6 +31,8 @@ export default function AdminCreateCatalogBookScreen() {
   const [tags, setTags] = useState('tu tiên, huyền huyễn');
   const [language, setLanguage] = useState('vi');
   const [sourceType, setSourceType] = useState<SourceType>('authorized');
+  const [isVip, setIsVip] = useState(false);
+  const [priceCoins, setPriceCoins] = useState(0);
   const [cover, setCover] = useState<{ uri: string; mimeType?: string } | null>(null);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,6 +74,7 @@ export default function AdminCreateCatalogBookScreen() {
     if (!user || profile?.role !== 'admin') return;
     if (!ownerAuthorId) return setError('Cần chọn tác giả sở hữu nội bộ cho truyện.');
     if (!rightsConfirmed) return setError('Cần xác nhận quyền sử dụng và phân phối nội dung.');
+    if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
     setLoading(true);
     setError('');
     try {
@@ -84,6 +87,8 @@ export default function AdminCreateCatalogBookScreen() {
         tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
         language,
         sourceType,
+        isVip,
+        priceCoins: isVip ? priceCoins : 0,
       });
       if (cover) await replaceBookCover(user.id, bookId, cover.uri, cover.mimeType);
       router.replace({ pathname: '/admin/catalog/[bookId]', params: { bookId } });
@@ -133,6 +138,11 @@ export default function AdminCreateCatalogBookScreen() {
         <FormField label="Thể loại" value={genre} onChangeText={setGenre} placeholder="Tiên hiệp" />
         <FormField label="Tags" value={tags} onChangeText={setTags} placeholder="tu tiên, huyền huyễn, hệ thống" />
         <FormField label="Ngôn ngữ" value={language} onChangeText={setLanguage} placeholder="vi" autoCapitalize="none" />
+        <View style={styles.vipCard}>
+          <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật để khóa toàn bộ truyện bằng Linh Thạch.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
+          {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Linh Thạch</Text></View> : null}
+          <Text style={styles.vipHint}>VIP toàn truyện dùng chung cơ chế mở khóa hiện tại; chương riêng lẻ vẫn có thể đặt VIP sau.</Text>
+        </View>
       </View>
 
       <Text style={styles.groupTitle}>Tác giả sở hữu nội bộ</Text>
@@ -228,4 +238,4 @@ const styles = StyleSheet.create({
   submitText: { flex: 1, color: xianxia.white, fontSize: 12, fontWeight: '900' },
   disabled: { opacity: .48 },
   muted: { color: xianxia.muted, fontSize: 10 },
-});
+, vipCard: { marginTop: 8, padding: 11, borderRadius: 13, backgroundColor: '#F7F0DF', borderWidth: 1, borderColor: '#D8C6A0' }, vipRow: { flexDirection: 'row', alignItems: 'center', gap: 10 }, vipTitle: { color: '#5D431D', fontSize: 9.5, fontWeight: '900' }, vipBody: { color: '#7E6C51', fontSize: 8, lineHeight: 12, marginTop: 3 }, vipPriceRow: { marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 7 }, vipPriceLabel: { flex: 1, color: '#5D431D', fontSize: 8.5, fontWeight: '800' }, vipPriceInput: { width: 84, height: 36, borderRadius: 9, borderWidth: 1, borderColor: '#D8C6A0', backgroundColor: '#FFFDF7', textAlign: 'center', color: '#5D431D', fontWeight: '900' }, vipUnit: { color: '#7E6C51', fontSize: 8, fontWeight: '800' }, vipHint: { color: '#8A795F', fontSize: 7.8, lineHeight: 12, marginTop: 7 }});
