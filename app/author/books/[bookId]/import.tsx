@@ -169,6 +169,7 @@ export default function AuthorImportBookScreen() {
           <Text style={styles.heroBody}>Nhập TXT / DOCX / ZIP hoặc dán toàn bộ bản convert. AI chỉ xuất hiện ở bước tải truyện này, không còn nằm trong màn đọc.</Text>
         </View>
       </View>
+      <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Nhắc về ảnh bìa</Text><Text style={styles.coverGuideText}>Bìa đẹp nhất: tỷ lệ 2:3 · 1200 × 1800 px · tối thiểu 800 × 1200 px · 300 KB – 1.5 MB là lý tưởng · tối đa 5 MB · ưu tiên WebP/JPG. Bạn có thể chọn bìa khi tạo/chỉnh thông tin truyện.</Text></View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {success ? <Text style={styles.success}>{success}</Text> : null}
@@ -267,6 +268,9 @@ const styles = StyleSheet.create({
   kicker: { color: xianxia.cinnabar, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.2 },
   topTitle: { color: xianxia.ink, fontSize: 18, fontWeight: '900', marginTop: 2 },
   page: { width: '100%', maxWidth: 780, alignSelf: 'center', padding: 16, paddingBottom: 54 },
+  coverGuide: { marginTop: 10, borderRadius: 13, padding: 11, backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#C4D7C8' },
+  coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900', marginBottom: 4 },
+  coverGuideText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13 },
   hero: { minHeight: 104, borderRadius: 20, padding: 16, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, flexDirection: 'row', alignItems: 'center', gap: 13 },
   heroTitle: { color: '#FFF8EA', fontSize: 14, fontWeight: '900' },
   heroBody: { color: 'rgba(255,248,234,.72)', fontSize: 9, lineHeight: 14, marginTop: 5 },
