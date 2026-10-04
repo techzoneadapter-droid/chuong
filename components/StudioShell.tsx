@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BrandLockup } from './Artwork';
 import { xianxia } from '../constants/xianxia';
+import { useAuth } from '../contexts/AuthContext';
 
 type StudioNav = 'overview' | 'upload' | 'books';
 
@@ -27,6 +28,12 @@ export function StudioShell({
   actions?: ReactNode;
 }) {
   const router = useRouter();
+  const { profile, logout } = useAuth();
+
+  const signOut = async () => {
+    await logout();
+    router.replace('/studio/login');
+  };
 
   return <View style={styles.root}>
     <View style={styles.sidebar}>
@@ -45,6 +52,10 @@ export function StudioShell({
 
       <View style={styles.sidebarSpacer} />
 
+      <View style={styles.adminIdentity}>
+        <View style={styles.adminAvatar}><Ionicons name="person-outline" size={16} color={xianxia.goldSoft} /></View>
+        <View style={{ flex: 1 }}><Text numberOfLines={1} style={styles.adminName}>{profile?.displayName || profile?.username || 'Quản trị viên'}</Text><Text style={styles.adminRole}>ADMIN · CONTENT STUDIO</Text></View>
+      </View>
       <Pressable style={styles.sideUtility} onPress={() => router.push('/admin')}>
         <Ionicons name="shield-checkmark-outline" size={17} color="#B6C4BE" />
         <Text style={styles.sideUtilityText}>Quản trị nền tảng</Text>
@@ -52,6 +63,10 @@ export function StudioShell({
       <Pressable style={styles.sideUtility} onPress={() => router.push('/(tabs)')}>
         <Ionicons name="phone-portrait-outline" size={17} color="#B6C4BE" />
         <Text style={styles.sideUtilityText}>Xem giao diện độc giả</Text>
+      </Pressable>
+      <Pressable style={styles.sideUtility} onPress={() => void signOut()}>
+        <Ionicons name="log-out-outline" size={17} color="#D8A6A0" />
+        <Text style={[styles.sideUtilityText, styles.logoutText]}>Đăng xuất Studio</Text>
       </Pressable>
       <Text style={styles.sidebarFoot}>Dữ liệu đồng bộ trực tiếp với app mobile CHƯƠNG.</Text>
     </View>
@@ -90,8 +105,13 @@ const styles = StyleSheet.create({
   navText: { color: '#B6C4BE', fontSize: 10, fontWeight: '800' },
   navTextActive: { color: '#FFF8EA' },
   sidebarSpacer: { flex: 1, minHeight: 30 },
+  adminIdentity: { minHeight: 58, borderRadius: 13, padding: 9, backgroundColor: 'rgba(255,255,255,.04)', borderWidth: 1, borderColor: '#2E433D', flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 7 },
+  adminAvatar: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(229,209,163,.08)', borderWidth: 1, borderColor: 'rgba(229,209,163,.25)', alignItems: 'center', justifyContent: 'center' },
+  adminName: { color: '#FFF8EA', fontSize: 9.5, fontWeight: '900' },
+  adminRole: { color: '#70837B', fontSize: 6.7, fontWeight: '900', letterSpacing: .7, marginTop: 2 },
   sideUtility: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 9 },
   sideUtilityText: { color: '#B6C4BE', fontSize: 9, fontWeight: '700' },
+  logoutText: { color: '#D8A6A0' },
   sidebarFoot: { color: '#70837B', fontSize: 7.5, lineHeight: 12, marginTop: 12 },
   main: { flex: 1, minWidth: 0 },
   topbar: { minHeight: 96, paddingHorizontal: 28, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: '#DDD5C8', backgroundColor: '#FBF8F2', flexDirection: 'row', alignItems: 'center', gap: 18 },
