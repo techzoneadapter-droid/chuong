@@ -55,6 +55,7 @@ const requiredFiles = [
   'app/admin/catalog/new.tsx',
   'app/admin/catalog/[bookId].tsx',
   'app/admin/catalog/import.tsx',
+  'app/author/books/[bookId]/import.tsx',
   'components/XianxiaBackdrop.tsx',
   'components/Artwork.tsx',
   'constants/xianxia.ts',
@@ -79,6 +80,8 @@ const requiredFiles = [
   'constants/brand-logo/chunk4.ts',
   'services/adminCatalog.ts',
   'services/adminImport.ts',
+  'services/authorImport.ts',
+  'services/premiumAi.ts',
   'services/tts.ts',
   'hooks/useTtsPlayer.ts',
   'services/community.ts',
@@ -92,6 +95,8 @@ const requiredFiles = [
   'docs/OFFLINE_READING.md',
   'docs/READING_ANALYTICS.md',
   'docs/READ_ALOUD.md',
+  'supabase/functions/ai-translate-book/index.ts',
+  'supabase/migrations/202610040001_phase4n_premium_ai_translation.sql',
   'docs/COMMUNITY_SOCIAL.md',
 ];
 for (const file of requiredFiles) {
@@ -114,16 +119,25 @@ check(!homeSource.includes('CHƯỞNG'), 'Home source contains no CHƯỞNG typo
 const ttsSource = readFileSync(new URL('services/tts.ts', root), 'utf8');
 const ttsHookSource = readFileSync(new URL('hooks/useTtsPlayer.ts', root), 'utf8');
 check(ttsSource.includes("from 'expo-speech'"), 'Read-aloud uses Expo Speech instead of simulated playback');
+check(ttsSource.includes('Never fall back to an English/foreign voice'), 'TTS forbids foreign voice fallback for Vietnamese chapters');
 check(ttsHookSource.includes('speakTtsSegment') && ttsHookSource.includes('seekBySeconds'), 'TTS controller supports real playback and approximate seeking');
 
 const profileSource = readFileSync(new URL('app/(tabs)/profile.tsx', root), 'utf8');
 const readerSource = readFileSync(new URL('app/reader/[bookId].tsx', root), 'utf8');
 const settingsSource = readFileSync(new URL('app/settings/reading.tsx', root), 'utf8');
 const bulkImportSource = readFileSync(new URL('app/admin/catalog/import.tsx', root), 'utf8');
+const readerToolbarSource = readFileSync(new URL('components/ReaderToolbar.tsx', root), 'utf8');
+const authorImportSource = readFileSync(new URL('app/author/books/[bookId]/import.tsx', root), 'utf8');
+const premiumAiSource = readFileSync(new URL('services/premiumAi.ts', root), 'utf8');
+const aiWorkerSource = readFileSync(new URL('supabase/functions/ai-translate-book/index.ts', root), 'utf8');
 check(profileSource.includes("'/settings/reading'") && profileSource.includes("'/settings'"), 'Profile settings rows navigate to functional screens');
 check(readerSource.includes('pagedContent') && readerSource.includes('goReaderPage'), 'Reader page mode is implemented beyond preview-only UI');
 check(settingsSource.includes("reader:settings"), 'Reader appearance settings share the live persistent reader key');
 check(bulkImportSource.includes('parseAdminImportFile') && bulkImportSource.includes('importAdminCatalogChapters'), 'Admin bulk import is wired from parsing to chapter creation');
+check(!readerToolbarSource.includes("label: 'AI'"), 'Reader toolbar contains no reader-facing AI feature');
+check(authorImportSource.includes('AI dịch / làm mượt toàn truyện') && authorImportSource.includes('premium?.premium'), 'AI translation exists only in the author upload workflow and is Premium-gated in UI');
+check(premiumAiSource.includes("functions.invoke('ai-translate-book'"), 'Premium AI client calls the server worker');
+check(aiWorkerSource.includes('has_active_premium') && aiWorkerSource.includes('AI_TRANSLATE_API_KEY'), 'Server worker re-checks Premium and keeps AI credentials server-side');
 
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {
