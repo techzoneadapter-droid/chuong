@@ -105,40 +105,65 @@ export function formatTtsTime(seconds: number) {
   return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
-export async function getVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
-  try {
-    const voices = await Speech.getAvailableVoicesAsync();
-    const vietnamese = voices.filter((item) => item.language.toLowerCase().startsWith('vi'));
-    const preferred = vietnamese.length ? vietnamese : voices;
-    return preferred.map((item) => ({
-      identifier: item.identifier,
-      name: item.name,
-      language: item.language,
-      quality: String(item.quality ?? ''),
-    }));
-  } catch {
-    return [];
-  }
+function mapVoice(item: Awaited<ReturnType<typeof Speech.getAvailableVoicesAsync>>[number]): TtsVoiceInfo {
+  return {
+    identifier: item.identifier,
+    name: item.name,
+    language: item.language,
+    quality: String(item.quality ?? ''),
+  };
 }
 
-const femalePattern = /female|woman|nữ|mai|linh|thảo|thao|huyền|huyen|an$/i;
-const malePattern = /male|man|nam|minh|sơn|son|quang/i;
+export async function getVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
+  // Never fall back to an English/foreign voice. That was the cause of Vietnamese
+  // chapter text being spoken with a foreign accent in Chrome.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const voices = await Speech.getAvailableVoicesAsync();
+      const vietnamese = voices
+        .filter((item) => /^vi(?:-|_)/i.test(item.language) || /tiếng việt|vietnam/i.test(item.name))
+        .map(mapVoice);
+      if (vietnamese.length) return vietnamese;
+    } catch {
+      // Some web speech engines expose their voices slightly after page load.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+  }
+  return [];
+}
+
+const femalePattern = /female|woman|nữ|hoai\s?my|hoài\s?my|linh|mai|thảo|thao|huyền|huyen|google tiếng việt/i;
+const malePattern = /male|man|nam|minh|nam\s?minh|sơn|son|quang|dũng|dung/i;
+
+function scoredVoice(voices: TtsVoiceInfo[], preference: TtsVoice) {
+  const wanted = preference === 'Nam' ? malePattern : femalePattern;
+  const opposite = preference === 'Nam' ? femalePattern : malePattern;
+  return [...voices].sort((a, b) => {
+    const score = (item: TtsVoiceInfo) =>
+      (wanted.test(item.name) ? 20 : 0)
+      - (opposite.test(item.name) ? 10 : 0)
+      + (/enhanced|premium|natural|high/i.test(item.quality + ' ' + item.name) ? 2 : 0);
+    return score(b) - score(a);
+  })[0];
+}
 
 export function chooseTtsVoice(voices: TtsVoiceInfo[], preference: TtsVoice) {
-  if (!voices.length) return undefined;
-  if (preference === 'Nam') {
-    return voices.find((item) => malePattern.test(item.name))?.identifier
-      ?? voices[1]?.identifier
-      ?? voices[0]?.identifier;
-  }
-  return voices.find((item) => femalePattern.test(item.name))?.identifier
-    ?? voices[0]?.identifier;
+  // Only Vietnamese voices enter this function. If there are none, omit the
+  // explicit voice and let language=vi-VN ask the OS for its Vietnamese default.
+  return scoredVoice(voices, preference)?.identifier;
 }
 
 export function describeTtsVoice(voices: TtsVoiceInfo[], preference: TtsVoice) {
   const id = chooseTtsVoice(voices, preference);
   const selected = voices.find((item) => item.identifier === id);
-  return selected?.name || 'Giọng mặc định của thiết bị';
+  return selected?.name || 'Giọng tiếng Việt mặc định của thiết bị';
+}
+
+export function hasDistinctGenderVoices(voices: TtsVoiceInfo[]) {
+  if (voices.length < 2) return false;
+  const male = scoredVoice(voices.filter((item) => malePattern.test(item.name)), 'Nam');
+  const female = scoredVoice(voices.filter((item) => femalePattern.test(item.name)), 'Nữ');
+  return Boolean(male && female && male.identifier !== female.identifier);
 }
 
 export async function stopTts() {
