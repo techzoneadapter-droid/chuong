@@ -412,8 +412,9 @@ test('session restores profile, progress flushes through sync RPC, and logout cl
   await expect(page.getByText('Nội dung máy chủ 1', { exact: true })).toBeVisible();
   await page.mouse.wheel(0, 900);
 
-  await page.getByText('AI', { exact: true }).click();
-  await page.getByText('Convert chuẩn', { exact: false }).click();
+  // Leaving Reader flushes the current reading progress. AI is intentionally
+  // upload-only now and must not be used as a reader-side flush trigger.
+  await page.getByLabel('Quay lại trang truyện').click();
 
   await expect.poll(() => writes.filter((item) => item.table === 'sync_reading_progress').length).toBeGreaterThan(0);
   expect(writes.find((item) => item.table === 'sync_reading_progress')?.data.p_book_id).toBe(bookId);
