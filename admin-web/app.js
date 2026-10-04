@@ -129,13 +129,27 @@ function renderPreview() {
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[ch]));
 }
-function setCover(blob, mime) {
-  state.coverBlob=blob; state.coverMime=mime || blob?.type || 'image/jpeg';
+function setCover(blob, mime, label='') {
   const preview=$('coverPreview');
-  if (!blob) { preview.innerHTML='<span>Chưa có bìa</span>'; return; }
+  const previous=preview?.querySelector('img')?.src||'';
+  if(previous.startsWith('blob:')) URL.revokeObjectURL(previous);
+  state.coverBlob=blob||null;
+  state.coverMime=blob ? (mime || blob.type || 'image/jpeg') : '';
+  if(!blob){
+    preview.innerHTML='<span>Chưa có bìa</span>';
+    $('chooseCoverBtn').textContent='Chọn ảnh bìa';
+    $('removeCoverBtn').classList.add('hidden');
+    $('coverFileName').textContent='JPG / PNG / WebP · tối đa 5 MB. ZIP/EPUB có thể tự nhận ảnh bìa.';
+    const input=$('coverFile'); if(input) input.value='';
+    return;
+  }
   const url=URL.createObjectURL(blob);
   preview.innerHTML='<img alt="Ảnh bìa" src="'+url+'" />';
+  $('chooseCoverBtn').textContent='Chọn lại ảnh';
+  $('removeCoverBtn').classList.remove('hidden');
+  $('coverFileName').textContent=(label?label+' · ':'')+'JPG / PNG / WebP · tối đa 5 MB.';
 }
+function clearCover(){ setCover(null,''); }
 function extOf(name){ const m=String(name).toLowerCase().match(/\.([a-z0-9]+)$/); return m?m[1]:''; }
 function baseName(path){ const name=String(path).replace(/\\/g,'/').split('/').filter(Boolean).pop()||path; return name.replace(/\.[^.]+$/,''); }
 function naturalNumber(name){ const m=String(name).match(/(?:chuong|chương|chapter|chap)?[^0-9]*(\d{1,6})/i); return m?Number(m[1]):Number.MAX_SAFE_INTEGER; }
@@ -382,7 +396,7 @@ async function parseStoryFile(file){
   if(!state.chapters.length)throw new Error('Không nhận diện được chương/nội dung hợp lệ từ file.');
   $('bookTitle').value=title;$('pasteTitle').value=title;
   if(detectedAuthor&&!$('authorName').value.trim())$('authorName').value=detectedAuthor;
-  if(coverBlob)setCover(coverBlob,coverMime);
+  if(coverBlob)setCover(coverBlob,coverMime,'Bìa tự nhận từ '+file.name);
   renderPreview();
   showParse('✓ Đã nhận dạng '+file.name+' · '+state.chapters.length+' chương.','success');
 }
@@ -481,7 +495,13 @@ $('parsePasteBtn').addEventListener('click',()=>{
   state.chapters=splitChapters(raw);state.sourceName='Nội dung dán';
   const title=$('pasteTitle').value.trim()||'Truyện nhập từ Admin';$('bookTitle').value=title;renderPreview();hideMessage(uploadMessage);
 });
-$('coverFile').addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>5*1024*1024)return showMessage(uploadMessage,'Ảnh bìa cần nhỏ hơn 5 MB.');setCover(file,file.type);});
+$('chooseCoverBtn').addEventListener('click',()=> $('coverFile').click());
+$('removeCoverBtn').addEventListener('click',()=>{clearCover();hideMessage(uploadMessage);});
+$('coverFile').addEventListener('change',e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  if(file.size>5*1024*1024){e.target.value='';return showMessage(uploadMessage,'Ảnh bìa cần nhỏ hơn 5 MB.');}
+  setCover(file,file.type,file.name);hideMessage(uploadMessage);
+});
 async function uploadCover(bookId){
   if(!state.coverBlob)return null;
   const ext=state.coverMime==='image/png'?'png':state.coverMime==='image/webp'?'webp':'jpg';
