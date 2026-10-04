@@ -9,6 +9,7 @@ const routes = [
   ['/author/onboarding', 'Trở thành tác giả'], ['/author/books/new', 'Tạo truyện'],
   ['/author/books/demo/chapters/new', 'Trình soạn thảo chương'], ['/profile/edit', 'Chỉnh sửa hồ sơ'],
   ['/community', 'Cộng đồng'], ['/user/demo', 'Hồ sơ này không công khai'], ['/profile/privacy', 'Đăng nhập'],
+  ['/settings', 'Cài đặt'], ['/settings/reading', 'Giao diện & đọc'],
 ] as const;
 
 test('all requested demo routes render without runtime errors or overflow', async ({ page }) => {
@@ -47,6 +48,16 @@ test('anonymous library and reader progress/bookmarks persist across reload', as
 });
 
 test('reader settings and audio/AI demo remain interactive', async ({ page }) => {
+  await page.goto('/settings/reading');
+  await page.getByText('Lật trang', { exact: true }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('reader:settings'))).toContain('"mode":"page"');
+  await page.goto('/reader/kiem-yen-van?chapter=1');
+  await expect(page.getByText(/Lật trang · 1\//)).toBeVisible();
+  await page.getByText('Trang sau', { exact: true }).click();
+  await expect(page.getByText(/Lật trang · 2\//)).toBeVisible();
+  await page.getByText('Giao diện', { exact: true }).click();
+  await page.getByText('Cuộn dọc', { exact: true }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('reader:settings'))).toContain('"mode":"scroll"');
   await page.goto('/reader/kiem-yen-van?chapter=1');
   await page.getByText('Giao diện', { exact: true }).click();
   await expect(page.getByText('Cỡ chữ', { exact: true })).toBeVisible();
