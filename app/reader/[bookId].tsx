@@ -300,7 +300,10 @@ export default function ReaderScreen() {
   }, [autoScrolling, loading, lockedContent, settings.autoScrollSpeed, settings.mode]);
 
   useEffect(() => {
-    if (settings.mode !== 'scroll' && autoScrolling) setAutoScrolling(false);
+    if (settings.mode !== 'scroll' && autoScrolling) {
+      setAutoScrolling(false);
+      setControlsVisible(true);
+    }
   }, [autoScrolling, settings.mode]);
 
   const toggleAutoScroll = (enabled: boolean) => {
@@ -321,6 +324,7 @@ export default function ReaderScreen() {
   };
 
   const chooseTool = (tool: ReaderTool) => {
+    if (autoScrolling) setAutoScrolling(false);
     setSheet(tool);
     setControlsVisible(true);
   };
