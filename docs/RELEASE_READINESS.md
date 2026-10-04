@@ -1,5 +1,8 @@
 # CHƯƠNG — Phase 4L Release Readiness
 
+> 2026-10-04 audit update: production currently has **47/47 public tables with RLS enabled** and active Edge Functions `iap-verify`, `iap-events`, `push-dispatch`, `ai-translate-book`, and `subscription-verify`. Content Studio Web is now part of the release surface, and CI includes a runtime-source audit that rejects Han/CJK characters in UI copy. See `docs/PROJECT_AUDIT_2026-10-04.md`.
+
+
 Phase 4L turns the previous feature-by-feature checks into repeatable release gates. It does **not** declare the app store-ready by itself; physical-device and store-console items still require real credentials/devices.
 
 ## Automated source gates
@@ -37,8 +40,8 @@ CI installs Chromium and runs two isolated Expo web previews:
    - mobile-width overflow check
    - anonymous library persistence
    - bookmarks/progress persistence
-   - reader settings
-   - AI/audio demo
+   - reader settings and real TTS controls
+   - Premium/Content Studio public surfaces that do not require native billing
    - community/public-profile/privacy routes
 
 2. **Mock-backend regression**
@@ -62,7 +65,7 @@ No production user credentials are required for browser CI.
 
 Current production checks:
 
-- 44/44 public tables have RLS enabled
+- 47/47 public tables have RLS enabled
 - 0 public tables have RLS disabled
 - every current profile has a wallet row
 - every current profile has a reader-privacy row
@@ -77,6 +80,8 @@ Current production checks:
   - `iap-verify`
   - `iap-events`
   - `push-dispatch`
+  - `ai-translate-book`
+  - `subscription-verify`
 
 The four anonymous `SECURITY DEFINER` warnings added by Phase 4K are intentional privacy-filtered public read RPCs:
 
