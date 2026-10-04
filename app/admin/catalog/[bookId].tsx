@@ -17,32 +17,13 @@ import {
   importAdminCatalogChapters,
   setAdminCatalogBookStatus,
 } from '../../../services/adminCatalog';
+import { splitChaptersFromText } from '../../../services/adminImport';
 import { messageForError } from '../../../services/errors';
 import { replaceBookCover } from '../../../services/storage';
 import { Book, BookStatus, Chapter } from '../../../types';
 
 function parseBulkChapters(value: string): AdminChapterImport[] {
-  const lines = value.replace(/\r\n/g, '\n').split('\n');
-  const chapters: AdminChapterImport[] = [];
-  let current: AdminChapterImport | null = null;
-  const push = () => {
-    if (!current) return;
-    current.content = current.content.trim();
-    chapters.push(current);
-  };
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-    const match = line.match(/^\s*(?:#{1,4}\s*)?Chương\s+(\d+)\s*(?:(?::|[-–—])\s*(.+))?\s*$/i);
-    if (match) {
-      push();
-      const number = Number(match[1]);
-      current = { chapterNumber: number, title: match[2]?.trim() || `Chương ${number}`, content: '' };
-      continue;
-    }
-    if (current) current.content += (current.content ? '\n' : '') + raw;
-  }
-  push();
-  return chapters.filter((item) => item.content.trim().length > 0);
+  return splitChaptersFromText(value);
 }
 
 export default function AdminCatalogBookScreen() {
