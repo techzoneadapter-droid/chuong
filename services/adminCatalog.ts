@@ -32,6 +32,17 @@ export type AdminChapterImport = {
   content: string;
 };
 
+export type AdminCatalogBookMetadataInput = {
+  title: string;
+  creditedAuthorName?: string | null;
+  description: string;
+  genre: string;
+  tags: string[];
+  language: string;
+  sourceType: SourceType;
+};
+
+
 async function requireAdmin() {
   const client = requireSupabase();
   const { data: auth, error: authError } = await client.auth.getUser();
@@ -143,6 +154,68 @@ export async function createAdminCatalogBook(input: AdminCatalogBookInput) {
   }
 
   return data.id;
+}
+
+export async function updateAdminCatalogBookMetadata(bookId: string, input: AdminCatalogBookMetadataInput) {
+  const { client } = await requireAdmin();
+  if (input.title.trim().length < 2) throw new Error('Tên truyện cần có ít nhất 2 ký tự.');
+  if (input.description.trim().length < 20) throw new Error('Mô tả cần có ít nhất 20 ký tự.');
+  if (!input.genre.trim()) throw new Error('Vui lòng nhập thể loại.');
+
+  const { error: bookError } = await client
+    .from('books')
+    .update({
+      title: input.title.trim(),
+      credited_author_name: input.creditedAuthorName?.trim() || null,
+      description: input.description.trim(),
+      tags: input.tags,
+      language: input.language.trim() || 'vi',
+      source_type: input.sourceType,
+    })
+    .eq('id', bookId);
+  if (bookError) throw toServiceError(bookError, 'Không thể cập nhật thông tin truyện.');
+
+  const { data: existingGenres, error: readGenreError } = await client
+    .from('book_genres')
+    .select('genre')
+    .eq('book_id', bookId);
+  if (readGenreError) throw toServiceError(readGenreError, 'Không thể tải thể loại hiện tại.');
+
+  const { error: deleteGenreError } = await client.from('book_genres').delete().eq('book_id', bookId);
+  if (deleteGenreError) throw toServiceError(deleteGenreError, 'Không thể cập nhật thể loại.');
+
+  const { error: insertGenreError } = await client.from('book_genres').insert({ book_id: bookId, genre: input.genre.trim() });
+  if (insertGenreError) {
+    if (existingGenres?.length) {
+      await client.from('book_genres').insert(existingGenres.map((item) => ({ book_id: bookId, genre: item.genre })));
+    }
+    throw toServiceError(insertGenreError, 'Không thể lưu thể loại mới.');
+  }
+}
+
+export async function setAdminCatalogChapterStatus(bookId: string, chapterId: string, status: 'draft' | 'published') {
+  const { client } = await requireAdmin();
+  const { data: chapter, error: readError } = await client
+    .from('chapters')
+    .select('id,title,content')
+    .eq('id', chapterId)
+    .eq('book_id', bookId)
+    .maybeSingle();
+  if (readError) throw toServiceError(readError, 'Không thể tải chương.');
+  if (!chapter) throw new Error('Không tìm thấy chương.');
+  if (status === 'published' && String(chapter.content || '').trim().length < 50) {
+    throw new Error('Chương cần ít nhất 50 ký tự trước khi xuất bản.');
+  }
+
+  const { error } = await client
+    .from('chapters')
+    .update({
+      status,
+      published_at: status === 'published' ? new Date().toISOString() : null,
+    })
+    .eq('id', chapterId)
+    .eq('book_id', bookId);
+  if (error) throw toServiceError(error, 'Không thể đổi trạng thái chương.');
 }
 
 export async function getAdminCatalogChapters(bookId: string): Promise<Chapter[]> {
