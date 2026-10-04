@@ -95,8 +95,10 @@ const requiredFiles = [
   'docs/OFFLINE_READING.md',
   'docs/READING_ANALYTICS.md',
   'docs/READ_ALOUD.md',
+  'docs/PREMIUM_AI_TRANSLATION.md',
   'supabase/functions/ai-translate-book/index.ts',
   'supabase/migrations/202610040001_phase4n_premium_ai_translation.sql',
+  'supabase/migrations/202610040002_phase4n_premium_gate_hardening.sql',
   'docs/COMMUNITY_SOCIAL.md',
 ];
 for (const file of requiredFiles) {
@@ -120,6 +122,8 @@ const ttsSource = readFileSync(new URL('services/tts.ts', root), 'utf8');
 const ttsHookSource = readFileSync(new URL('hooks/useTtsPlayer.ts', root), 'utf8');
 check(ttsSource.includes("from 'expo-speech'"), 'Read-aloud uses Expo Speech instead of simulated playback');
 check(ttsSource.includes('Never fall back to an English/foreign voice'), 'TTS forbids foreign voice fallback for Vietnamese chapters');
+check(ttsHookSource.includes("Thiết bị chưa có giọng tiếng Việt"), 'TTS blocks playback rather than using a foreign voice when vi-VN is unavailable');
+check(ttsHookSource.includes("prefs.voice === 'Nam' ? 0.82 : 1.08"), 'TTS differentiates Nam/Nữ by pitch when only one Vietnamese system voice exists');
 check(ttsHookSource.includes('speakTtsSegment') && ttsHookSource.includes('seekBySeconds'), 'TTS controller supports real playback and approximate seeking');
 
 const profileSource = readFileSync(new URL('app/(tabs)/profile.tsx', root), 'utf8');
@@ -138,6 +142,8 @@ check(!readerToolbarSource.includes("label: 'AI'"), 'Reader toolbar contains no 
 check(authorImportSource.includes('AI dịch / làm mượt toàn truyện') && authorImportSource.includes('premium?.premium'), 'AI translation exists only in the author upload workflow and is Premium-gated in UI');
 check(premiumAiSource.includes("functions.invoke('ai-translate-book'"), 'Premium AI client calls the server worker');
 check(aiWorkerSource.includes('has_active_premium') && aiWorkerSource.includes('AI_TRANSLATE_API_KEY'), 'Server worker re-checks Premium and keeps AI credentials server-side');
+check(aiWorkerSource.includes('splitChapterContent') && aiWorkerSource.includes('ai_translation_revisions'), 'Whole-book AI chunks long chapters and preserves durable revisions');
+check(!existsSync(new URL('app/ai/convert.tsx', root)) && !existsSync(new URL('app/ai/recap.tsx', root)) && !existsSync(new URL('app/ai/chat.tsx', root)), 'Reader-facing AI routes are removed');
 
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {
