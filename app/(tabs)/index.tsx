@@ -49,6 +49,9 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => {
     let active = true;
+    // Always refresh the public catalog when Home regains focus so a newly
+    // published/uploaded book appears immediately without restarting the app.
+    setReload((value) => value + 1);
     if (!user) {
       setUnreadNotifications(0);
       return () => { active = false; };
