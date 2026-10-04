@@ -19,7 +19,7 @@ import {
 } from '../../../services/adminCatalog';
 import { splitChaptersFromText } from '../../../services/adminImport';
 import { messageForError } from '../../../services/errors';
-import { replaceBookCover } from '../../../services/storage';
+import { removeBookCover, replaceBookCover } from '../../../services/storage';
 import { Book, BookStatus, Chapter } from '../../../types';
 
 function parseBulkChapters(value: string): AdminChapterImport[] {
@@ -71,13 +71,31 @@ export default function AdminCatalogBookScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [2, 3], quality: .88 });
       if (result.canceled) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) return setError('Ảnh bìa cần nhỏ hơn 5 MB.');
       setBusy(true);
       setError('');
-      await replaceBookCover(user.id, book.id, result.assets[0].uri, result.assets[0].mimeType, book.coverUrl);
+      await replaceBookCover(user.id, book.id, asset.uri, asset.mimeType, book.coverUrl);
       setMessage('Đã cập nhật ảnh bìa.');
       await load();
     } catch (cause) {
       setError(messageForError(cause, 'Không thể thay ảnh bìa.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clearCover = async () => {
+    if (!user || !book || busy || !book.coverUrl) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await removeBookCover(user.id, book.id, book.coverUrl);
+      setMessage('Đã xóa ảnh bìa.');
+      await load();
+    } catch (cause) {
+      setError(messageForError(cause, 'Không thể xóa ảnh bìa.'));
     } finally {
       setBusy(false);
     }
@@ -149,14 +167,19 @@ export default function AdminCatalogBookScreen() {
       {message ? <View style={styles.successBox}><Ionicons name="checkmark-circle-outline" size={18} color="#4C7356" /><Text style={styles.successText}>{message}</Text></View> : null}
 
       <View style={styles.bookHero}>
-        <Pressable onPress={changeCover} style={styles.coverWrap}>
-          <View style={styles.cover}>
-            <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
-            <View pointerEvents="none" style={styles.coverShade} />
-            <View style={styles.coverEdit}><Ionicons name="camera" size={14} color={xianxia.white} /></View>
+        <View style={styles.coverWrap}>
+          <Pressable onPress={changeCover}>
+            <View style={styles.cover}>
+              <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+              <View pointerEvents="none" style={styles.coverShade} />
+              <View style={styles.coverEdit}><Ionicons name="camera" size={14} color={xianxia.white} /></View>
+            </View>
+          </Pressable>
+          <View style={styles.coverMiniActions}>
+            <Pressable disabled={busy} onPress={changeCover} style={styles.coverMiniButton}><Text style={styles.changeCover}>{busy ? 'Đang lưu…' : 'Chọn lại'}</Text></Pressable>
+            {book.coverUrl ? <Pressable disabled={busy} onPress={clearCover} style={styles.coverMiniDelete}><Text style={styles.coverMiniDeleteText}>Xóa ảnh</Text></Pressable> : null}
           </View>
-          <Text style={styles.changeCover}>{busy ? 'Đang lưu…' : 'Thay bìa'}</Text>
-        </Pressable>
+        </View>
         <View style={styles.heroCopy}>
           <Text style={styles.bookTitle}>{book.title}</Text>
           <Text style={styles.bookAuthor}>{book.author}</Text>
@@ -260,7 +283,11 @@ const styles = StyleSheet.create({
   cover: { width: 92, height: 138, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: xianxia.gold, justifyContent: 'center' },
   coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,20,18,.05)' },
   coverEdit: { position: 'absolute', right: 6, bottom: 6, width: 27, height: 27, borderRadius: 9, backgroundColor: 'rgba(25,39,35,.78)', alignItems: 'center', justifyContent: 'center' },
-  changeCover: { color: xianxia.cinnabar, fontSize: 8.5, fontWeight: '900', marginTop: 6 },
+  changeCover: { color: xianxia.cinnabar, fontSize: 8.5, fontWeight: '900' },
+  coverMiniActions: { marginTop: 6, gap: 5, alignItems: 'stretch', width: 92 },
+  coverMiniButton: { minHeight: 30, borderRadius: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', alignItems: 'center', justifyContent: 'center' },
+  coverMiniDelete: { minHeight: 30, borderRadius: 9, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', alignItems: 'center', justifyContent: 'center' },
+  coverMiniDeleteText: { color: xianxia.danger, fontSize: 8, fontWeight: '900' },
   heroCopy: { flex: 1, paddingVertical: 5 },
   bookTitle: { color: xianxia.ink, fontSize: 20, lineHeight: 25, fontWeight: '900' },
   bookAuthor: { color: xianxia.jade, fontSize: 11, fontWeight: '800', marginTop: 5 },
