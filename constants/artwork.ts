@@ -3,7 +3,10 @@ export const artwork = {
   banner: require('../assets/xianxia/library-banner.png'),
   emptyLibrary: require('../assets/xianxia/empty-library.png'),
   background: require('../assets/xianxia/app-background.jpg'),
-  logo: require('../assets/xianxia/logo-horizontal.png'),
+
+  // The previous horizontal raster wordmark was intentionally retired from UI:
+  // its brush lettering can be misread as “CHƯỞNG”. Brand text is now rendered
+  // as literal Unicode “CHƯƠNG” beside the emblem so the name is always exact.
   home: require('../assets/xianxia/nav-home.png'),
   discover: require('../assets/xianxia/nav-discover.png'),
   write: require('../assets/xianxia/nav-write.png'),
@@ -13,4 +16,10 @@ export const artwork = {
   button: require('../assets/xianxia/button-jade.png'),
   divider: require('../assets/xianxia/divider.png'),
   vip: require('../assets/xianxia/badge-vip.png'),
-};
+
+  // Original cover artwork restored from the supplied asset pack. These are
+  // used only as visual placeholders when a real book cover has not been set.
+  coverArchive: require('../assets/xianxia/cover-archive.png'),
+  coverBamboo: require('../assets/xianxia/cover-bamboo.png'),
+  coverPalace: require('../assets/xianxia/cover-palace.png'),
+} as const;
