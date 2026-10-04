@@ -3,16 +3,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ButtonArt } from '../../../../../components/Artwork';
-import { XianxiaBackdrop } from '../../../../../components/XianxiaBackdrop';
-import { xianxia } from '../../../../../constants/xianxia';
-import { useAuth } from '../../../../../contexts/AuthContext';
-import { parseAdminImportFile, parseAdminImportPaste, ParsedImportBook } from '../../../../../services/adminImport';
-import { importAuthorParsedBook } from '../../../../../services/authorImport';
-import { getAuthorForUser, getMyBooks } from '../../../../../services/authors';
-import { messageForError } from '../../../../../services/errors';
-import { getPremiumAiStatus, PremiumStatus, runWholeBookTranslation } from '../../../../../services/premiumAi';
-import { Book } from '../../../../../types';
+import { ButtonArt } from '../../../../components/Artwork';
+import { XianxiaBackdrop } from '../../../../components/XianxiaBackdrop';
+import { xianxia } from '../../../../constants/xianxia';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { parseAdminImportFile, parseAdminImportPaste, ParsedImportBook } from '../../../../services/adminImport';
+import { importAuthorParsedBook } from '../../../../services/authorImport';
+import { getAuthorForUser, getMyBooks } from '../../../../services/authors';
+import { messageForError } from '../../../../services/errors';
+import { getPremiumAiStatus, PremiumStatus, runWholeBookTranslation } from '../../../../services/premiumAi';
+import { Book } from '../../../../types';
 
 export default function AuthorImportBookScreen() {
   const router = useRouter();
