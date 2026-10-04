@@ -157,7 +157,7 @@ export default function AdminCatalogBookScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <XianxiaBackdrop />
     <View style={styles.topbar}>
-      <Pressable style={styles.iconButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={21} color={xianxia.ink} /></Pressable>
+      <Pressable style={styles.backButton} onPress={() => router.replace('/admin/catalog')}><Ionicons name="arrow-back" size={18} color={xianxia.ink} /><Text style={styles.backButtonText}>Quay lại</Text></Pressable>
       <View style={styles.topCopy}><Text style={styles.kicker}>TÀNG KINH CÁC · QUẢN LÝ</Text><Text numberOfLines={1} style={styles.topTitle}>{book.title}</Text></View>
       <Pressable style={styles.previewButton} onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })}><Ionicons name="eye-outline" size={19} color={xianxia.jadeDeep} /></Pressable>
     </View>
@@ -199,7 +199,7 @@ export default function AdminCatalogBookScreen() {
           ['draft', 'Riêng tư', 'lock-closed-outline'],
           ['ongoing', 'Đang ra', 'radio-outline'],
           ['completed', 'Hoàn thành', 'checkmark-done-outline'],
-          ['paused', 'Tạm dừng', 'pause-circle-outline'],
+          ['paused', 'Tạm dừng / Drop', 'pause-circle-outline'],
         ] as const).map(([value, label, icon]) => {
           const active = book.backendStatus === value;
           return <Pressable disabled={busy} key={value} onPress={() => changeStatus(value)} style={[styles.statusOption, active && styles.statusOptionActive]}>
@@ -264,8 +264,9 @@ export default function AdminCatalogBookScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: xianxia.paper },
-  topbar: { minHeight: 66, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(245,239,228,.90)' },
-  iconButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,253,247,.9)', borderWidth: 1, borderColor: xianxia.line },
+  topbar: { minHeight: 66, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(245,239,228,.96)', zIndex: 30, elevation: 8 },
+  backButton: { minWidth: 88, height: 40, borderRadius: 13, paddingHorizontal: 10, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,253,247,.96)', borderWidth: 1, borderColor: xianxia.line },
+  backButtonText: { color: xianxia.ink, fontSize: 8.5, fontWeight: '900' },
   previewButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B9CBBF' },
   topCopy: { flex: 1, marginLeft: 11, marginRight: 8 },
   kicker: { color: xianxia.cinnabar, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
