@@ -83,12 +83,17 @@
               </label>
             </div>
 
-            <label>Ảnh bìa
+            <div class="cover-field">
+              <div class="field-label">Ảnh bìa</div>
               <div class="cover-row">
                 <div id="coverPreview" class="cover-preview"><span>Chưa có bìa</span></div>
-                <div>
-                  <input id="coverFile" type="file" accept="image/jpeg,image/png,image/webp" />
-                  <p class="tiny">JPG / PNG / WebP · tối đa 5 MB. ZIP có thể tự nhận ảnh cover/bia.</p>
+                <div class="cover-controls">
+                  <input id="coverFile" class="cover-file-input" type="file" accept="image/jpeg,image/png,image/webp" />
+                  <div class="cover-actions">
+                    <button id="chooseCoverBtn" class="secondary cover-action" type="button">Chọn ảnh bìa</button>
+                    <button id="removeCoverBtn" class="danger-soft cover-action hidden" type="button">Xóa ảnh</button>
+                  </div>
+                  <p id="coverFileName" class="tiny">JPG / PNG / WebP · tối đa 5 MB. ZIP/EPUB có thể tự nhận ảnh bìa.</p>
                   <div class="cover-tip">
                     <strong>Khuyến nghị bìa đẹp nhất</strong>
                     <span>Tỷ lệ dọc 2:3 · nên dùng 1200 × 1800 px · tối thiểu 800 × 1200 px.</span>
@@ -97,7 +102,7 @@
                   </div>
                 </div>
               </div>
-            </label>
+            </div>
 
             <label class="check-row ai-row"><input id="aiTranslate" type="checkbox" /> <span><strong>AI dịch / làm mượt sang tiếng Việt</strong><small>Tự nhận diện ngôn ngữ nguồn, dịch đủ từng chương, giữ nguyên ý và không tóm tắt. Admin được phép dùng khi máy chủ AI đã cấu hình.</small></span></label>
             <div id="aiStatus" class="ai-status">Đang kiểm tra máy chủ AI…</div>
