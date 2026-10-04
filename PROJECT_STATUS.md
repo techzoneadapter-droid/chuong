@@ -1,5 +1,7 @@
 # CHƯƠNG — PROJECT STATUS
 
+> Current audit: **2026-10-04**. See `docs/PROJECT_AUDIT_2026-10-04.md` for the current production/source status. The chronological sections below preserve earlier phase notes and may describe limitations that were subsequently completed.
+
 Updated: 2026-10-03
 
 ## Live Supabase production backend
