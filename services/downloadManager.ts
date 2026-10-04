@@ -2,10 +2,12 @@ import { Book } from '../types';
 import { ContentLockedError, getChapter, getChaptersByBook } from './chapters';
 import { isInternetReachable } from './connectivity';
 import {
+  applyOfflineStoragePlan,
   getOfflineBookRecords,
   OfflineLicenseExpiredError,
   saveOfflineChapter,
 } from './offlineDownloads';
+import { getMembershipStatus } from './membership';
 
 export type DownloadSelection = 'current' | 'next20' | 'all';
 
@@ -29,10 +31,14 @@ export async function downloadBookForOffline(
   selection: DownloadSelection,
   currentChapter: number,
   onProgress?: (progress: OfflineDownloadProgress) => void,
+  userId?: string | null,
 ): Promise<OfflineDownloadResult> {
   if (!(await isInternetReachable())) {
     throw new Error('Cần kết nối mạng để tải thêm chương.');
   }
+
+  const membership = await getMembershipStatus(userId);
+  await applyOfflineStoragePlan(membership.isPremium);
 
   const chapterResult = await getChaptersByBook(book.id);
   const chapters = chapterResult.data;
