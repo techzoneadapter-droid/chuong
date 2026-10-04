@@ -71,6 +71,12 @@ export default function AdminCatalogScreen() {
         <Ionicons name="chevron-forward" size={18} color={xianxia.goldSoft} />
       </Pressable>
 
+      <Pressable style={styles.bulkCard} onPress={() => router.push('/admin/catalog/import')}>
+        <View style={styles.bulkIcon}><Ionicons name="documents-outline" size={21} color={xianxia.jadeDeep} /></View>
+        <View style={{ flex: 1 }}><Text style={styles.bulkTitle}>Nhập kho hàng loạt</Text><Text style={styles.bulkBody}>TXT · DOCX · ZIP → tự tách chương, kiểm tra trước khi nhập và có thể xuất bản hàng loạt.</Text></View>
+        <Ionicons name="chevron-forward" size={18} color={xianxia.jade} />
+      </Pressable>
+
       <Text style={styles.sectionTitle}>Danh mục hiện tại</Text>
       {loading ? <LoadingState label="Đang mở kho truyện…" /> : error ? <RetryState detail={error} onRetry={load} /> : books.length === 0 ? <EmptyState title="Kho truyện trống" detail="Hãy thêm truyện đầu tiên từ tài khoản quản trị." /> : books.map((book) => (
         <Pressable key={book.id} style={styles.bookRow} onPress={() => router.push({ pathname: '/admin/catalog/[bookId]', params: { bookId: book.id } })}>
@@ -115,6 +121,10 @@ const styles = StyleSheet.create({
   createIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: 'rgba(229,209,163,.10)', borderWidth: 1, borderColor: 'rgba(229,209,163,.35)', alignItems: 'center', justifyContent: 'center' },
   createTitle: { color: xianxia.white, fontSize: 13, fontWeight: '900' },
   createBody: { color: 'rgba(255,253,248,.64)', fontSize: 8.5, lineHeight: 13, marginTop: 4 },
+  bulkCard: { marginTop: 10, minHeight: 72, borderRadius: 17, paddingHorizontal: 14, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', flexDirection: 'row', alignItems: 'center', gap: 11 },
+  bulkIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,253,247,.66)', borderWidth: 1, borderColor: '#C8D6CC', alignItems: 'center', justifyContent: 'center' },
+  bulkTitle: { color: xianxia.ink, fontSize: 12, fontWeight: '900' },
+  bulkBody: { color: xianxia.jade, fontSize: 8.5, lineHeight: 13, marginTop: 3 },
   sectionTitle: { color: xianxia.ink, fontSize: 17, fontWeight: '900', marginTop: 27, marginBottom: 8 },
   bookRow: { minHeight: 112, borderRadius: 18, padding: 10, marginTop: 9, backgroundColor: 'rgba(255,253,247,.90)', borderWidth: 1, borderColor: xianxia.line, flexDirection: 'row', alignItems: 'center', gap: 12 },
   cover: { width: 62, height: 92, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: xianxia.gold, justifyContent: 'center' },
