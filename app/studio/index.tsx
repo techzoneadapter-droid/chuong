@@ -45,7 +45,7 @@ export default function ContentStudioDashboard() {
   useFocusEffect(useCallback(() => {
     if (authLoading) return;
     if (!user) {
-      router.replace('/auth/login');
+      router.replace('/studio/login');
       return;
     }
     if (profile?.role !== 'admin') {
