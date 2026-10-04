@@ -187,6 +187,7 @@ export default function AdminBulkImportScreen() {
         <View style={styles.heroIcon}><Ionicons name="documents-outline" size={25} color={xianxia.goldSoft} /></View>
         <View style={{ flex: 1 }}><Text style={styles.heroTitle}>TXT · DOCX · ZIP → truyện & chương</Text><Text style={styles.heroBody}>Tự tách tiêu đề “Chương 1, Chương 2…”. ZIP có thể chứa nhiều truyện theo thư mục; nếu có cover/bia JPG, PNG hoặc WebP cùng nhóm, hệ thống sẽ thử gắn bìa tự động.</Text></View>
       </View>
+      <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Chuẩn ảnh bìa khi nhập kho</Text><Text style={styles.coverGuideText}>Nếu ZIP/EPUB có bìa, nên dùng tỷ lệ 2:3 · 1200 × 1800 px · tối thiểu 800 × 1200 px · 300 KB – 1.5 MB là lý tưởng · tối đa 5 MB · ưu tiên WebP/JPG.</Text></View>
 
       {error ? <View style={styles.errorBox}><Ionicons name="alert-circle-outline" size={18} color={xianxia.danger} /><Text style={styles.errorText}>{error}</Text></View> : null}
       {result ? <View style={styles.successBox}><Ionicons name="checkmark-circle-outline" size={18} color="#47704D" /><Text style={styles.successText}>{result}</Text></View> : null}
@@ -276,6 +277,9 @@ const styles = StyleSheet.create({
   kicker: { color: xianxia.cinnabar, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.2 },
   topTitle: { color: xianxia.ink, fontSize: 18, fontWeight: '900', marginTop: 2 },
   page: { width: '100%', maxWidth: 820, alignSelf: 'center', padding: 16, paddingBottom: 54 },
+  coverGuide: { marginTop: 10, borderRadius: 13, padding: 11, backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#C4D7C8' },
+  coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900', marginBottom: 4 },
+  coverGuideText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13 },
   hero: { minHeight: 112, borderRadius: 20, padding: 16, backgroundColor: '#263E38', borderWidth: 1, borderColor: '#496A61', flexDirection: 'row', gap: 13, alignItems: 'center' },
   heroIcon: { width: 52, height: 52, borderRadius: 15, backgroundColor: 'rgba(229,209,163,.10)', borderWidth: 1, borderColor: 'rgba(229,209,163,.35)', alignItems: 'center', justifyContent: 'center' },
   heroTitle: { color: xianxia.white, fontSize: 14, fontWeight: '900' },
