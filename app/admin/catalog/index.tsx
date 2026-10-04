@@ -44,7 +44,7 @@ export default function AdminCatalogScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <XianxiaBackdrop />
     <View style={styles.topbar}>
-      <Pressable style={styles.iconButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={21} color={xianxia.ink} /></Pressable>
+      <Pressable style={styles.backButton} onPress={() => router.replace('/admin')}><Ionicons name="arrow-back" size={18} color={xianxia.ink} /><Text style={styles.backButtonText}>Quay lại</Text></Pressable>
       <View style={styles.topCopy}><Text style={styles.kicker}>TÀNG KINH CÁC · ADMIN</Text><Text style={styles.topTitle}>Kho truyện</Text></View>
       <Pressable style={styles.addButton} onPress={() => router.push('/admin/catalog/new')}><Ionicons name="add" size={22} color={xianxia.white} /></Pressable>
     </View>
@@ -89,6 +89,7 @@ export default function AdminCatalogScreen() {
             <Text numberOfLines={1} style={styles.bookAuthor}>{book.author} · {book.genre}</Text>
             <View style={styles.badges}>
               <Text style={[styles.badge, book.visibility === 'public' && book.backendStatus !== 'draft' ? styles.badgeLive : styles.badgeDraft]}>{book.visibility === 'public' && book.backendStatus !== 'draft' ? 'CÔNG KHAI' : 'RIÊNG TƯ'}</Text>
+              <Text style={styles.statusBadge}>{book.backendStatus === 'ongoing' ? 'ĐANG RA' : book.backendStatus === 'completed' ? 'HOÀN THÀNH' : book.backendStatus === 'paused' ? 'TẠM DỪNG / DROP' : 'BẢN NHÁP'}</Text>
               <Text style={styles.chapterBadge}>{book.totalChapters} chương</Text>
             </View>
           </View>
@@ -101,8 +102,9 @@ export default function AdminCatalogScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: xianxia.paper },
-  topbar: { minHeight: 66, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(245,239,228,.88)' },
-  iconButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,253,247,.88)', borderWidth: 1, borderColor: xianxia.line },
+  topbar: { minHeight: 66, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(245,239,228,.96)', zIndex: 30, elevation: 8 },
+  backButton: { minWidth: 88, height: 40, borderRadius: 13, paddingHorizontal: 10, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,253,247,.96)', borderWidth: 1, borderColor: xianxia.line },
+  backButtonText: { color: xianxia.ink, fontSize: 8.5, fontWeight: '900' },
   topCopy: { flex: 1, marginLeft: 11 },
   kicker: { color: xianxia.cinnabar, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   topTitle: { color: xianxia.ink, fontSize: 18, fontWeight: '900', marginTop: 2 },
@@ -136,5 +138,6 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 99, fontSize: 7, fontWeight: '900' },
   badgeLive: { backgroundColor: '#DCE9DF', color: '#446A4E' },
   badgeDraft: { backgroundColor: '#EEE5DA', color: '#7E6F5D' },
+  statusBadge: { color: xianxia.jadeDeep, backgroundColor: '#E8EFEA', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 99, fontSize: 7, fontWeight: '900' },
   chapterBadge: { color: xianxia.muted, backgroundColor: '#F0EBE2', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 99, fontSize: 7, fontWeight: '800' },
 });
