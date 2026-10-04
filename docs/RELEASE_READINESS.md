@@ -127,6 +127,7 @@ These cannot be safely invented or completed from source code alone:
    - push delivery and push deep links
    - IAP purchase / restore / refund
    - long reader sessions and background/foreground analytics
+   - real Vietnamese TTS playback, speed/voice changes, sleep timer and auto-next
    - community follow/mute/block/privacy across two real accounts
 
 ## Release rule
