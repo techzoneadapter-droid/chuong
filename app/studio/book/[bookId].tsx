@@ -18,7 +18,7 @@ import {
 } from '../../../services/adminCatalog';
 import { splitChaptersFromText } from '../../../services/adminImport';
 import { messageForError } from '../../../services/errors';
-import { replaceBookCover } from '../../../services/storage';
+import { removeBookCover, replaceBookCover } from '../../../services/storage';
 import { Book, BookStatus, Chapter, SourceType } from '../../../types';
 
 const statuses: { value: BookStatus; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -170,6 +170,22 @@ export default function StudioBookManager() {
     }
   };
 
+  const clearCover = async () => {
+    if (!user || !book || busy || !book.coverUrl) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await removeBookCover(user.id, book.id, book.coverUrl);
+      setMessage('Đã xóa ảnh bìa.');
+      await load();
+    } catch (cause) {
+      setError(messageForError(cause, 'Không thể xóa ảnh bìa.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const changeStatus = async (status: BookStatus) => {
     if (!book || busy) return;
     setBusy(true);
@@ -249,10 +265,16 @@ export default function StudioBookManager() {
     {message ? <View style={styles.success}><Ionicons name="checkmark-circle-outline" size={18} color="#47704D" /><Text style={styles.successText}>{message}</Text></View> : null}
 
     <View style={styles.hero}>
-      <Pressable style={styles.cover} onPress={changeCover}>
-        <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
-        <View style={styles.coverEdit}><Ionicons name="camera-outline" size={16} color="#FFF" /><Text style={styles.coverEditText}>Thay bìa</Text></View>
-      </Pressable>
+      <View style={styles.coverColumn}>
+        <Pressable style={styles.cover} onPress={changeCover}>
+          <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+          <View style={styles.coverEdit}><Ionicons name="camera-outline" size={16} color="#FFF" /><Text style={styles.coverEditText}>Thay bìa</Text></View>
+        </Pressable>
+        <View style={styles.coverActions}>
+          <Pressable disabled={busy} style={styles.coverAction} onPress={changeCover}><Text style={styles.coverActionText}>Chọn lại ảnh</Text></Pressable>
+          {book.coverUrl ? <Pressable disabled={busy} style={styles.coverDelete} onPress={clearCover}><Text style={styles.coverDeleteText}>Xóa ảnh</Text></Pressable> : null}
+        </View>
+      </View>
       <View style={styles.heroBody}>
         <Text style={styles.heroKicker}>TRUYỆN TRONG APP MOBILE</Text>
         <Text style={styles.heroTitle}>{book.title}</Text>
@@ -409,7 +431,13 @@ const styles = StyleSheet.create({
   coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900', marginBottom: 4 },
   coverGuideText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13 },
   hero: { minHeight: 220, borderRadius: 20, padding: 16, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E1D9CC', flexDirection: 'row', gap: 18 },
+  coverColumn: { width: 132 },
   cover: { width: 132, height: 194, borderRadius: 13, overflow: 'hidden', backgroundColor: '#EDE5D7', borderWidth: 1, borderColor: '#D9CCBA' },
+  coverActions: { marginTop: 7, gap: 5 },
+  coverAction: { minHeight: 32, borderRadius: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', alignItems: 'center', justifyContent: 'center' },
+  coverActionText: { color: xianxia.jadeDeep, fontSize: 8, fontWeight: '900' },
+  coverDelete: { minHeight: 32, borderRadius: 9, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', alignItems: 'center', justifyContent: 'center' },
+  coverDeleteText: { color: xianxia.danger, fontSize: 8, fontWeight: '900' },
   coverEdit: { position: 'absolute', left: 8, right: 8, bottom: 8, minHeight: 34, borderRadius: 10, backgroundColor: 'rgba(19,33,30,.86)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   coverEditText: { color: '#FFF8EA', fontSize: 8, fontWeight: '900' },
   heroBody: { flex: 1, justifyContent: 'center' },
