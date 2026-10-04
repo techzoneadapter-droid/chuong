@@ -24,6 +24,8 @@ export type AdminCatalogBookInput = {
   tags: string[];
   language: string;
   sourceType: SourceType;
+  isVip?: boolean;
+  priceCoins?: number;
 };
 
 export type AdminChapterImport = {
@@ -122,6 +124,9 @@ export async function createAdminCatalogBook(input: AdminCatalogBookInput) {
   if (input.description.trim().length < 20) throw new Error('Mô tả cần có ít nhất 20 ký tự.');
   if (!input.genre.trim()) throw new Error('Vui lòng nhập thể loại.');
   if (input.creditedAuthorName && input.creditedAuthorName.trim().length < 2) throw new Error('Tên tác giả hiển thị cần có ít nhất 2 ký tự.');
+  const isVip = Boolean(input.isVip);
+  const priceCoins = isVip ? Math.max(0, Number(input.priceCoins ?? 0)) : 0;
+  if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) throw new Error('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
 
   const slugBase = slugify(input.title) || 'truyen';
   const slug = `${slugBase}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -139,6 +144,8 @@ export async function createAdminCatalogBook(input: AdminCatalogBookInput) {
       status: 'draft',
       visibility: 'private',
       tags: input.tags,
+      is_vip: isVip,
+      price_coins: priceCoins,
     })
     .select('*')
     .single();
