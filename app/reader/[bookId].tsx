@@ -8,6 +8,7 @@ import { LoadingState, EmptyState, RetryState } from '../../components/States';
 import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
 import { useReadingAnalytics } from '../../hooks/useReadingAnalytics';
 import { messageForError } from '../../services/errors';
+import { AdBanner } from '../../components/AdBanner';
 import { Comments } from '../../components/Comments';
 import { BottomSheet } from '../../components/BottomSheet';
 import { ArtDivider, ButtonArt } from '../../components/Artwork';
@@ -388,6 +389,8 @@ export default function ReaderScreen() {
           </View> : null}
           {settings.mode !== 'page' || pageIndex === pagedContent.length - 1 ? <Text style={[styles.endMark, { color: palette.muted }]}>— Hết chương {chapterNumber} —</Text> : null}
         </Pressable>
+
+        <AdBanner dark={dark} />
 
         <View style={[styles.chapterNav, { borderColor: dark ? '#4C494B' : '#D9CCC4' }]}>
           <Pressable disabled={previousNumber === undefined} onPress={() => goChapter(previousNumber ?? chapterNumber)} style={[styles.navButton, previousNumber === undefined && styles.disabled]}><Ionicons name="chevron-back" size={16} color={palette.text} /><Text style={[styles.navText, { color: palette.text }]}>Chương trước</Text></Pressable>
