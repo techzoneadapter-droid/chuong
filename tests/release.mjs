@@ -31,6 +31,7 @@ check(packageJson.main === 'expo-router/entry', 'Expo Router entry is configured
 check(Boolean(packageJson.dependencies?.['expo-router']), 'Expo Router dependency exists');
 check(Boolean(packageJson.dependencies?.['expo-notifications']), 'Push notification dependency exists');
 check(Boolean(packageJson.dependencies?.['expo-iap']), 'Store billing dependency exists');
+check(packageJson.dependencies?.['expo-speech'] === '~14.0.8', 'Expo Speech matches SDK 54 compatible version');
 check(Boolean(easJson.build?.preview), 'EAS preview build profile exists');
 check(Boolean(easJson.build?.production), 'EAS production build profile exists');
 check(easJson.build?.production?.autoIncrement === true, 'Production build auto-increments native build numbers');
@@ -78,6 +79,8 @@ const requiredFiles = [
   'constants/brand-logo/chunk4.ts',
   'services/adminCatalog.ts',
   'services/adminImport.ts',
+  'services/tts.ts',
+  'hooks/useTtsPlayer.ts',
   'services/community.ts',
   'services/offlineDownloads.ts',
   'services/offlineSync.ts',
@@ -106,6 +109,11 @@ check(artworkComponentSource.includes("coverUrl"), 'Book covers still support up
 check(artworkComponentSource.includes('Chưa có bìa'), 'Missing book covers use a neutral no-cover state');
 check(!artworkSource.includes('coverPalace') && !artworkSource.includes('coverBamboo') && !artworkSource.includes('coverArchive'), 'Demo cover assets are not registered at runtime');
 check(!homeSource.includes('CHƯỞNG'), 'Home source contains no CHƯỞNG typo');
+
+const ttsSource = readFileSync(new URL('services/tts.ts', root), 'utf8');
+const ttsHookSource = readFileSync(new URL('hooks/useTtsPlayer.ts', root), 'utf8');
+check(ttsSource.includes("from 'expo-speech'"), 'Read-aloud uses Expo Speech instead of simulated playback');
+check(ttsHookSource.includes('speakTtsSegment') && ttsHookSource.includes('seekBySeconds'), 'TTS controller supports real playback and approximate seeking');
 
 const profileSource = readFileSync(new URL('app/(tabs)/profile.tsx', root), 'utf8');
 const readerSource = readFileSync(new URL('app/reader/[bookId].tsx', root), 'utf8');
