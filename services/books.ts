@@ -160,11 +160,15 @@ const slugify = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036
 
 export async function createBook(authorId: string, input: AuthorBookInput): Promise<Book> {
   const client = requireSupabase();
+  const isVip = Boolean(input.isVip);
+  const priceCoins = isVip ? Math.max(0, Number(input.priceCoins ?? 0)) : 0;
+  if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) throw new Error('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
   try {
     const slug = `${slugify(input.title) || 'truyen'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
     const { data, error } = await client.from('books').insert({
       author_id: authorId, title: input.title.trim(), slug, description: input.description.trim(), cover_url: input.coverUrl,
-      language: input.language, source_type: input.sourceType, status: 'draft', visibility: 'private', tags: input.tags, credited_author_name: input.creditedAuthorName?.trim() || null
+      language: input.language, source_type: input.sourceType, status: 'draft', visibility: 'private', tags: input.tags, credited_author_name: input.creditedAuthorName?.trim() || null,
+      is_vip: isVip, price_coins: priceCoins
     }).select('*').single();
     if (error) throw error;
     if (input.genre.trim()) {
@@ -195,7 +199,7 @@ export async function getPopularBooks(): Promise<ServiceResult<Book[]>> {
   const result = await getBooks();
   return { ...result, data: [...result.data].sort((a, b) => (b.viewsCount ?? 0) - (a.viewsCount ?? 0)) };
 }
-export async function updateBook(id: string, updates: Partial<Pick<BookRow, 'title' | 'description' | 'cover_url' | 'language' | 'source_type' | 'status' | 'visibility' | 'tags'>>) {
+export async function updateBook(id: string, updates: Partial<Pick<BookRow, 'title' | 'description' | 'cover_url' | 'language' | 'source_type' | 'status' | 'visibility' | 'tags' | 'is_vip' | 'price_coins'>>) {
   const { data, error } = await requireSupabase().from('books').update(updates).eq('id', id).select('*').single();
   if (error) throw toServiceError(error, 'Không thể cập nhật truyện.');
   return (await hydrateBooks([data]))[0];
