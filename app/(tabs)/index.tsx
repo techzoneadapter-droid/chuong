@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookCard } from '../../components/BookCard';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   emptyHome: { flex: 1, paddingTop: 42 },
   emptyBrand: { paddingHorizontal: 20, marginBottom: 12 },
   header: {
-    backgroundColor: 'rgba(255,248,234,.82)',
+    backgroundColor: 'rgba(255,248,234,.96)',
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 16,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   heroKicker: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   heroEyebrow: { color: xianxia.jadeDeep, fontSize: 10, fontWeight: '600' },
   heroPercent: { color: xianxia.jadeDeep, fontSize: 11, fontWeight: '600' },
-  heroTitle: { color: xianxia.ink, fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 25, lineHeight: 32, fontWeight: '600', marginTop: 8 },
+  heroTitle: { color: '#24231F', fontSize: 24, lineHeight: 31, fontWeight: '800', marginTop: 8 },
   heroAuthor: { color: xianxia.jade, fontSize: 12, fontWeight: '500', marginTop: 4 },
   heroSub: { color: xianxia.inkSoft, fontSize: 11, marginTop: 4 },
   track: { height: 3, borderRadius: 2, backgroundColor: xianxia.line, marginTop: 12, overflow: 'hidden' },
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   heroCoverTitle: { color: xianxia.white, fontSize: 14, lineHeight: 18, fontWeight: '900', textAlign: 'center' },
   heroCoverSeal: { position: 'absolute', right: 7, top: 7, width: 22, height: 22, borderRadius: 6, backgroundColor: 'rgba(122,43,34,.84)', borderWidth: 1, borderColor: 'rgba(229,209,163,.7)', alignItems: 'center', justifyContent: 'center' },
   heroCoverSealText: { color: '#F6DDA2', fontSize: 11, fontWeight: '900' },
-  quickRealm: { marginHorizontal: 16, marginTop: 16, backgroundColor: 'rgba(255,248,234,.88)', paddingVertical: 10, flexDirection: 'row', borderBottomWidth: 1, borderColor: xianxia.goldSoft },
+  quickRealm: { marginHorizontal: 16, marginTop: 16, backgroundColor: 'rgba(255,248,234,.96)', paddingVertical: 10, flexDirection: 'row', borderBottomWidth: 1, borderColor: xianxia.goldSoft },
   quickItem: { flex: 1, alignItems: 'center', paddingHorizontal: 5 },
   quickIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: xianxia.jadeMist, alignItems: 'center', justifyContent: 'center' },
   quickTitle: { color: xianxia.ink, fontSize: 11, fontWeight: '600', marginTop: 7 },
@@ -323,17 +323,17 @@ const styles = StyleSheet.create({
   sectionTitleWrap: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, flex: 1, paddingRight: 10 },
   sectionMark: { width: 18, height: 24, borderLeftWidth: 1, borderRightWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   sectionMarkDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: xianxia.cinnabar },
-  sectionTitle: { color: xianxia.ink, fontSize: 19, fontWeight: '600', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
-  sectionSub: { color: xianxia.muted, fontSize: 9, lineHeight: 13, marginTop: 3 },
+  sectionTitle: { color: '#24231F', fontSize: 18, lineHeight: 23, fontWeight: '800' },
+  sectionSub: { color: '#5F5A53', fontSize: 9.2, lineHeight: 14, marginTop: 3, fontWeight: '500' },
   seeAll: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900' },
-  row: { paddingLeft: 16, paddingRight: 2, paddingBottom: 12, backgroundColor: 'rgba(255,248,234,.9)' },
+  row: { paddingLeft: 16, paddingRight: 2, paddingBottom: 12, backgroundColor: 'rgba(255,248,234,.97)' },
   rankingRow: { paddingLeft: 16, paddingRight: 2, paddingBottom: 9, gap: 10 },
   rankingItem: { width: 146, marginRight: 4 },
-  rankingReason: { color: xianxia.muted, fontSize: 7.5, lineHeight: 11, marginTop: 5, paddingHorizontal: 2 },
+  rankingReason: { color: '#4F4A44', fontSize: 8, lineHeight: 12, marginTop: 6, paddingHorizontal: 4, fontWeight: '600' },
   recommendRow: { paddingLeft: 16, paddingRight: 2, paddingBottom: 5 },
   recommendItem: { width: 146, marginRight: 14 },
   reasonRow: { marginTop: 7, minHeight: 30, flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
-  reasonText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 12, flex: 1 },
+  reasonText: { color: '#4F4A44', fontSize: 8.8, lineHeight: 13, flex: 1, fontWeight: '500' },
   hideRecommend: { padding: 2 },
   recommendError: { marginHorizontal: 16, backgroundColor: '#F5E6E1', borderWidth: 1, borderColor: '#E5C5BA', borderRadius: 15, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' },
   recommendErrorText: { color: xianxia.cinnabar, fontSize: 10, flex: 1 },
