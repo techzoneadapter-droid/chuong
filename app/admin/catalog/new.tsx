@@ -101,7 +101,7 @@ export default function AdminCreateCatalogBookScreen() {
 
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
       <View style={styles.hero}>
-        <View style={styles.heroSeal}><Text style={styles.heroSealText}>录</Text></View>
+        <View style={styles.heroSeal}><Ionicons name="cloud-upload-outline" size={23} color={xianxia.goldSoft} /></View>
         <View style={{ flex: 1 }}><Text style={styles.heroTitle}>Nhập truyện vào kho CHƯƠNG</Text><Text style={styles.heroBody}>Tạo metadata và bìa trước, sau đó nhập chương hàng loạt. Truyện mới luôn riêng tư cho đến khi admin chủ động công khai.</Text></View>
       </View>
 
