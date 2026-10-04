@@ -47,6 +47,7 @@ export default function WriteScreen() {
       <Text style={styles.title}>Viết câu chuyện của bạn.</Text>
       <Text style={styles.body}>Tạo thế giới, đăng từng chương và xây cộng đồng độc giả trên CHƯƠNG.</Text>
       <Pressable style={styles.primaryButton} onPress={() => router.push('/auth/login')}>
+        <ButtonArt />
         <Ionicons name="log-in-outline" size={18} color={xianxia.goldSoft} />
         <Text style={styles.primaryButtonText}>Đăng nhập / Đăng ký</Text>
         <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
@@ -68,6 +69,7 @@ export default function WriteScreen() {
       <Text style={styles.title}>Trở thành tác giả CHƯƠNG.</Text>
       <Text style={styles.body}>Tạo bút danh, giới thiệu bản thân và xác nhận quyền sử dụng nội dung trước khi xuất bản.</Text>
       <Pressable style={styles.primaryButton} onPress={() => router.push('/author/onboarding')}>
+        <ButtonArt />
         <Ionicons name="brush-outline" size={18} color={xianxia.goldSoft} />
         <Text style={styles.primaryButtonText}>Trở thành tác giả</Text>
         <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
@@ -215,6 +217,6 @@ const styles = StyleSheet.create({
   statusPillText: { color: xianxia.jadeDeep, fontSize: 6.8, fontWeight: '900' },
   write: { minWidth: 48, minHeight: 50, borderRadius: 12, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
   writeText: { color: xianxia.white, fontSize: 8, fontWeight: '900', marginTop: 2 },
-  primaryButton: { position: 'relative', overflow: 'hidden', marginTop: 20, minHeight: 53, paddingHorizontal: 18, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center' },
-  primaryButtonText: { flex: 1, color: xianxia.white, fontSize: 12, fontWeight: '900', textAlign: 'center' },
+  primaryButton: { position: 'relative', overflow: 'hidden', marginTop: 20, minHeight: 56, borderRadius: 14, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, paddingHorizontal: 18, flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', shadowColor: '#2B342E', shadowOpacity: .18, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  primaryButtonText: { flex: 1, color: '#FFF8EA', fontSize: 12, fontWeight: '900', textAlign: 'center', textShadowColor: 'rgba(0,0,0,.28)', textShadowRadius: 2 },
 });
