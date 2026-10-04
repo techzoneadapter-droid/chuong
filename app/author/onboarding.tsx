@@ -25,14 +25,14 @@ export default function AuthorOnboardingScreen() {
     } catch (cause) { setError(messageForError(cause, 'Không thể hoàn tất đăng ký tác giả.')); }
     finally { setLoading(false); }
   };
-  return <FormScreen title="Trở thành tác giả" subtitle="Xây dựng trang tác giả và bắt đầu đăng nội dung bạn có quyền sử dụng.">
+  return <FormScreen title="Trở thành tác giả" subtitle="Xây dựng trang tác giả và bắt đầu đăng nội dung bạn có quyền sử dụng." backHref="/write">
     {!user ? <FormMessage>{configured ? 'Đăng nhập để trở thành tác giả.' : 'Demo · Biểu mẫu có thể xem trước. Cần Supabase để đăng ký tác giả.'}</FormMessage> : null}
     {error ? <FormMessage error>{error}</FormMessage> : null}
-    <Pressable style={styles.avatarPicker} onPress={pickAvatar}>{avatar ? <Image source={{ uri: avatar.uri }} style={styles.avatar} /> : <View style={styles.avatarEmpty}><Ionicons name="camera-outline" size={24} color="#8F1D3F" /></View>}<Text style={styles.avatarText}>{avatar ? 'Đổi avatar' : 'Chọn avatar'}</Text></Pressable>
+    <Pressable style={styles.avatarPicker} onPress={pickAvatar}>{avatar ? <Image source={{ uri: avatar.uri }} style={styles.avatar} /> : <View style={styles.avatarEmpty}><Ionicons name="camera-outline" size={24} color="#173F35" /></View>}<Text style={styles.avatarText}>{avatar ? 'Đổi avatar' : 'Chọn avatar'}</Text></Pressable>
     <FormField label="Bút danh" value={penName} onChangeText={setPenName} placeholder="Tên hiển thị với độc giả" maxLength={80} />
     <FormField label="Giới thiệu" value={bio} onChangeText={setBio} placeholder="Phong cách, thể loại bạn theo đuổi…" multiline maxLength={1000} />
-    <Pressable onPress={() => setAgreed((value) => !value)} style={styles.agreement}><Ionicons name={agreed ? 'checkbox' : 'square-outline'} size={23} color="#8F1D3F" /><Text style={styles.agreementText}>Tôi cam kết chỉ đăng nội dung mà tôi có quyền sử dụng.</Text></Pressable>
+    <Pressable onPress={() => setAgreed((value) => !value)} style={styles.agreement}><Ionicons name={agreed ? 'checkbox' : 'square-outline'} size={23} color="#173F35" /><Text style={styles.agreementText}>Tôi cam kết chỉ đăng nội dung mà tôi có quyền sử dụng.</Text></Pressable>
     <PrimaryButton label="Tạo hồ sơ tác giả" onPress={submit} loading={loading} disabled={!user} />
   </FormScreen>;
 }
-const styles = StyleSheet.create({ avatarPicker: { alignItems: 'center', marginBottom: 18 }, avatar: { width: 82, height: 82, borderRadius: 41 }, avatarEmpty: { width: 82, height: 82, borderRadius: 41, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' }, avatarText: { color: '#8F1D3F', fontSize: 11, fontWeight: '900', marginTop: 7 }, agreement: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginVertical: 6 }, agreementText: { flex: 1, color: '#554A4E', fontSize: 12, lineHeight: 18, fontWeight: '700' } });
+const styles = StyleSheet.create({ avatarPicker: { alignItems: 'center', marginBottom: 18 }, avatar: { width: 82, height: 82, borderRadius: 18 }, avatarEmpty: { width: 82, height: 82, borderRadius: 18, backgroundColor: '#E4EEE7', borderWidth: 1, borderColor: '#B8CBBF', alignItems: 'center', justifyContent: 'center' }, avatarText: { color: '#173F35', fontSize: 11, fontWeight: '900', marginTop: 7 }, agreement: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginVertical: 6 }, agreementText: { flex: 1, color: '#554A4E', fontSize: 12, lineHeight: 18, fontWeight: '700' } });
