@@ -44,6 +44,7 @@ const requiredFiles = [
   'app/book/[id].tsx',
   'app/reader/[bookId].tsx',
   'app/downloads.tsx',
+  'app/premium.tsx',
   'app/recommendations.tsx',
   'app/community/index.tsx',
   'app/user/[id].tsx',
@@ -58,6 +59,7 @@ const requiredFiles = [
   'app/author/books/[bookId]/import.tsx',
   'components/XianxiaBackdrop.tsx',
   'components/Artwork.tsx',
+  'components/AdBanner.tsx',
   'constants/xianxia.ts',
   'constants/artwork.ts',
   'assets/xianxia/app-background.jpg',
@@ -81,9 +83,11 @@ const requiredFiles = [
   'services/adminCatalog.ts',
   'services/adminImport.ts',
   'services/authorImport.ts',
+  'services/membership.ts',
   'services/premiumAi.ts',
   'services/tts.ts',
   'hooks/useTtsPlayer.ts',
+  'hooks/useMembership.ts',
   'services/community.ts',
   'services/offlineDownloads.ts',
   'services/offlineSync.ts',
@@ -144,6 +148,15 @@ check(premiumAiSource.includes("functions.invoke('ai-translate-book'"), 'Premium
 check(aiWorkerSource.includes('has_active_premium') && aiWorkerSource.includes('AI_TRANSLATE_API_KEY'), 'Server worker re-checks Premium and keeps AI credentials server-side');
 check(aiWorkerSource.includes('splitChapterContent') && aiWorkerSource.includes('ai_translation_revisions'), 'Whole-book AI chunks long chapters and preserves durable revisions');
 check(!existsSync(new URL('app/ai/convert.tsx', root)) && !existsSync(new URL('app/ai/recap.tsx', root)) && !existsSync(new URL('app/ai/chat.tsx', root)), 'Reader-facing AI routes are removed');
+
+const membershipSource = readFileSync(new URL('services/membership.ts', root), 'utf8');
+const downloadsSource = readFileSync(new URL('app/downloads.tsx', root), 'utf8');
+const adBannerSource = readFileSync(new URL('components/AdBanner.tsx', root), 'utf8');
+const premiumSource = readFileSync(new URL('app/premium.tsx', root), 'utf8');
+check(membershipSource.includes('100 * 1024 * 1024') && membershipSource.includes('2 * 1024 * 1024 * 1024'), 'Membership defines 100 MB Standard and 2 GB Premium offline limits');
+check(downloadsSource.includes('applyOfflineStoragePlan') && downloadsSource.includes("router.push('/premium')"), 'Downloads enforce plan quota and expose VIP upgrade');
+check(adBannerSource.includes('!membership.showAds') && readerSource.includes('<AdBanner dark={dark} />'), 'Premium hides reader ads while Standard displays the ad surface');
+check(premiumSource.includes('2 GB') && premiumSource.includes('Không quảng cáo') && premiumSource.includes('AI dịch toàn truyện'), 'VIP screen explains storage, ad-free and AI benefits');
 
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {
