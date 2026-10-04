@@ -35,10 +35,10 @@ const statusOptions: { value: DiscoveryStatus; label: string }[] = [
 ];
 
 const sortOptions: { value: DiscoverySort; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'trending', label: 'Thịnh hành', icon: 'trending-up-outline' },
-  { value: 'hot', label: 'Hot', icon: 'flame-outline' },
+  { value: 'trending', label: 'Thịnh hành 7 ngày', icon: 'trending-up-outline' },
+  { value: 'hot', label: 'Hot 48 giờ', icon: 'flame-outline' },
   { value: 'new', label: 'Mới ra', icon: 'sparkles-outline' },
-  { value: 'top', label: 'Top', icon: 'trophy-outline' },
+  { value: 'top', label: 'Top toàn thời gian', icon: 'trophy-outline' },
   { value: 'updated', label: 'Mới cập nhật', icon: 'time-outline' },
   { value: 'rating', label: 'Đánh giá', icon: 'star-outline' },
   { value: 'relevance', label: 'Liên quan', icon: 'search-outline' },
