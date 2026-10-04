@@ -187,6 +187,7 @@ export default function AdminCatalogBookScreen() {
           </View>
         </View>
       </View>
+      <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Khuyến nghị bìa đẹp nhất</Text><Text style={styles.coverGuideText}>Tỷ lệ 2:3 · 1200 × 1800 px là đẹp nhất · tối thiểu 800 × 1200 px · dung lượng lý tưởng 300 KB – 1.5 MB · tối đa 5 MB. Ưu tiên WebP hoặc JPG chất lượng cao.</Text></View>
 
       <Text style={styles.sectionTitle}>Trạng thái truyện</Text>
       <View style={styles.statusCard}>
@@ -270,6 +271,9 @@ const styles = StyleSheet.create({
   errorText: { color: xianxia.danger, fontSize: 10, lineHeight: 15, flex: 1 },
   successBox: { marginBottom: 10, borderRadius: 14, padding: 11, backgroundColor: '#E7EFE9', borderWidth: 1, borderColor: '#C8DBC9', flexDirection: 'row', gap: 8 },
   successText: { color: '#4C7356', fontSize: 10, lineHeight: 15, flex: 1, fontWeight: '700' },
+  coverGuide: { marginTop: 10, borderRadius: 13, padding: 11, backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#C4D7C8' },
+  coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900', marginBottom: 4 },
+  coverGuideText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13 },
   bookHero: { borderRadius: 21, backgroundColor: 'rgba(255,253,247,.90)', borderWidth: 1, borderColor: xianxia.line, padding: 14, flexDirection: 'row', gap: 15 },
   coverWrap: { alignItems: 'center' },
   cover: { width: 92, height: 138, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: xianxia.gold, justifyContent: 'center' },
