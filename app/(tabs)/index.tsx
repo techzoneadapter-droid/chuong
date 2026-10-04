@@ -213,7 +213,7 @@ export default function HomeScreen() {
           </ScrollView>
         ) : !recommendError ? (
           <View style={styles.recommendEmpty}>
-            <View style={styles.recommendEmblem}><Text style={styles.recommendEmblemText}>缘</Text></View>
+            <View style={styles.recommendEmblem}><Ionicons name="sparkles" size={16} color={xianxia.goldSoft} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.recommendTitle}>Cơ duyên chưa hiện rõ</Text>
               <Text style={styles.recommendBody}>Hãy đọc, lưu và theo dõi vài bộ truyện. CHƯƠNG sẽ dần mở ra đề cử đúng khẩu vị của bạn.</Text>
