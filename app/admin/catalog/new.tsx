@@ -114,6 +114,7 @@ export default function AdminCreateCatalogBookScreen() {
         </View>
         <View style={styles.coverCopy}><Text style={styles.coverAction}>{cover ? 'Thay ảnh bìa' : 'Chọn ảnh bìa'}</Text><Text style={styles.coverNote}>Ảnh thật sẽ được dùng làm thumbnail ở Trang chủ, Khám phá và trang truyện.</Text></View>
       </Pressable>
+      <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Khuyến nghị bìa đẹp nhất</Text><Text style={styles.coverGuideText}>Tỷ lệ 2:3 · nên dùng 1200 × 1800 px · tối thiểu 800 × 1200 px · dung lượng lý tưởng 300 KB – 1.5 MB · tối đa 5 MB. Ưu tiên WebP hoặc JPG chất lượng cao.</Text></View>
 
       <Text style={styles.groupTitle}>Thông tin truyện</Text>
       <View style={styles.formCard}>
@@ -178,6 +179,9 @@ const styles = StyleSheet.create({
   heroBody: { color: 'rgba(255,253,248,.68)', fontSize: 9, lineHeight: 14, marginTop: 4 },
   errorBox: { marginTop: 12, borderRadius: 14, padding: 11, backgroundColor: '#F5E5E1', borderWidth: 1, borderColor: '#E2C2BA', flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   errorText: { color: xianxia.danger, fontSize: 10, lineHeight: 15, flex: 1 },
+  coverGuide: { marginTop: 9, borderRadius: 13, padding: 11, backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#C4D7C8' },
+  coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900', marginBottom: 4 },
+  coverGuideText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13 },
   groupTitle: { color: xianxia.ink, fontSize: 14, fontWeight: '900', marginTop: 23, marginBottom: 8 },
   groupNote: { color: xianxia.muted, fontSize: 9, lineHeight: 14, marginTop: -3, marginBottom: 7 },
   coverPicker: { borderRadius: 18, backgroundColor: 'rgba(255,253,247,.88)', borderWidth: 1, borderColor: xianxia.line, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 14 },
