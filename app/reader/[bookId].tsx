@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -22,7 +23,6 @@ import { usePersistentState } from '../../hooks/usePersistentState';
 import { useTtsPlayer } from '../../hooks/useTtsPlayer';
 import { defaultReaderSettings } from '../../services/storage';
 import { getBookById } from '../../services/books';
-import { getParagraphCommentCounts } from '../../services/comments';
 import { ContentLockedError, getChapter, getChaptersByBook } from '../../services/chapters';
 import { unlockBook, unlockChapter, UnlockError } from '../../services/entitlements';
 import { getWallet } from '../../services/wallet';
@@ -30,7 +30,7 @@ import { getBookmarks, getReadingProgress, toggleBookmark as persistBookmark } f
 import { getOfflineBookSnapshot } from '../../services/offlineDownloads';
 import { useAuth } from '../../contexts/AuthContext';
 import { SLEEP_TIMERS, SleepTimer, TTS_SPEEDS, TTS_VOICES, TtsVoice } from '../../services/tts';
-import { Book, Chapter, ReaderFont, ReaderMode, ReaderSettings, ReaderSpacing, ReaderTheme } from '../../types';
+import { Book, Chapter, ReaderAutoScrollSpeed, ReaderFont, ReaderMode, ReaderSettings, ReaderSpacing, ReaderTheme } from '../../types';
 
 type Sheet = ReaderTool | null;
 type Bookmark = { chapter: number; progress: number; updatedAt: string };
@@ -66,8 +66,7 @@ export default function ReaderScreen() {
   const [progressReady, setProgressReady] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
-  const [paragraphCounts, setParagraphCounts] = useState<Record<number, number>>({});
-  const [paragraphDiscussion, setParagraphDiscussion] = useState<{ index: number; text: string } | null>(null);
+  const [autoScrolling, setAutoScrolling] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const scrollPosition = useRef(0);
 
@@ -111,12 +110,6 @@ export default function ReaderScreen() {
     return pages;
   }, [content, settings.fontSize, settings.spacing]);
   const visibleContent = settings.mode === 'page' ? (pagedContent[pageIndex] ?? pagedContent[0] ?? []) : content;
-  const visibleParagraphs = useMemo(() => {
-    const pageStart = settings.mode === 'page'
-      ? pagedContent.slice(0, pageIndex).reduce((sum, page) => sum + page.length, 0)
-      : 0;
-    return visibleContent.map((text, index) => ({ text, index: pageStart + index }));
-  }, [pageIndex, pagedContent, settings.mode, visibleContent]);
   const bookmark: Bookmark | null = bookmarked ? { chapter: chapterNumber, progress: readingProgress, updatedAt: new Date().toISOString() } : null;
   const palette = themes[settings.theme];
   const dark = settings.theme === 'night' || settings.theme === 'amoled';
@@ -230,8 +223,7 @@ export default function ReaderScreen() {
     setReadingProgress(0);
     setPageIndex(0);
     setBookmarked(false);
-    setParagraphDiscussion(null);
-    setParagraphCounts({});
+    setAutoScrolling(false);
     scrollPosition.current = 0;
     router.setParams({ chapter: String(next) });
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
@@ -242,7 +234,12 @@ export default function ReaderScreen() {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     scrollPosition.current = contentOffset.y;
     const max = contentSize.height - layoutMeasurement.height;
-    setReadingProgress(max > 0 ? Math.min(100, Math.round(contentOffset.y / max * 100)) : 100);
+    const progress = max > 0 ? Math.min(100, Math.round(contentOffset.y / max * 100)) : 100;
+    setReadingProgress(progress);
+    if (autoScrolling && max > 0 && contentOffset.y >= max - 2) {
+      setAutoScrolling(false);
+      setControlsVisible(true);
+    }
   };
 
   const goReaderPage = (nextIndex: number) => {
@@ -281,21 +278,41 @@ export default function ReaderScreen() {
     scrollPosition.current = target;
   }, [chapterNumber, pagedContent.length, progressReady, settings.mode]);
 
-  const refreshParagraphCounts = useMemo(() => async () => {
-    if (!chapter.id || offlineReading) {
-      setParagraphCounts({});
+  useEffect(() => {
+    const tag = 'chuong-reader';
+    if (!settings.keepAwake) {
+      void deactivateKeepAwake(tag).catch(() => undefined);
       return;
     }
-    try {
-      setParagraphCounts(await getParagraphCommentCounts(chapter.id));
-    } catch {
-      setParagraphCounts({});
-    }
-  }, [chapter.id, offlineReading]);
+    void activateKeepAwakeAsync(tag).catch(() => undefined);
+    return () => { void deactivateKeepAwake(tag).catch(() => undefined); };
+  }, [settings.keepAwake]);
 
   useEffect(() => {
-    void refreshParagraphCounts();
-  }, [refreshParagraphCounts]);
+    if (!autoScrolling || settings.mode !== 'scroll' || loading || lockedContent) return;
+    const speedMap: Record<ReaderAutoScrollSpeed, number> = { 1: 14, 2: 24, 3: 38, 4: 56 };
+    const speed = speedMap[(settings.autoScrollSpeed ?? 2) as ReaderAutoScrollSpeed] ?? 24;
+    const interval = setInterval(() => {
+      const next = scrollPosition.current + speed / 20;
+      scrollRef.current?.scrollTo({ y: next, animated: false });
+    }, 50);
+    return () => clearInterval(interval);
+  }, [autoScrolling, loading, lockedContent, settings.autoScrollSpeed, settings.mode]);
+
+  useEffect(() => {
+    if (settings.mode !== 'scroll' && autoScrolling) setAutoScrolling(false);
+  }, [autoScrolling, settings.mode]);
+
+  const toggleAutoScroll = (enabled: boolean) => {
+    if (settings.mode !== 'scroll' && enabled) return;
+    setAutoScrolling(enabled);
+    if (enabled) {
+      setSheet(null);
+      setControlsVisible(false);
+    } else {
+      setControlsVisible(true);
+    }
+  };
 
   const toggleBookmark = async () => {
     const previous = bookmarked; setBookmarked(!previous);
@@ -391,6 +408,12 @@ export default function ReaderScreen() {
       <ScrollView
         ref={scrollRef}
         onScroll={onScroll}
+        onScrollBeginDrag={() => {
+          if (autoScrolling) {
+            setAutoScrolling(false);
+            setControlsVisible(true);
+          }
+        }}
         scrollEventThrottle={120}
         scrollEnabled={settings.mode !== 'page'}
         {...(settings.mode === 'page' ? pagePanResponder.panHandlers : {})}
@@ -406,25 +429,8 @@ export default function ReaderScreen() {
             <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapter.title}</Text>
             {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
           </> : null}
-          {visibleParagraphs.map((paragraph) => (
-            <View key={`${chapterNumber}-${paragraph.index}`} style={styles.paragraphBlock}>
-              <Text style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{paragraph.text}</Text>
-              {!offlineReading && chapter.id ? <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Cảm nhận về đoạn ${paragraph.index + 1}`}
-                onPress={(event) => {
-                  event.stopPropagation?.();
-                  setParagraphDiscussion({ index: paragraph.index, text: paragraph.text });
-                  setControlsVisible(true);
-                }}
-                style={[styles.paragraphComment, dark && styles.paragraphCommentDark]}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={13} color={dark ? '#B7B0A8' : '#8F1D3F'} />
-                <Text style={[styles.paragraphCommentText, dark && styles.paragraphCommentTextDark]}>
-                  {paragraphCounts[paragraph.index] ? `${paragraphCounts[paragraph.index]} cảm nhận` : 'Cảm nhận'}
-                </Text>
-              </Pressable> : null}
-            </View>
+          {visibleContent.map((paragraph, index) => (
+            <Text key={`${chapterNumber}-${pageIndex}-${index}`} style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{paragraph}</Text>
           ))}
           {settings.mode === 'page' ? <View style={[styles.pagePager, { borderColor: dark ? '#4C494B' : xianxia.line }]}>
             <Pressable disabled={pageIndex === 0} onPress={() => goReaderPage(pageIndex - 1)} style={[styles.pageButton, pageIndex === 0 && styles.disabled]}><Ionicons name="chevron-back" size={17} color={palette.text} /><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang trước</Text></Pressable>
@@ -448,6 +454,16 @@ export default function ReaderScreen() {
           </View> : <Comments bookId={book.id} chapterId={chapter.id} />}
         </View>
       </ScrollView>
+
+      {autoScrolling ? <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Tạm dừng tự động cuộn"
+        onPress={() => toggleAutoScroll(false)}
+        style={[styles.autoScrollPill, { bottom: insets.bottom + 18 }]}
+      >
+        <Ionicons name="pause" size={15} color="#FFFDF8" />
+        <Text style={styles.autoScrollPillText}>Tự cuộn · {['', 'Chậm', 'Vừa', 'Nhanh', 'Rất nhanh'][settings.autoScrollSpeed ?? 2]}</Text>
+      </Pressable> : null}
 
       {!controlsVisible ? (
         <Pressable
@@ -480,23 +496,15 @@ export default function ReaderScreen() {
         </>
       ) : null}
 
-      <BottomSheet
-        visible={Boolean(paragraphDiscussion)}
-        title={paragraphDiscussion ? `Cảm nhận đoạn ${paragraphDiscussion.index + 1}` : 'Cảm nhận đoạn văn'}
-        onClose={() => setParagraphDiscussion(null)}
-        scroll
-        tall
-      >
-        {paragraphDiscussion && chapter.id ? <Comments
-          bookId={book.id}
-          chapterId={chapter.id}
-          paragraphIndex={paragraphDiscussion.index}
-          paragraphExcerpt={paragraphDiscussion.text}
-          onChanged={() => void refreshParagraphCounts()}
-        /> : null}
-      </BottomSheet>
       <ChapterSheet visible={sheet === 'chapters'} onClose={() => setSheet(null)} chapters={filteredChapters} query={chapterSearch} onQuery={setChapterSearch} onSelect={goChapter} current={chapterNumber} />
-      <SettingsSheet visible={sheet === 'settings'} onClose={() => setSheet(null)} settings={settings} onChange={setSettings} />
+      <SettingsSheet
+        visible={sheet === 'settings'}
+        onClose={() => setSheet(null)}
+        settings={settings}
+        onChange={setSettings}
+        autoScrolling={autoScrolling}
+        onToggleAutoScroll={toggleAutoScroll}
+      />
       <AudioSheet
         visible={sheet === 'audio'}
         onClose={() => setSheet(null)}
@@ -523,7 +531,21 @@ function ChapterSheet({ visible, onClose, chapters, query, onQuery, onSelect, cu
   </BottomSheet>;
 }
 
-function SettingsSheet({ visible, onClose, settings, onChange }: { visible: boolean; onClose: () => void; settings: ReaderSettings; onChange: (value: ReaderSettings) => void }) {
+function SettingsSheet({
+  visible,
+  onClose,
+  settings,
+  onChange,
+  autoScrolling,
+  onToggleAutoScroll,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  settings: ReaderSettings;
+  onChange: (value: ReaderSettings) => void;
+  autoScrolling: boolean;
+  onToggleAutoScroll: (enabled: boolean) => void;
+}) {
   const update = <K extends keyof ReaderSettings>(key: K, value: ReaderSettings[K]) => onChange({ ...settings, [key]: value });
   return <BottomSheet visible={visible} title="Giao diện đọc" onClose={onClose} scroll>
     <SettingLabel title="Cỡ chữ" value={`${settings.fontSize}px`} />
@@ -538,6 +560,24 @@ function SettingsSheet({ visible, onClose, settings, onChange }: { visible: bool
     <View style={sheetStyles.paddingRow}><Pressable onPress={() => update('padding', Math.max(14, settings.padding - 4))}><Ionicons name="remove-circle-outline" size={28} color="#8F1D3F" /></Pressable><View style={sheetStyles.paddingDemo}><View style={{ width: `${Math.max(35, 92 - settings.padding)}%`, height: 3, backgroundColor: '#8F1D3F' }} /><View style={{ width: `${Math.max(28, 80 - settings.padding)}%`, height: 3, backgroundColor: '#CDBDC2' }} /></View><Pressable onPress={() => update('padding', Math.min(42, settings.padding + 4))}><Ionicons name="add-circle-outline" size={28} color="#8F1D3F" /></Pressable></View>
     <SettingLabel title="Chế độ đọc" />
     <Segment options={[['scroll', 'Cuộn dọc'], ['page', 'Lật trang']]} value={settings.mode} onChange={(value) => update('mode', value as ReaderMode)} />
+
+    <View style={[sheetStyles.readerOptionRow, settings.mode !== 'scroll' && sheetStyles.readerOptionDisabled]}>
+      <View style={{ flex: 1 }}>
+        <Text style={sheetStyles.readerOptionTitle}>Tự động cuộn</Text>
+        <Text style={sheetStyles.readerOptionBody}>{settings.mode === 'scroll' ? 'Cuộn nội dung liên tục; chạm kéo bằng tay sẽ tự tạm dừng.' : 'Chuyển sang chế độ Cuộn dọc để sử dụng.'}</Text>
+      </View>
+      <Switch disabled={settings.mode !== 'scroll'} value={autoScrolling && settings.mode === 'scroll'} onValueChange={onToggleAutoScroll} trackColor={{ false: '#D7CFC1', true: '#79988B' }} thumbColor={autoScrolling ? xianxia.jadeDeep : '#FFF8EA'} />
+    </View>
+    <SettingLabel title="Tốc độ tự cuộn" />
+    <Segment options={[['1', 'Chậm'], ['2', 'Vừa'], ['3', 'Nhanh'], ['4', 'Rất nhanh']]} value={String(settings.autoScrollSpeed ?? 2)} onChange={(value) => update('autoScrollSpeed', Number(value) as ReaderAutoScrollSpeed)} />
+
+    <View style={sheetStyles.readerOptionRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={sheetStyles.readerOptionTitle}>Giữ màn hình sáng</Text>
+        <Text style={sheetStyles.readerOptionBody}>Ngăn thiết bị tự tắt màn hình khi đang đọc. Tắt nếu muốn tiết kiệm pin.</Text>
+      </View>
+      <Switch value={Boolean(settings.keepAwake)} onValueChange={(value) => update('keepAwake', value)} trackColor={{ false: '#D7CFC1', true: '#79988B' }} thumbColor={settings.keepAwake ? xianxia.jadeDeep : '#FFF8EA'} />
+    </View>
   </BottomSheet>;
 }
 
@@ -690,12 +730,7 @@ const styles = StyleSheet.create({
   chapterNumber: { fontSize: 27, fontWeight: '900', textAlign: 'center', marginTop: 13 },
   chapterTitle: { fontSize: 19, lineHeight: 25, fontWeight: '600', textAlign: 'center', marginTop: 5 },
   rule: { width: 30, height: 1, alignSelf: 'center', marginTop: 23, marginBottom: 26, opacity: .5 },
-  paragraphBlock: { marginBottom: 20 },
-  paragraph: { textAlign: 'left' },
-  paragraphComment: { alignSelf: 'flex-end', minHeight: 28, marginTop: 4, borderRadius: 14, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,253,247,.88)', borderWidth: 1, borderColor: '#E0D3C7' },
-  paragraphCommentDark: { backgroundColor: 'rgba(41,40,44,.92)', borderColor: '#4C494B' },
-  paragraphCommentText: { color: '#8F1D3F', fontSize: 8.5, fontWeight: '800' },
-  paragraphCommentTextDark: { color: '#C8C0B7' },
+  paragraph: { marginBottom: 20, textAlign: 'left' },
   endMark: { textAlign: 'center', fontSize: 11, fontWeight: '700', marginTop: 17, marginBottom: 35 },
   chapterNav: { borderTopWidth: 1, borderBottomWidth: 1, paddingVertical: 18, flexDirection: 'row', alignItems: 'center' },
   navButton: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 }, navRight: { justifyContent: 'flex-end' }, disabled: { opacity: .3 },
@@ -710,6 +745,8 @@ const styles = StyleSheet.create({
   floatingBackText: { fontSize: 10, fontWeight: '900' },
   offlineDiscussion: { marginTop: 8, borderRadius: 14, backgroundColor: '#F0E1E5', padding: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   offlineDiscussionText: { flex: 1, color: '#6F6167', fontSize: 9, lineHeight: 14 },
+  autoScrollPill: { position: 'absolute', right: 14, zIndex: 35, minHeight: 38, borderRadius: 20, paddingHorizontal: 12, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold, flexDirection: 'row', alignItems: 'center', gap: 6, shadowColor: '#000', shadowOpacity: .14, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  autoScrollPillText: { color: '#FFFDF8', fontSize: 9, fontWeight: '900' },
   toolbar: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 }
 });
 
@@ -721,6 +758,10 @@ const sheetStyles = StyleSheet.create({
   themeRow: { flexDirection: 'row', justifyContent: 'space-between' }, themeOption: { alignItems: 'center', minWidth: 55 }, themeCircle: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: '#D8CBC5', alignItems: 'center', justifyContent: 'center' }, themeActive: { borderWidth: 3, borderColor: '#A52C52' }, themeLabel: { color: '#6E6267', fontSize: 9, fontWeight: '700', marginTop: 5 },
   paddingRow: { flexDirection: 'row', alignItems: 'center', gap: 14 }, paddingDemo: { flex: 1, height: 36, borderWidth: 1, borderColor: '#E1D5CF', alignItems: 'center', justifyContent: 'center', gap: 5 },
   aiNotice: { color: '#756A6E', fontSize: 11, lineHeight: 17, backgroundColor: '#F7EFF1', padding: 11, borderLeftWidth: 3, borderLeftColor: '#8F1D3F', marginBottom: 5 }, aiRow: { flexDirection: 'row', alignItems: 'center', minHeight: 65, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2D6D0', gap: 11 }, aiIcon: { width: 35, height: 35, borderRadius: 18, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' }, aiTitle: { color: '#31272B', fontSize: 13, fontWeight: '900' }, aiDetail: { color: '#877A80', fontSize: 10, marginTop: 3 }, aiResult: { backgroundColor: '#F5EDEA', padding: 13, marginTop: 12, borderRadius: 12 }, aiResultTitle: { color: '#8F1D3F', fontSize: 11, fontWeight: '900' }, aiResultText: { color: '#50454A', fontSize: 12, lineHeight: 18, marginTop: 5 },
+  readerOptionRow: { minHeight: 68, marginTop: 14, padding: 11, borderRadius: 13, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC', flexDirection: 'row', alignItems: 'center', gap: 10 },
+  readerOptionDisabled: { opacity: .56 },
+  readerOptionTitle: { color: '#31272B', fontSize: 11, fontWeight: '900' },
+  readerOptionBody: { color: '#756A6E', fontSize: 8.5, lineHeight: 13, marginTop: 3 },
   moreRow: { flexDirection: 'row', alignItems: 'center', minHeight: 65, gap: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E1D5CF' }
 });
 
