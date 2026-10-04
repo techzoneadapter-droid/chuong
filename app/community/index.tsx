@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
+import { ArtIcon, ButtonArt } from '../../components/Artwork';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
+import { artwork } from '../../constants/artwork';
+import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   CommunityActivity,
@@ -95,13 +99,14 @@ export default function CommunityScreen() {
   };
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
+    <XianxiaBackdrop />
     <View style={styles.topbar}>
       <Pressable style={styles.iconButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={22} color="#2D2327" />
+        <Ionicons name="arrow-back" size={21} color={xianxia.ink} />
       </Pressable>
       <Text style={styles.topTitle}>Cộng đồng</Text>
       <Pressable style={styles.iconButton} onPress={() => { void refresh(); }}>
-        <Ionicons name="refresh" size={20} color="#8F1D3F" />
+        <Ionicons name="refresh" size={20} color={xianxia.jadeDeep} />
       </Pressable>
     </View>
 
@@ -112,11 +117,11 @@ export default function CommunityScreen() {
     >
       <View style={styles.tabs}>
         <Pressable onPress={() => setMode('feed')} style={[styles.tab, mode === 'feed' && styles.tabActive]}>
-          <Ionicons name="people-outline" size={17} color={mode === 'feed' ? '#FFF' : '#8F1D3F'} />
+          <Ionicons name="people-outline" size={17} color={mode === 'feed' ? xianxia.goldSoft : xianxia.jadeDeep} />
           <Text style={[styles.tabText, mode === 'feed' && styles.tabTextActive]}>Bảng tin</Text>
         </Pressable>
         <Pressable onPress={() => setMode('discover')} style={[styles.tab, mode === 'discover' && styles.tabActive]}>
-          <Ionicons name="search-outline" size={17} color={mode === 'discover' ? '#FFF' : '#8F1D3F'} />
+          <Ionicons name="search-outline" size={17} color={mode === 'discover' ? xianxia.goldSoft : xianxia.jadeDeep} />
           <Text style={[styles.tabText, mode === 'discover' && styles.tabTextActive]}>Khám phá độc giả</Text>
         </Pressable>
       </View>
@@ -125,10 +130,11 @@ export default function CommunityScreen() {
 
       {mode === 'feed' ? <>
         {!user ? <View style={styles.guestCard}>
-          <View style={styles.heroIcon}><Ionicons name="people" size={26} color="#8F1D3F" /></View>
+          <ArtIcon source={artwork.lotus} size={64} />
+          <View style={styles.heroIcon}><Ionicons name="people" size={24} color={xianxia.jadeDeep} /></View>
           <Text style={styles.guestTitle}>Bảng tin dành cho người bạn theo dõi</Text>
           <Text style={styles.guestBody}>Đăng nhập để xem đánh giá và bình luận công khai từ những độc giả bạn chọn theo dõi.</Text>
-          <Pressable style={styles.primary} onPress={() => router.push('/auth/login')}><Text style={styles.primaryText}>Đăng nhập</Text></Pressable>
+          <Pressable style={styles.primary} onPress={() => router.push('/auth/login')}><ButtonArt /><Text style={styles.primaryText}>Đăng nhập</Text></Pressable>
         </View> : loadingFeed ? <LoadingState label="Đang tải bảng tin cộng đồng…" /> : feed.length === 0 ? <View>
           <EmptyState title="Bảng tin còn trống" detail="Theo dõi một vài độc giả ở mục Khám phá để thấy hoạt động công khai của họ tại đây." />
           <Pressable style={styles.secondaryCta} onPress={() => setMode('discover')}><Text style={styles.secondaryCtaText}>Khám phá độc giả</Text></Pressable>
@@ -177,7 +183,7 @@ function ActivityCard({ item, onUser, onBook }: { item: CommunityActivity; onUse
         <Pressable onPress={onUser}><Text style={styles.activityName}>{name}</Text></Pressable>
         <Text style={styles.activityMeta}>{item.activityType === 'review' ? 'đã đánh giá' : 'đã bình luận'} · {new Date(item.createdAt).toLocaleString('vi-VN')}</Text>
       </View>
-      <View style={styles.kindBadge}><Ionicons name={item.activityType === 'review' ? 'star-outline' : 'chatbubble-outline'} size={14} color="#8F1D3F" /></View>
+      <View style={styles.kindBadge}><Ionicons name={item.activityType === 'review' ? 'star-outline' : 'chatbubble-outline'} size={14} color={xianxia.cinnabar} /></View>
     </View>
     <Pressable onPress={onBook}>
       <Text style={styles.bookLink}>{item.bookTitle}</Text>
@@ -188,48 +194,48 @@ function ActivityCard({ item, onUser, onBook }: { item: CommunityActivity; onUse
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F2E9' },
-  topbar: { height: 58, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DED1CA' },
+  safe: { flex: 1, backgroundColor: xianxia.paper },
+  topbar: { height: 58, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(244,235,216,.90)' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { flex: 1, textAlign: 'center', color: '#251D20', fontSize: 17, fontWeight: '900' },
+  topTitle: { flex: 1, textAlign: 'center', color: xianxia.ink, fontSize: 17, fontWeight: '900' },
   page: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16, paddingBottom: 48 },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tab: { flex: 1, height: 42, borderRadius: 13, borderWidth: 1, borderColor: '#DCCEC7', backgroundColor: '#FFFDFC', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  tabActive: { backgroundColor: '#8F1D3F', borderColor: '#8F1D3F' },
-  tabText: { color: '#8F1D3F', fontSize: 11, fontWeight: '900' },
-  tabTextActive: { color: '#FFF' },
-  error: { color: '#A12B48', backgroundColor: '#F7E7EC', borderRadius: 12, padding: 10, fontSize: 10, marginBottom: 10 },
-  guestCard: { marginTop: 8, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D1', borderRadius: 20, padding: 22, alignItems: 'center' },
-  heroIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' },
-  guestTitle: { color: '#2B2226', fontSize: 17, fontWeight: '900', textAlign: 'center', marginTop: 12 },
-  guestBody: { color: '#796D72', fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 7 },
-  primary: { height: 44, paddingHorizontal: 28, borderRadius: 13, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center', marginTop: 15 },
-  primaryText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
-  secondaryCta: { alignSelf: 'center', marginTop: 10, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#8F1D3F' },
-  secondaryCtaText: { color: '#8F1D3F', fontSize: 10, fontWeight: '900' },
-  searchBox: { height: 46, borderRadius: 14, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E2D5CE', paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 12 },
-  searchInput: { flex: 1, color: '#2D2327', fontSize: 12, outlineStyle: 'none' } as never,
-  readerCard: { backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D1', borderRadius: 16, padding: 12, marginBottom: 9 },
+  tab: { flex: 1, height: 42, borderRadius: 13, borderWidth: 1, borderColor: xianxia.line, backgroundColor: 'rgba(255,248,234,.92)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  tabActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.gold },
+  tabText: { color: xianxia.jadeDeep, fontSize: 11, fontWeight: '900' },
+  tabTextActive: { color: xianxia.goldSoft },
+  error: { color: xianxia.danger, backgroundColor: '#F5E5E1', borderWidth: 1, borderColor: '#E2C2BA', borderRadius: 12, padding: 10, fontSize: 10, marginBottom: 10 },
+  guestCard: { marginTop: 8, backgroundColor: 'rgba(255,248,234,.94)', borderWidth: 1, borderColor: xianxia.line, borderRadius: 20, padding: 22, alignItems: 'center' },
+  heroIcon: { width: 50, height: 50, borderRadius: 15, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', alignItems: 'center', justifyContent: 'center', marginTop: -9 },
+  guestTitle: { color: xianxia.ink, fontSize: 17, fontWeight: '900', textAlign: 'center', marginTop: 12 },
+  guestBody: { color: xianxia.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 7 },
+  primary: { position: 'relative', overflow: 'hidden', minWidth: 140, height: 44, paddingHorizontal: 28, alignItems: 'center', justifyContent: 'center', marginTop: 15 },
+  primaryText: { color: xianxia.white, fontSize: 11, fontWeight: '900' },
+  secondaryCta: { alignSelf: 'center', marginTop: 10, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#99B0A2', backgroundColor: xianxia.jadeMist },
+  secondaryCtaText: { color: xianxia.jadeDeep, fontSize: 10, fontWeight: '900' },
+  searchBox: { height: 46, borderRadius: 14, backgroundColor: 'rgba(255,248,234,.94)', borderWidth: 1, borderColor: xianxia.line, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 12 },
+  searchInput: { flex: 1, color: xianxia.ink, fontSize: 12, outlineStyle: 'none' } as never,
+  readerCard: { backgroundColor: 'rgba(255,248,234,.94)', borderWidth: 1, borderColor: xianxia.line, borderRadius: 16, padding: 12, marginBottom: 9 },
   readerMain: { flexDirection: 'row', gap: 11, alignItems: 'center' },
-  avatar: { width: 48, height: 48, borderRadius: 24 },
-  avatarFallback: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFF', fontWeight: '900', fontSize: 17 },
-  readerName: { color: '#2B2226', fontSize: 13, fontWeight: '900' },
-  readerMeta: { color: '#8F1D3F', fontSize: 9, marginTop: 3 },
-  readerBio: { color: '#7A6E73', fontSize: 9, lineHeight: 13, marginTop: 5 },
-  followButton: { alignSelf: 'flex-end', marginTop: 10, minWidth: 96, height: 34, borderRadius: 11, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center' },
-  followingButton: { backgroundColor: '#F0E1E5', borderWidth: 1, borderColor: '#D8BAC3' },
-  followText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
-  followingText: { color: '#8F1D3F' },
-  activityCard: { backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D1', borderRadius: 17, padding: 14, marginBottom: 10 },
+  avatar: { width: 48, height: 48, borderRadius: 15 },
+  avatarFallback: { width: 48, height: 48, borderRadius: 15, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: xianxia.goldSoft, fontWeight: '900', fontSize: 17 },
+  readerName: { color: xianxia.ink, fontSize: 13, fontWeight: '900' },
+  readerMeta: { color: xianxia.jade, fontSize: 9, marginTop: 3 },
+  readerBio: { color: xianxia.muted, fontSize: 9, lineHeight: 13, marginTop: 5 },
+  followButton: { alignSelf: 'flex-end', marginTop: 10, minWidth: 96, height: 34, borderRadius: 11, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', alignItems: 'center', justifyContent: 'center' },
+  followingButton: { backgroundColor: xianxia.jadeMist, borderColor: '#B8CBBF' },
+  followText: { color: xianxia.white, fontSize: 9, fontWeight: '900' },
+  followingText: { color: xianxia.jadeDeep },
+  activityCard: { backgroundColor: 'rgba(255,248,234,.94)', borderWidth: 1, borderColor: xianxia.line, borderRadius: 17, padding: 14, marginBottom: 10 },
   activityTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  activityAvatar: { width: 42, height: 42, borderRadius: 21 },
-  activityAvatarFallback: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#8F1D3F', alignItems: 'center', justifyContent: 'center' },
-  activityAvatarText: { color: '#FFF', fontSize: 15, fontWeight: '900' },
-  activityName: { color: '#2B2226', fontSize: 12, fontWeight: '900' },
-  activityMeta: { color: '#8A7E82', fontSize: 8, marginTop: 3 },
-  kindBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F0E1E5', alignItems: 'center', justifyContent: 'center' },
-  bookLink: { color: '#8F1D3F', fontSize: 12, fontWeight: '900', marginTop: 11 },
-  stars: { color: '#B9842E', fontSize: 12, letterSpacing: 1, marginTop: 5 },
-  activityBody: { color: '#4F4448', fontSize: 11, lineHeight: 17, marginTop: 7 },
+  activityAvatar: { width: 42, height: 42, borderRadius: 13 },
+  activityAvatarFallback: { width: 42, height: 42, borderRadius: 13, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center' },
+  activityAvatarText: { color: xianxia.goldSoft, fontSize: 15, fontWeight: '900' },
+  activityName: { color: xianxia.ink, fontSize: 12, fontWeight: '900' },
+  activityMeta: { color: xianxia.muted, fontSize: 8, marginTop: 3 },
+  kindBadge: { width: 32, height: 32, borderRadius: 10, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#BCD0C1', alignItems: 'center', justifyContent: 'center' },
+  bookLink: { color: xianxia.jadeDeep, fontSize: 12, fontWeight: '900', marginTop: 11 },
+  stars: { color: xianxia.gold, fontSize: 12, letterSpacing: 1, marginTop: 5 },
+  activityBody: { color: xianxia.inkSoft, fontSize: 11, lineHeight: 17, marginTop: 7 },
 });
