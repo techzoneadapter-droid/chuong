@@ -186,7 +186,7 @@ export default function BookDetailScreen() {
         </View>
 
         <View style={styles.authorSection}>
-          <View style={styles.authorSeal}><Text style={styles.authorSealText}>作</Text></View>
+          <View style={styles.authorSeal}><Ionicons name="person-outline" size={15} color={xianxia.goldSoft} /></View>
           <View style={styles.avatar}><Text style={styles.avatarText}>{book.author.split(' ').map((part) => part[0]).join('').slice(0, 2)}</Text></View>
           <View style={styles.authorCopy}><Text style={styles.authorKicker}>TÁC GIẢ</Text><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></View>
           <Pressable style={[styles.follow, following && styles.following]} onPress={() => toggleFollow('author')}><Text style={[styles.followText, following && styles.followingText]}>{following ? 'Đang theo dõi' : 'Theo dõi tác giả'}</Text></Pressable>
