@@ -10,7 +10,7 @@ type BookRow = Database['public']['Tables']['books']['Row'];
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
 
 const statusLabels: Record<BookRow['status'], string> = {
-  draft: 'Bản nháp', ongoing: 'Đang ra', completed: 'Đã hoàn thành', paused: 'Tạm dừng'
+  draft: 'Bản nháp', ongoing: 'Đang ra', completed: 'Đã hoàn thành', paused: 'Tạm dừng / Drop'
 };
 
 const compactNumber = (value: number) => value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1).replace('.', ',')}M` : value >= 1_000 ? `${Math.round(value / 1_000)}K` : String(value);
