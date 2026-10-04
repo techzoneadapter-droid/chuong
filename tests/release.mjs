@@ -48,9 +48,12 @@ const requiredFiles = [
   'app/user/[id].tsx',
   'app/profile/privacy.tsx',
   'app/notifications/index.tsx',
+  'app/settings/index.tsx',
+  'app/settings/reading.tsx',
   'app/admin/catalog/index.tsx',
   'app/admin/catalog/new.tsx',
   'app/admin/catalog/[bookId].tsx',
+  'app/admin/catalog/import.tsx',
   'components/XianxiaBackdrop.tsx',
   'components/Artwork.tsx',
   'constants/xianxia.ts',
@@ -74,6 +77,7 @@ const requiredFiles = [
   'constants/brand-logo/chunk3.ts',
   'constants/brand-logo/chunk4.ts',
   'services/adminCatalog.ts',
+  'services/adminImport.ts',
   'services/community.ts',
   'services/offlineDownloads.ts',
   'services/offlineSync.ts',
@@ -102,6 +106,15 @@ check(artworkComponentSource.includes("coverUrl"), 'Book covers still support up
 check(artworkComponentSource.includes('Chưa có bìa'), 'Missing book covers use a neutral no-cover state');
 check(!artworkSource.includes('coverPalace') && !artworkSource.includes('coverBamboo') && !artworkSource.includes('coverArchive'), 'Demo cover assets are not registered at runtime');
 check(!homeSource.includes('CHƯỞNG'), 'Home source contains no CHƯỞNG typo');
+
+const profileSource = readFileSync(new URL('app/(tabs)/profile.tsx', root), 'utf8');
+const readerSource = readFileSync(new URL('app/reader/[bookId].tsx', root), 'utf8');
+const settingsSource = readFileSync(new URL('app/settings/reading.tsx', root), 'utf8');
+const bulkImportSource = readFileSync(new URL('app/admin/catalog/import.tsx', root), 'utf8');
+check(profileSource.includes("'/settings/reading'") && profileSource.includes("'/settings'"), 'Profile settings rows navigate to functional screens');
+check(readerSource.includes('pagedContent') && readerSource.includes('goReaderPage'), 'Reader page mode is implemented beyond preview-only UI');
+check(settingsSource.includes("reader:settings"), 'Reader appearance settings share the live persistent reader key');
+check(bulkImportSource.includes('parseAdminImportFile') && bulkImportSource.includes('importAdminCatalogChapters'), 'Admin bulk import is wired from parsing to chapter creation');
 
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {
