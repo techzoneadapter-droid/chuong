@@ -14,6 +14,9 @@ From **Trung tâm quản trị → Tàng Kinh Các · Kho truyện**, an admin c
 - upload or replace a 2:3 cover
 - assign genre and tags
 - paste/import many chapters in one operation
+- bulk import TXT, DOCX or ZIP from the Web Admin
+- preview detected books/chapters before database writes
+- auto-detect a cover image placed beside a book inside a ZIP folder when available
 - import chapters as drafts or publish them immediately
 - change a story between private / ongoing / completed / paused
 - delete a draft story
@@ -28,7 +31,7 @@ For platform-owned originals, use **CHƯƠNG Studio** as the internal owner. For
 
 ## Bulk chapter format
 
-Paste chapters using headings such as:
+For a single book, paste text or import a TXT/DOCX file using headings such as:
 
 ```text
 ### Chương 1: Khai Môn
@@ -38,7 +41,7 @@ Nội dung chương 1...
 Nội dung chương 2...
 ```
 
-The importer detects chapter number, title and content. It refuses duplicate chapter numbers and refuses publishing chapters shorter than the existing publication minimum.
+The importer detects chapter number, title and content. ZIP import can group multiple books by top-level folder and can treat multiple chapter files in the same folder as one book. The preview lets the admin rename/disable candidates before importing. It refuses duplicate chapter numbers and refuses publishing chapters shorter than the existing publication minimum.
 
 ## Publication safety
 
@@ -52,7 +55,7 @@ Uploaded covers are stored in the existing public `book-covers` bucket. Admin up
 
 The same `cover_url` is used by Home, Discover / Tàng Kinh Các, Library / Tủ Linh Thư, book detail and admin catalog.
 
-If a story has no uploaded cover, the app now renders a xianxia-style procedural fallback instead of a plain color block.
+If a story has no uploaded cover, the app shows a neutral **Chưa có bìa** state. Decorative/demo book covers are never substituted for real catalog covers.
 
 ## Database hardening
 
