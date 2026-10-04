@@ -35,7 +35,7 @@ export function StudioShell({
     router.replace('/studio/login');
   };
 
-  return <View style={styles.root}>
+  return <View style={[styles.root, Platform.OS === 'web' && styles.webRoot]}>
     <View style={styles.sidebar}>
       <View style={styles.brand}><BrandLockup compact /></View>
       <View style={styles.studioBadge}><Ionicons name="desktop-outline" size={14} color={xianxia.goldSoft} /><Text style={styles.studioBadgeText}>STUDIO QUẢN TRỊ WEB</Text></View>
@@ -95,6 +95,7 @@ export function StudioShell({
 
 const styles = StyleSheet.create({
   root: { flex: 1, minHeight: '100%' as never, backgroundColor: '#F4F0E7', flexDirection: 'row' },
+  webRoot: { minWidth: 1180, width: '100%' },
   sidebar: { width: 248, backgroundColor: '#13211E', borderRightWidth: 1, borderRightColor: '#2A3E38', padding: 18, paddingTop: 20 },
   brand: { minHeight: 58, justifyContent: 'center' },
   studioBadge: { alignSelf: 'flex-start', marginTop: 7, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(229,209,163,.08)', borderWidth: 1, borderColor: 'rgba(229,209,163,.28)', flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   sideUtilityText: { color: '#B6C4BE', fontSize: 9, fontWeight: '700' },
   logoutText: { color: '#D8A6A0' },
   sidebarFoot: { color: '#70837B', fontSize: 7.5, lineHeight: 12, marginTop: 12 },
-  main: { flex: 1, minWidth: 0 },
+  main: { flex: 1, minWidth: Platform.OS === 'web' ? 900 : 0 },
   topbar: { minHeight: 96, paddingHorizontal: 28, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: '#DDD5C8', backgroundColor: '#FBF8F2', flexDirection: 'row', alignItems: 'center', gap: 18 },
   topCopy: { flex: 1 },
   eyebrow: { color: xianxia.cinnabar, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
