@@ -386,6 +386,61 @@ async function parseStoryFile(file){
   renderPreview();
   showParse('✓ Đã nhận dạng '+file.name+' · '+state.chapters.length+' chương.','success');
 }
+async function invokeAi(body){
+  return jsonFetch(SUPABASE_URL+'/functions/v1/ai-translate-book',{
+    method:'POST',
+    headers:authHeaders({'Content-Type':'application/json'}),
+    body:JSON.stringify(body),
+  });
+}
+async function checkAiStatus(){
+  const el=$('aiStatus'),toggle=$('aiTranslate');
+  try{
+    const data=await invokeAi({action:'status'});
+    state.aiReady=Boolean(data?.premium&&data?.providerReady);
+    state.aiProvider=[data?.provider,data?.model].filter(Boolean).join(' · ');
+    if(state.aiReady){
+      el.textContent='✓ AI sẵn sàng'+(state.aiProvider?' · '+state.aiProvider:'');
+      el.className='ai-status ready';
+      toggle.disabled=false;
+    }else if(!data?.premium){
+      el.textContent='AI đang khóa cho tài khoản này.';
+      el.className='ai-status bad';
+      toggle.disabled=true;toggle.checked=false;
+    }else{
+      el.textContent='AI chưa được cấu hình API/model trên máy chủ. Bạn vẫn nhập truyện bình thường được.';
+      el.className='ai-status bad';
+      toggle.disabled=true;toggle.checked=false;
+    }
+  }catch(err){
+    state.aiReady=false;
+    el.textContent='Không kiểm tra được AI: '+(err.message||String(err));
+    el.className='ai-status bad';
+    toggle.disabled=true;toggle.checked=false;
+  }
+}
+function jobInfo(job){
+  return {
+    id:String(job?.id||''),
+    status:String(job?.status||''),
+    total:Number(job?.total_chapters??job?.totalChapters??0),
+    done:Number(job?.completed_chapters??job?.completedChapters??0),
+    error:job?.error_message??job?.errorMessage??'',
+  };
+}
+async function translateWholeBook(bookId,genre){
+  let data=await invokeAi({action:'start',bookId,genre});
+  let job=jobInfo(data?.job);
+  if(!job.id)throw new Error(data?.message||data?.error||'Không tạo được tác vụ AI.');
+  while(job.status==='queued'||job.status==='processing'){
+    showMessage(uploadMessage,'AI đang dịch/làm mượt '+job.done+'/'+job.total+' chương…','info');
+    data=await invokeAi({action:'step',jobId:job.id});
+    job=jobInfo(data?.job);
+  }
+  if(job.status!=='completed')throw new Error(job.error||'AI chưa hoàn tất toàn truyện.');
+  showMessage(uploadMessage,'✓ AI đã xử lý đủ '+job.done+'/'+job.total+' chương.','success');
+  return job;
+}
 async function ensureAdmin(){
   if(!state.token||!state.userId)return false;
   try{
@@ -398,6 +453,7 @@ async function ensureAdmin(){
     if(!preferred)throw new Error('Chưa có hồ sơ tác giả nội bộ để gắn truyện Admin.');
     state.ownerAuthorId=preferred.id;
     loginView.classList.add('hidden');studioView.classList.remove('hidden');
+    checkAiStatus();
     return true;
   }catch(err){ logout(); showMessage(loginMessage,err.message||String(err)); return false; }
 }
@@ -451,31 +507,34 @@ async function verifyStored(bookId,expected){
 async function deleteDraftBook(bookId){ try{await rest('books?id=eq.'+bookId+'&status=eq.draft',{method:'DELETE',prefer:'return=minimal'});}catch{} }
 $('uploadBtn').addEventListener('click',async()=>{
   hideMessage(uploadMessage);
-  const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,publish=$('publishNow').checked,rights=$('rightsConfirmed').checked,chapters=state.chapters;
+  const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,publish=$('publishNow').checked,rights=$('rightsConfirmed').checked,useAi=$('aiTranslate').checked,chapters=state.chapters;
   if(!state.ownerAuthorId)return showMessage(uploadMessage,'Chưa xác định được tác giả nội bộ Admin.');
   if(title.length<2)return showMessage(uploadMessage,'Hãy nhập tên truyện.');
   if(!author)return showMessage(uploadMessage,'Hãy nhập tên tác giả hiển thị.');
   if(!rights)return showMessage(uploadMessage,'Cần xác nhận quyền nội dung trước khi đẩy.');
   if(!chapters.length)return showMessage(uploadMessage,'Chưa có chương để đẩy.');
+  if(useAi&&!state.aiReady)return showMessage(uploadMessage,'AI chưa sẵn sàng trên máy chủ. Hãy tắt AI hoặc cấu hình nhà cung cấp AI.');
   const audit=auditChapters(chapters);if(audit.duplicates.length)return showMessage(uploadMessage,'Có số chương trùng, chưa thể đẩy.');
   if(publish&&chapters.some(ch=>ch.content.trim().length<50))return showMessage(uploadMessage,'Có chương dưới 50 ký tự. Hãy tắt “Xuất bản ngay” hoặc kiểm tra lại nội dung.');
-  const btn=$('uploadBtn');btn.disabled=true;btn.textContent='Đang đẩy và xác minh…';
+  const btn=$('uploadBtn');btn.disabled=true;btn.textContent=useAi?'Đang nhập rồi AI xử lý…':'Đang đẩy và xác minh…';
   let bookId='';
   try{
     const slug=(slugify(title)||'truyen')+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
     const books=await rest('books?select=id',{method:'POST',prefer:'return=representation',body:{author_id:state.ownerAuthorId,title,slug,description:'Truyện được Admin nhập bằng CHƯƠNG Upload Studio từ nguồn '+(state.sourceName||'nội dung quản trị')+'.',credited_author_name:author,language:'vi',source_type:sourceType,status:'draft',visibility:'private',tags:[]}});
     bookId=books[0].id;
     await rest('book_genres',{method:'POST',prefer:'return=minimal',body:{book_id:bookId,genre}});
+    showMessage(uploadMessage,'Đang ghi '+chapters.length+' chương vào kho…','info');
     await insertChapters(bookId,chapters);
     const verification=await verifyStored(bookId,chapters);
     if(!verification.ok)throw new Error('Xác minh thất bại: dự kiến '+verification.want.length+' chương nhưng database có '+verification.actual.length+'.');
     if(state.coverBlob)await uploadCover(bookId);
+    if(useAi)await translateWholeBook(bookId,genre);
     if(publish){
       const now=new Date().toISOString();
       await rest('chapters?book_id=eq.'+bookId,{method:'PATCH',body:{status:'published',published_at:now}});
-      await rest('books?id=eq.'+bookId,{method:'PATCH',body:{status:'ongoing',visibility:'public'}});
+      await rest('books?id=eq.'+bookId,{method:'PATCH',body:{status:'ongoing',visibility:'public',language:'vi'}});
     }
-    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã đọc ngược database và xác minh đủ '+chapters.length+'/'+chapters.length+' chương.\nTrạng thái: '+(publish?'Đã công khai trong app':'Bản nháp riêng tư')+'.\nBook ID: '+bookId,'success');
+    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+'\nTrạng thái: '+(publish?'Đã công khai trong app':'Bản nháp riêng tư')+'.\nBook ID: '+bookId,'success');
     btn.textContent='Đã đẩy đủ '+chapters.length+'/'+chapters.length+' chương';
   }catch(err){
     if(bookId)await deleteDraftBook(bookId);
