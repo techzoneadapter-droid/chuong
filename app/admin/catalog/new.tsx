@@ -57,7 +57,12 @@ export default function AdminCreateCatalogBookScreen() {
   const pickCover = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [2, 3], quality: .88 });
-      if (!result.canceled) setCover({ uri: result.assets[0].uri, mimeType: result.assets[0].mimeType });
+      if (!result.canceled) {
+        const asset = result.assets[0];
+        if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) return setError('Ảnh bìa cần nhỏ hơn 5 MB.');
+        setCover({ uri: asset.uri, mimeType: asset.mimeType });
+        setError('');
+      }
     } catch {
       setError('Không mở được thư viện ảnh trên thiết bị này.');
     }
@@ -115,6 +120,10 @@ export default function AdminCreateCatalogBookScreen() {
         <View style={styles.coverCopy}><Text style={styles.coverAction}>{cover ? 'Thay ảnh bìa' : 'Chọn ảnh bìa'}</Text><Text style={styles.coverNote}>Ảnh thật sẽ được dùng làm thumbnail ở Trang chủ, Khám phá và trang truyện.</Text></View>
       </Pressable>
       <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Khuyến nghị bìa đẹp nhất</Text><Text style={styles.coverGuideText}>Tỷ lệ 2:3 · nên dùng 1200 × 1800 px · tối thiểu 800 × 1200 px · dung lượng lý tưởng 300 KB – 1.5 MB · tối đa 5 MB. Ưu tiên WebP hoặc JPG chất lượng cao.</Text></View>
+      <View style={styles.coverActions}>
+        <Pressable style={styles.coverActionPrimary} onPress={pickCover}><Ionicons name="images-outline" size={16} color="#FFF8EA" /><Text style={styles.coverActionPrimaryText}>{cover ? 'Chọn lại ảnh' : 'Chọn ảnh bìa'}</Text></Pressable>
+        {cover ? <Pressable style={styles.coverActionDelete} onPress={() => setCover(null)}><Ionicons name="trash-outline" size={16} color={xianxia.danger} /><Text style={styles.coverActionDeleteText}>Xóa ảnh</Text></Pressable> : null}
+      </View>
 
       <Text style={styles.groupTitle}>Thông tin truyện</Text>
       <View style={styles.formCard}>
@@ -182,6 +191,11 @@ const styles = StyleSheet.create({
   coverGuide: { marginTop: 9, borderRadius: 13, padding: 11, backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#C4D7C8' },
   coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900', marginBottom: 4 },
   coverGuideText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13 },
+  coverActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  coverActionPrimary: { minHeight: 40, borderRadius: 11, paddingHorizontal: 12, backgroundColor: xianxia.jadeDeep, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  coverActionPrimaryText: { color: '#FFF8EA', fontSize: 9, fontWeight: '900' },
+  coverActionDelete: { minHeight: 40, borderRadius: 11, paddingHorizontal: 12, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  coverActionDeleteText: { color: xianxia.danger, fontSize: 9, fontWeight: '900' },
   groupTitle: { color: xianxia.ink, fontSize: 14, fontWeight: '900', marginTop: 23, marginBottom: 8 },
   groupNote: { color: xianxia.muted, fontSize: 9, lineHeight: 14, marginTop: -3, marginBottom: 7 },
   coverPicker: { borderRadius: 18, backgroundColor: 'rgba(255,253,247,.88)', borderWidth: 1, borderColor: xianxia.line, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 14 },
