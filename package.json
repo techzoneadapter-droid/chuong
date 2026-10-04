@@ -16,8 +16,9 @@
     "native:android": "expo run:android",
     "native:ios": "expo run:ios",
     "test:release": "node tests/release.mjs",
-    "verify": "npm run typecheck && npm run test:ui-copy && npm run test:release && npm run test:db && npm run build",
-    "test:ui-copy": "node tests/ui-copy.mjs"
+    "verify": "npm run typecheck && npm run test:ui-copy && npm run test:admin-web && npm run test:release && npm run test:db && npm run build",
+    "test:ui-copy": "node tests/ui-copy.mjs",
+    "test:admin-web": "node --check admin-web/app.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
