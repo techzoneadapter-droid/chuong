@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ButtonArt } from '../../../components/Artwork';
 import { FormField } from '../../../components/Form';
@@ -126,6 +127,19 @@ export default function AdminBulkImportScreen() {
     setCandidates((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
   };
 
+  const pickCandidateCover = async (id: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [2, 3], quality: .88 });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) return setError('Ảnh bìa cần nhỏ hơn 5 MB.');
+      updateCandidate(id, { coverDataUri: asset.uri, coverMimeType: asset.mimeType || 'image/jpeg' });
+      setError('');
+    } catch (cause) {
+      setError(messageForError(cause, 'Không thể chọn ảnh bìa.'));
+    }
+  };
+
   const runImport = async () => {
     if (!user || profile?.role !== 'admin') return;
     if (!ownerAuthorId) return setError('Cần chọn tác giả sở hữu nội bộ.');
@@ -245,11 +259,18 @@ export default function AdminBulkImportScreen() {
         <View style={styles.summary}><Text style={styles.summaryText}>{selected.length} truyện được chọn · {totalChapters} chương</Text></View>
         {candidates.map((item) => <View key={item.id} style={[styles.candidate, !item.enabled && styles.candidateDisabled]}>
           <Pressable onPress={() => updateCandidate(item.id, { enabled: !item.enabled })}><Ionicons name={item.enabled ? 'checkbox' : 'square-outline'} size={23} color={item.enabled ? xianxia.jadeDeep : xianxia.muted} /></Pressable>
+          <View style={styles.candidateCoverWrap}>
+            {item.coverDataUri ? <Image source={{ uri: item.coverDataUri }} style={styles.candidateCover} /> : <View style={styles.candidateCoverEmpty}><Ionicons name="image-outline" size={20} color={xianxia.jade} /><Text style={styles.candidateCoverEmptyText}>Chưa có bìa</Text></View>}
+          </View>
           <View style={{ flex: 1 }}>
             <TextInput value={item.title} onChangeText={(title) => updateCandidate(item.id, { title })} style={styles.candidateTitle} />
             <Text style={styles.candidateMeta}>{item.sourceName} · {item.chapters.length} chương{item.coverDataUri ? ' · có bìa' : ''}</Text>
             <Text numberOfLines={2} style={styles.chapterPreview}>{item.chapters.slice(0, 3).map((chapter) => `${chapter.chapterNumber}. ${chapter.title}`).join('  •  ')}</Text>
             {item.warnings.map((warning) => <Text key={warning} style={styles.warning}>⚠ {warning}</Text>)}
+            <View style={styles.candidateCoverActions}>
+              <Pressable style={styles.candidateCoverButton} onPress={() => void pickCandidateCover(item.id)}><Ionicons name="images-outline" size={14} color={xianxia.jadeDeep} /><Text style={styles.candidateCoverButtonText}>{item.coverDataUri ? 'Chọn lại ảnh' : 'Chọn ảnh bìa'}</Text></Pressable>
+              {item.coverDataUri ? <Pressable style={styles.candidateCoverDelete} onPress={() => updateCandidate(item.id, { coverDataUri: undefined, coverMimeType: undefined })}><Ionicons name="trash-outline" size={14} color={xianxia.danger} /><Text style={styles.candidateCoverDeleteText}>Xóa ảnh</Text></Pressable> : null}
+            </View>
           </View>
         </View>)}
       </>}
@@ -318,6 +339,15 @@ const styles = StyleSheet.create({
   summaryText: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900' },
   candidate: { minHeight: 104, borderRadius: 16, padding: 12, marginBottom: 8, backgroundColor: 'rgba(255,248,234,.94)', borderWidth: 1, borderColor: xianxia.line, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   candidateDisabled: { opacity: .48 },
+  candidateCoverWrap: { width: 66, alignItems: 'center' },
+  candidateCover: { width: 58, height: 87, borderRadius: 8, backgroundColor: '#EEE7DD' },
+  candidateCoverEmpty: { width: 58, height: 87, borderRadius: 8, backgroundColor: '#F3EEE6', borderWidth: 1, borderStyle: 'dashed', borderColor: xianxia.line, alignItems: 'center', justifyContent: 'center', padding: 4 },
+  candidateCoverEmptyText: { color: xianxia.muted, fontSize: 6.5, textAlign: 'center', marginTop: 4 },
+  candidateCoverActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  candidateCoverButton: { minHeight: 34, borderRadius: 9, paddingHorizontal: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 5 },
+  candidateCoverButtonText: { color: xianxia.jadeDeep, fontSize: 7.8, fontWeight: '900' },
+  candidateCoverDelete: { minHeight: 34, borderRadius: 9, paddingHorizontal: 9, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', flexDirection: 'row', alignItems: 'center', gap: 5 },
+  candidateCoverDeleteText: { color: xianxia.danger, fontSize: 7.8, fontWeight: '900' },
   candidateTitle: { color: xianxia.ink, fontSize: 13, fontWeight: '900', padding: 0 },
   candidateMeta: { color: xianxia.jade, fontSize: 8.5, fontWeight: '800', marginTop: 4 },
   chapterPreview: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13, marginTop: 5 },
