@@ -7,6 +7,7 @@ import { LoadingState } from '../../components/States';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMembership } from '../../hooks/useMembership';
 import { getUnreadNotificationCount } from '../../services/notifications';
 import { getPublicReaderProfile } from '../../services/community';
 
@@ -18,6 +19,7 @@ const menu = [
 
 export default function ProfileScreen() {
   const router = useRouter(); const { user, profile, loading, configured, logout, error, refreshProfile } = useAuth();
+  const membership = useMembership();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [social, setSocial] = useState<{ followers: number; following: number } | null>(null);
   useFocusEffect(useCallback(() => {
@@ -58,6 +60,14 @@ export default function ProfileScreen() {
         <View style={styles.walletIcon}><Ionicons name="diamond-outline" size={20} color={xianxia.jadeDeep} /></View>
         <View style={{ flex: 1 }}><Text style={styles.walletTitle}>Ví CHƯƠNG</Text><Text style={styles.walletBody}>Số dư Linh Thạch · Lịch sử giao dịch</Text></View>
         <Ionicons name="chevron-forward" size={18} color={xianxia.jade} />
+      </Pressable>
+      <Pressable style={[styles.premium, membership.isPremium && styles.premiumActive]} onPress={() => router.push('/premium')}>
+        <View style={styles.premiumIcon}><Ionicons name="diamond" size={20} color={xianxia.goldSoft} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.premiumTitle}>{membership.isPremium ? 'CHƯƠNG VIP đang hoạt động' : 'Nâng cấp CHƯƠNG VIP'}</Text>
+          <Text style={styles.premiumBody}>{membership.isPremium ? '2 GB offline · không quảng cáo · AI dịch toàn truyện' : 'Tăng offline lên 2 GB · bỏ quảng cáo · mở AI dịch truyện'}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={xianxia.goldSoft} />
       </Pressable>
       {profile?.role === 'admin' ? <Pressable style={styles.admin} onPress={() => router.push('/admin')}><View style={styles.adminIcon}><Ionicons name="shield-checkmark-outline" size={20} color={xianxia.goldSoft} /></View><View style={{ flex: 1 }}><Text style={styles.adminTitle}>Trung tâm quản trị</Text><Text style={styles.adminBody}>Kho truyện · kiểm duyệt · vận hành nền tảng.</Text></View><Ionicons name="chevron-forward" size={18} color={xianxia.goldSoft} /></Pressable> : null}
     </>}
@@ -136,6 +146,11 @@ const styles = StyleSheet.create({
   walletIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,253,247,.66)', borderWidth: 1, borderColor: '#C8D6CC', alignItems: 'center', justifyContent: 'center' },
   walletTitle: { color: xianxia.ink, fontSize: 12, fontWeight: '900' },
   walletBody: { color: xianxia.jade, fontSize: 9, marginTop: 3 },
+  premium: { marginTop: 12, minHeight: 68, borderRadius: 16, backgroundColor: '#6E1832', borderWidth: 1, borderColor: xianxia.gold, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  premiumActive: { backgroundColor: '#27423B' },
+  premiumIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(229,209,163,.11)', borderWidth: 1, borderColor: 'rgba(229,209,163,.35)', alignItems: 'center', justifyContent: 'center' },
+  premiumTitle: { color: xianxia.white, fontSize: 12, fontWeight: '900' },
+  premiumBody: { color: 'rgba(255,253,248,.66)', fontSize: 8.5, lineHeight: 13, marginTop: 3 },
   admin: { marginTop: 12, minHeight: 70, borderRadius: 17, backgroundColor: '#27423B', borderWidth: 1, borderColor: '#4A685F', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
   adminIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(229,209,163,.10)', borderWidth: 1, borderColor: 'rgba(229,209,163,.32)', alignItems: 'center', justifyContent: 'center' },
   adminTitle: { color: xianxia.white, fontSize: 12, fontWeight: '900' },
