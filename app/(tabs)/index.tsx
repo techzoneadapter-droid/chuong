@@ -176,28 +176,28 @@ export default function HomeScreen() {
 
         <ArtDivider />
         {rankings.trending.length ? <>
-          <SectionTitle title="Đang thịnh hành" subtitle="Theo độc giả, phiên đọc, hoàn thành chương và thời gian đọc trong 7 ngày gần nhất" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'trending' } })} />
+          <SectionTitle title="Đang thịnh hành" subtitle="Xếp theo dữ liệu đọc 7 ngày: độc giả, quay lại đọc, phiên đọc, hoàn thành chương và thời gian đọc" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'trending' } })} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
             {rankings.trending.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('trending', item)}</Text></View>)}
           </ScrollView>
         </> : null}
 
         {rankings.hot.length ? <>
-          <SectionTitle title="Hot" subtitle="Tương tác 7 ngày + theo dõi mới + lượt đọc + đánh giá thực tế" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'hot' } })} />
+          <SectionTitle title="Hot 48 giờ" subtitle="Chỉ dựa trên mức tăng tương tác 48 giờ gần nhất và lượt theo dõi mới; không dùng số liệu ảo" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'hot' } })} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
             {rankings.hot.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('hot', item)}</Text></View>)}
           </ScrollView>
         </> : null}
 
         {rankings.newest.length ? <>
-          <SectionTitle title="Truyện mới ra" subtitle="Theo thời điểm chương công khai đầu tiên của từng truyện" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'new' } })} />
+          <SectionTitle title="Truyện mới ra" subtitle="Sắp theo thời điểm chương đầu tiên được xuất bản công khai" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'new' } })} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
             {rankings.newest.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('new', item)}</Text></View>)}
           </ScrollView>
         </> : null}
 
         {rankings.top.length ? <>
-          <SectionTitle title="Top CHƯƠNG" subtitle="Dữ liệu toàn thời gian: lượt đọc, theo dõi, hoàn thành chương, thời gian đọc và đánh giá có trọng số" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'top' } })} />
+          <SectionTitle title="Top CHƯƠNG" subtitle="Thành tích toàn thời gian từ lượt đọc, độc giả, theo dõi, hoàn thành chương, thời gian đọc và đánh giá thực tế" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'top' } })} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
             {rankings.top.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('top', item)}</Text></View>)}
           </ScrollView>
