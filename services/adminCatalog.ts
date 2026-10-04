@@ -229,6 +229,92 @@ export async function getAdminCatalogChapters(bookId: string): Promise<Chapter[]
   return (data ?? []).map(mapChapter);
 }
 
+export type AdminCatalogChapterInput = {
+  id?: string;
+  bookId: string;
+  chapterNumber: number;
+  title: string;
+  content: string;
+  status: 'draft' | 'published';
+  isVip: boolean;
+  priceCoins: number;
+};
+
+export async function getAdminCatalogChapter(bookId: string, chapterId: string): Promise<Chapter | null> {
+  const { client } = await requireAdmin();
+  const { data, error } = await client
+    .from('chapters')
+    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,published_at,updated_at')
+    .eq('book_id', bookId)
+    .eq('id', chapterId)
+    .maybeSingle();
+  if (error) throw toServiceError(error, 'Không thể tải chương.');
+  return data ? mapChapter(data) : null;
+}
+
+export async function saveAdminCatalogChapter(input: AdminCatalogChapterInput) {
+  const { client } = await requireAdmin();
+  if (!Number.isInteger(input.chapterNumber) || input.chapterNumber <= 0) throw new Error('Số chương phải lớn hơn 0.');
+  if (input.title.trim().length < 2) throw new Error('Tiêu đề chương cần ít nhất 2 ký tự.');
+  if (input.status === 'published' && input.content.trim().length < 50) throw new Error('Chương cần ít nhất 50 ký tự trước khi xuất bản.');
+  if (input.isVip && (!Number.isInteger(input.priceCoins) || input.priceCoins <= 0)) throw new Error('Chương VIP cần giá Linh Thạch lớn hơn 0.');
+
+  const duplicateQuery = client
+    .from('chapters')
+    .select('id')
+    .eq('book_id', input.bookId)
+    .eq('chapter_number', input.chapterNumber);
+  if (input.id) duplicateQuery.neq('id', input.id);
+  const { data: duplicates, error: duplicateError } = await duplicateQuery.limit(1);
+  if (duplicateError) throw toServiceError(duplicateError, 'Không thể kiểm tra số chương.');
+  if (duplicates?.length) throw new Error(`Truyện đã có Chương ${input.chapterNumber}.`);
+
+  const payload = {
+    book_id: input.bookId,
+    chapter_number: input.chapterNumber,
+    title: input.title.trim(),
+    content: input.content.trim(),
+    status: input.status,
+    is_vip: input.isVip,
+    price_coins: input.isVip ? input.priceCoins : 0,
+    published_at: input.status === 'published' ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.id) {
+    const { data, error } = await client
+      .from('chapters')
+      .update(payload)
+      .eq('id', input.id)
+      .eq('book_id', input.bookId)
+      .select('id')
+      .single();
+    if (error) throw toServiceError(error, 'Không thể cập nhật chương.');
+    return data.id;
+  }
+
+  const { data, error } = await client
+    .from('chapters')
+    .insert(payload)
+    .select('id')
+    .single();
+  if (error) throw toServiceError(error, 'Không thể tạo chương.');
+  return data.id;
+}
+
+export async function deleteAdminDraftChapter(bookId: string, chapterId: string) {
+  const { client } = await requireAdmin();
+  const { data, error } = await client
+    .from('chapters')
+    .delete()
+    .eq('book_id', bookId)
+    .eq('id', chapterId)
+    .eq('status', 'draft')
+    .select('id');
+  if (error) throw toServiceError(error, 'Không thể xóa chương nháp.');
+  if (!data?.length) throw new Error('Chỉ có thể xóa chương đang ở trạng thái nháp.');
+}
+
 export async function importAdminCatalogChapters(
   bookId: string,
   chapters: AdminChapterImport[],
