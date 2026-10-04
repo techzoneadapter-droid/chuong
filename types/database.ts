@@ -2572,6 +2572,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_daily_cultivation: {
+        Args: { p_quest_key: string }
+        Returns: Json
+      }
+      get_daily_cultivation: { Args: never; Returns: Json }
       claim_push_deliveries: {
         Args: { p_limit?: number }
         Returns: {
