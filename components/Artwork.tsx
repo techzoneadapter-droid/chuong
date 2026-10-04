@@ -1,4 +1,6 @@
-import { Image, ImageSourcePropType, Platform, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
+import { brandLogoDataUri } from '../constants/brand-logo';
 import { artwork } from '../constants/artwork';
 import { xianxia } from '../constants/xianxia';
 
@@ -15,14 +17,15 @@ export function BrandLockup({
   inverse?: boolean;
   showTagline?: boolean;
 }) {
-  const ink = inverse ? xianxia.white : xianxia.jadeDeep;
-  const muted = inverse ? 'rgba(255,253,248,.68)' : xianxia.muted;
-  return <View style={styles.brandRow}>
-    <Image accessible={false} source={artwork.icon} resizeMode="contain" style={[styles.brandIcon, compact && styles.brandIconCompact]} />
-    <View style={styles.brandCopy}>
-      <Text accessibilityRole="header" style={[styles.brandWord, compact && styles.brandWordCompact, { color: ink }]}>CHƯƠNG</Text>
-      {showTagline ? <Text style={[styles.brandTagline, { color: muted }]}>Mỗi chương, một thế giới.</Text> : null}
-    </View>
+  const muted = inverse ? 'rgba(255,253,248,.72)' : xianxia.muted;
+  return <View style={[styles.brandWrap, compact && styles.brandWrapCompact]}>
+    <Image
+      accessibilityLabel="Logo CHƯƠNG"
+      source={{ uri: brandLogoDataUri }}
+      resizeMode="contain"
+      style={[styles.brandLogo, compact && styles.brandLogoCompact]}
+    />
+    {showTagline ? <Text style={[styles.brandTagline, compact && styles.brandTaglineCompact, { color: muted }]}>Mỗi chương, một thế giới.</Text> : null}
   </View>;
 }
 
@@ -42,20 +45,7 @@ export function VipArt({ width = 52 }: { width?: number }) {
   return <Image accessibilityLabel="VIP" source={artwork.vip} resizeMode="contain" style={{ width, height: width * .56 }} />;
 }
 
-const placeholderCovers = [artwork.coverPalace, artwork.coverBamboo, artwork.coverArchive] as const;
-
-function hashKey(value: string) {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
-  return Math.abs(hash);
-}
-
-export function placeholderCoverFor(bookId: string, title = ''): ImageSourcePropType {
-  return placeholderCovers[hashKey(bookId || title || 'chuong') % placeholderCovers.length];
-}
-
 export function AssetBookCover({
-  bookId,
   title,
   coverUrl,
   style,
@@ -67,30 +57,42 @@ export function AssetBookCover({
   style?: object;
   resizeMode?: 'cover' | 'contain' | 'stretch' | 'center';
 }) {
-  return <Image
+  if (coverUrl) {
+    return <Image
+      accessible
+      accessibilityLabel={`Bìa truyện ${title}`}
+      source={{ uri: coverUrl }}
+      resizeMode={resizeMode}
+      style={style}
+    />;
+  }
+
+  return <View
     accessible
-    accessibilityLabel={`Bìa truyện ${title}`}
-    source={coverUrl ? { uri: coverUrl } : placeholderCoverFor(bookId, title)}
-    resizeMode={resizeMode}
-    style={style}
-  />;
+    accessibilityLabel={`${title} chưa có ảnh bìa`}
+    style={[styles.noCover, style]}
+  >
+    <Ionicons name="image-outline" size={24} color={xianxia.jade} />
+    <Text style={styles.noCoverText}>Chưa có bìa</Text>
+  </View>;
 }
 
 const styles = StyleSheet.create({
   fill: { width: '100%', height: '100%' },
   dividerWrap: { alignItems: 'center', marginVertical: 10 },
-  brandRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandIcon: { width: 68, height: 58 },
-  brandIconCompact: { width: 47, height: 40 },
-  brandCopy: { minWidth: 0, justifyContent: 'center' },
-  brandWord: {
-    color: xianxia.jadeDeep,
-    fontSize: 26,
-    lineHeight: 30,
-    fontWeight: '900',
-    letterSpacing: 1.6,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  brandWrap: { minWidth: 0, alignItems: 'flex-start' },
+  brandWrapCompact: { alignItems: 'flex-start' },
+  brandLogo: { width: 238, height: 80 },
+  brandLogoCompact: { width: 158, height: 53 },
+  brandTagline: { width: 238, textAlign: 'center', fontSize: 8.5, marginTop: -5, letterSpacing: .15 },
+  brandTaglineCompact: { width: 158, fontSize: 7.5, marginTop: -4 },
+  noCover: {
+    backgroundColor: '#EFE7D6',
+    borderWidth: 1,
+    borderColor: xianxia.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
   },
-  brandWordCompact: { fontSize: 20, lineHeight: 23, letterSpacing: 1.1 },
-  brandTagline: { color: xianxia.muted, fontSize: 8.5, marginTop: 1, letterSpacing: .15 },
+  noCoverText: { color: xianxia.muted, fontSize: 8, fontWeight: '800' },
 });
