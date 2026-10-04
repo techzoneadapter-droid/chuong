@@ -52,7 +52,25 @@ const requiredFiles = [
   'app/admin/catalog/new.tsx',
   'app/admin/catalog/[bookId].tsx',
   'components/XianxiaBackdrop.tsx',
+  'components/Artwork.tsx',
   'constants/xianxia.ts',
+  'constants/artwork.ts',
+  'assets/xianxia/app-background.jpg',
+  'assets/xianxia/icon.png',
+  'assets/xianxia/library-banner.png',
+  'assets/xianxia/empty-library.png',
+  'assets/xianxia/nav-home.png',
+  'assets/xianxia/nav-discover.png',
+  'assets/xianxia/nav-write.png',
+  'assets/xianxia/nav-library.png',
+  'assets/xianxia/nav-profile.png',
+  'assets/xianxia/lotus.png',
+  'assets/xianxia/button-jade.png',
+  'assets/xianxia/divider.png',
+  'assets/xianxia/badge-vip.png',
+  'assets/xianxia/cover-palace.png',
+  'assets/xianxia/cover-bamboo.png',
+  'assets/xianxia/cover-archive.png',
   'services/adminCatalog.ts',
   'services/community.ts',
   'services/offlineDownloads.ts',
@@ -69,6 +87,13 @@ const requiredFiles = [
 for (const file of requiredFiles) {
   check(existsSync(new URL(file, root)), `Required release surface exists: ${file}`);
 }
+
+const homeSource = readFileSync(new URL('app/(tabs)/index.tsx', root), 'utf8');
+const artworkSource = readFileSync(new URL('constants/artwork.ts', root), 'utf8');
+check(homeSource.includes('BrandLockup'), 'Home uses text-safe CHƯƠNG brand lockup');
+check(!homeSource.includes('artwork.logo'), 'Home does not render ambiguous raster wordmark');
+check(!artworkSource.includes("logo: require"), 'Ambiguous horizontal logo is not registered for runtime use');
+check(!homeSource.includes('CHƯỞNG'), 'Home source contains no CHƯỞNG typo');
 
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {
