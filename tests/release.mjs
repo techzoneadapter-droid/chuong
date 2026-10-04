@@ -58,6 +58,11 @@ const requiredFiles = [
   'app/admin/catalog/new.tsx',
   'app/admin/catalog/[bookId].tsx',
   'app/admin/catalog/import.tsx',
+  'app/studio/login.tsx',
+  'app/studio/index.tsx',
+  'app/studio/upload.tsx',
+  'app/studio/book/[bookId].tsx',
+  'app/studio/book/[bookId]/chapter/[chapterId].tsx',
   'app/author/books/[bookId]/import.tsx',
   'components/XianxiaBackdrop.tsx',
   'components/Artwork.tsx',
@@ -109,6 +114,7 @@ const requiredFiles = [
   'docs/READ_ALOUD.md',
   'docs/PREMIUM_AI_TRANSLATION.md',
   'docs/PREMIUM_MONETIZATION.md',
+  'docs/CONTENT_STUDIO.md',
   'supabase/functions/ai-translate-book/index.ts',
   'supabase/functions/subscription-verify/index.ts',
   'supabase/functions/iap-events/index.ts',
@@ -183,6 +189,17 @@ check(storeEventsSource.includes('subscriptionNotification') && storeEventsSourc
 check(nativeAdSource.includes('BannerAd') && nativeAdSource.includes('TestIds.BANNER'), 'Native Standard plan renders AdMob banners with safe test fallback');
 check(adsBridgeSource.includes('AdsConsent.gatherConsent') && adsBridgeSource.includes('mobileAds().initialize'), 'AdMob waits for UMP consent before initialization');
 check(appConfigSource.includes('react-native-google-mobile-ads') && appConfigSource.includes('EXPO_PUBLIC_ADMOB_ANDROID_APP_ID'), 'Expo config wires AdMob App IDs through environment variables');
+
+const studioDashboardSource = readFileSync(new URL('app/studio/index.tsx', root), 'utf8');
+const studioUploadSource = readFileSync(new URL('app/studio/upload.tsx', root), 'utf8');
+const studioBookSource = readFileSync(new URL('app/studio/book/[bookId].tsx', root), 'utf8');
+const studioChapterSource = readFileSync(new URL('app/studio/book/[bookId]/chapter/[chapterId].tsx', root), 'utf8');
+const studioShellSource = readFileSync(new URL('components/StudioShell.tsx', root), 'utf8');
+check(studioDashboardSource.includes('Kho truyện của app mobile'), 'Content Studio dashboard is explicitly tied to the mobile catalog');
+check(studioUploadSource.includes('parseAdminImportFile') && studioUploadSource.includes('createAdminCatalogBook'), 'Content Studio bulk upload writes parsed stories into the admin catalog');
+check(studioBookSource.includes('/studio/book/[bookId]/chapter/[chapterId]'), 'Content Studio book manager links to chapter editing');
+check(studioChapterSource.includes('saveAdminCatalogChapter') && studioChapterSource.includes('Lưu & xuất bản'), 'Content Studio provides full chapter editing and publishing');
+check(studioShellSource.includes('Đăng xuất Studio'), 'Content Studio has standalone admin session controls');
 
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {
