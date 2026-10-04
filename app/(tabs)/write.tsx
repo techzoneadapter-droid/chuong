@@ -42,7 +42,7 @@ export default function WriteScreen() {
   if (!user) return <SafeAreaView style={styles.safe}>
     <XianxiaBackdrop />
     <View style={styles.centerPage}>
-      <View style={styles.sealLarge}><Text style={styles.sealLargeText}>笔</Text></View>
+      <View style={styles.sealLarge}><Ionicons name="create-outline" size={25} color={xianxia.goldSoft} /></View>
       <Text style={styles.kicker}>VĂN CÁC · AUTHOR STUDIO</Text>
       <Text style={styles.title}>Viết câu chuyện của bạn.</Text>
       <Text style={styles.body}>Tạo thế giới, đăng từng chương và xây cộng đồng độc giả trên CHƯƠNG.</Text>
@@ -64,7 +64,7 @@ export default function WriteScreen() {
   if (!author) return <SafeAreaView style={styles.safe}>
     <XianxiaBackdrop />
     <View style={styles.centerPage}>
-      <View style={styles.sealLarge}><Text style={styles.sealLargeText}>道</Text></View>
+      <View style={styles.sealLarge}><Ionicons name="leaf-outline" size={25} color={xianxia.goldSoft} /></View>
       <Text style={styles.kicker}>KHAI BÚT NHẬP ĐẠO</Text>
       <Text style={styles.title}>Trở thành tác giả CHƯƠNG.</Text>
       <Text style={styles.body}>Tạo bút danh, giới thiệu bản thân và xác nhận quyền sử dụng nội dung trước khi xuất bản.</Text>
@@ -98,7 +98,7 @@ export default function WriteScreen() {
       </View>
 
       <View style={styles.hero}>
-        <View style={styles.heroSeal}><Text style={styles.heroSealText}>文</Text></View>
+        <View style={styles.heroSeal}><Ionicons name="document-text-outline" size={23} color={xianxia.goldSoft} /></View>
         <View style={styles.heroCopy}>
           <Text style={styles.heroTitle}>Mỗi chương là một bước trên tiên lộ.</Text>
           <Text style={styles.heroBody}>Lượt đọc được ghi nhận từ phiên đọc thật. Phân tích được tổng hợp định kỳ để giữ hệ thống ổn định khi lượng độc giả tăng cao.</Text>
@@ -141,7 +141,7 @@ export default function WriteScreen() {
             <View style={styles.cover}>
               <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
               <View pointerEvents="none" style={styles.coverShade} />
-              <View style={styles.coverSeal}><Text style={styles.coverSealText}>作</Text></View>
+              <View style={styles.coverSeal}><Ionicons name="create-outline" size={13} color={xianxia.goldSoft} /></View>
             </View>
           </View>
           <Pressable style={styles.bookInfo} onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters', params: { bookId: book.id } })}>
