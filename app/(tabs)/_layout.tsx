@@ -28,8 +28,8 @@ export default function TabsLayout() {
           borderTopWidth: 1,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
+          fontSize: 10.5,
+          fontWeight: '700',
         },
       }}
     >
