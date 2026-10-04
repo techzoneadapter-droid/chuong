@@ -495,6 +495,10 @@ $('parsePasteBtn').addEventListener('click',()=>{
   state.chapters=splitChapters(raw);state.sourceName='Nội dung dán';
   const title=$('pasteTitle').value.trim()||'Truyện nhập từ Admin';$('bookTitle').value=title;renderPreview();hideMessage(uploadMessage);
 });
+$('bookVip').addEventListener('change',()=>{
+  $('vipPriceWrap').classList.toggle('hidden',!$('bookVip').checked);
+  if(!$('bookVip').checked)$('vipPrice').value='0';
+});
 $('chooseCoverBtn').addEventListener('click',()=> $('coverFile').click());
 $('removeCoverBtn').addEventListener('click',()=>{clearCover();hideMessage(uploadMessage);});
 $('coverFile').addEventListener('change',e=>{
@@ -527,11 +531,12 @@ async function verifyStored(bookId,expected){
 async function deleteDraftBook(bookId){ try{await rest('books?id=eq.'+bookId+'&status=eq.draft',{method:'DELETE',prefer:'return=minimal'});}catch{} }
 $('uploadBtn').addEventListener('click',async()=>{
   hideMessage(uploadMessage);
-  const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,bookStatus=$('bookStatus').value,publish=$('publishNow').checked,rights=$('rightsConfirmed').checked,useAi=$('aiTranslate').checked,chapters=state.chapters;
+  const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,bookStatus=$('bookStatus').value,publish=$('publishNow').checked,rights=$('rightsConfirmed').checked,useAi=$('aiTranslate').checked,isVip=$('bookVip').checked,priceCoins=isVip?Number($('vipPrice').value||0):0,chapters=state.chapters;
   if(!state.ownerAuthorId)return showMessage(uploadMessage,'Chưa xác định được tác giả nội bộ Admin.');
   if(title.length<2)return showMessage(uploadMessage,'Hãy nhập tên truyện.');
   if(!author)return showMessage(uploadMessage,'Hãy nhập tên tác giả hiển thị.');
   if(!rights)return showMessage(uploadMessage,'Cần xác nhận quyền nội dung trước khi đẩy.');
+  if(isVip&&(!Number.isInteger(priceCoins)||priceCoins<=0))return showMessage(uploadMessage,'Truyện VIP cần giá Linh Thạch lớn hơn 0.');
   if(!chapters.length)return showMessage(uploadMessage,'Chưa có chương để đẩy.');
   if(useAi&&!state.aiReady)return showMessage(uploadMessage,'AI chưa sẵn sàng trên máy chủ. Hãy tắt AI hoặc cấu hình nhà cung cấp AI.');
   const audit=auditChapters(chapters);if(audit.duplicates.length)return showMessage(uploadMessage,'Có số chương trùng, chưa thể đẩy.');
@@ -540,7 +545,7 @@ $('uploadBtn').addEventListener('click',async()=>{
   let bookId='';
   try{
     const slug=(slugify(title)||'truyen')+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
-    const books=await rest('books?select=id',{method:'POST',prefer:'return=representation',body:{author_id:state.ownerAuthorId,title,slug,description:'Truyện được Admin nhập bằng CHƯƠNG Upload Studio từ nguồn '+(state.sourceName||'nội dung quản trị')+'.',credited_author_name:author,language:'vi',source_type:sourceType,status:'draft',visibility:'private',tags:[]}});
+    const books=await rest('books?select=id',{method:'POST',prefer:'return=representation',body:{author_id:state.ownerAuthorId,title,slug,description:'Truyện được Admin nhập bằng CHƯƠNG Upload Studio từ nguồn '+(state.sourceName||'nội dung quản trị')+'.',credited_author_name:author,language:'vi',source_type:sourceType,status:'draft',visibility:'private',tags:[],is_vip:isVip,price_coins:priceCoins}});
     bookId=books[0].id;
     await rest('book_genres',{method:'POST',prefer:'return=minimal',body:{book_id:bookId,genre}});
     showMessage(uploadMessage,'Đang ghi '+chapters.length+' chương vào kho…','info');
@@ -555,7 +560,7 @@ $('uploadBtn').addEventListener('click',async()=>{
       await rest('books?id=eq.'+bookId,{method:'PATCH',body:{status:bookStatus,visibility:'public',language:'vi'}});
     }
     const statusLabel=bookStatus==='completed'?'Hoàn thành':bookStatus==='paused'?'Tạm dừng / Drop':'Đang ra';
-    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+'\nTrạng thái: '+(publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+'.\nBook ID: '+bookId,'success');
+    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+'\nTrạng thái: '+(publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+(isVip?'\nVIP toàn truyện: '+priceCoins+' Linh Thạch':'\nTruyện miễn phí')+'.\nBook ID: '+bookId,'success');
     btn.textContent='Đã đẩy đủ '+chapters.length+'/'+chapters.length+' chương';
   }catch(err){
     if(bookId)await deleteDraftBook(bookId);
