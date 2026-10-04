@@ -115,6 +115,7 @@ const requiredFiles = [
   'docs/PREMIUM_AI_TRANSLATION.md',
   'docs/PREMIUM_MONETIZATION.md',
   'docs/CONTENT_STUDIO.md',
+  'docs/PROJECT_AUDIT_2026-10-04.md',
   'supabase/functions/ai-translate-book/index.ts',
   'supabase/functions/subscription-verify/index.ts',
   'supabase/functions/iap-events/index.ts',
