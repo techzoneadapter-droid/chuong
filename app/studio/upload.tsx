@@ -48,7 +48,7 @@ export default function StudioUploadScreen() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.replace('/auth/login');
+      router.replace('/studio/login');
       return;
     }
     if (profile?.role !== 'admin') {
