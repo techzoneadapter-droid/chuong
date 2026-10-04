@@ -45,6 +45,11 @@ export default function AdminHomeScreen() {
         <Metric value={counts?.resolved ?? 0} label="Đã xử lý" tone="#47704D" />
         <Metric value={counts?.rejected ?? 0} label="Không vi phạm" tone="#6D6570" />
       </View>
+      <Pressable style={styles.studioCard} onPress={() => router.push('/studio')}>
+        <View style={styles.studioIcon}><Ionicons name="desktop-outline" size={22} color="#F1D89A" /></View>
+        <View style={{ flex: 1 }}><Text style={styles.studioTitle}>CHƯƠNG Content Studio</Text><Text style={styles.studioBody}>Web app riêng để đẩy truyện, quản lý bìa, metadata, trạng thái và chương dùng trực tiếp trong app mobile.</Text></View>
+        <Ionicons name="open-outline" size={19} color="#F1D89A" />
+      </Pressable>
       <Pressable style={styles.primary} onPress={() => router.push('/admin/reports')}>
         <Ionicons name="flag-outline" size={21} color="#FFF" />
         <View style={{ flex: 1 }}><Text style={styles.primaryTitle}>Hàng đợi báo cáo</Text><Text style={styles.primaryBody}>Xem xét bản quyền, spam, quấy rối và các báo cáo khác.</Text></View>
@@ -98,7 +103,11 @@ const styles = StyleSheet.create({
   metric: { width: '48%', minHeight: 92, backgroundColor: '#FFFDFC', borderRadius: 16, borderWidth: 1, borderColor: '#E4D8D1', padding: 15 },
   metricValue: { fontSize: 28, fontWeight: '900' },
   metricLabel: { color: '#756B6F', fontSize: 11, marginTop: 3, fontWeight: '700' },
-  primary: { marginTop: 18, minHeight: 82, borderRadius: 18, padding: 16, backgroundColor: '#8F1D3F', flexDirection: 'row', alignItems: 'center', gap: 13 },
+  studioCard: { marginTop: 18, minHeight: 88, borderRadius: 18, padding: 15, backgroundColor: '#17312B', borderWidth: 1, borderColor: '#C7A95D', flexDirection: 'row', alignItems: 'center', gap: 13 },
+  studioIcon: { width: 44, height: 44, borderRadius: 13, backgroundColor: 'rgba(241,216,154,.10)', borderWidth: 1, borderColor: 'rgba(241,216,154,.30)', alignItems: 'center', justifyContent: 'center' },
+  studioTitle: { color: '#FFF8EA', fontSize: 14, fontWeight: '900' },
+  studioBody: { color: 'rgba(255,248,234,.66)', fontSize: 10, lineHeight: 15, marginTop: 3 },
+  primary: { marginTop: 10, minHeight: 82, borderRadius: 18, padding: 16, backgroundColor: '#8F1D3F', flexDirection: 'row', alignItems: 'center', gap: 13 },
   primaryTitle: { color: '#FFF', fontSize: 15, fontWeight: '900' },
   primaryBody: { color: '#F2CED9', fontSize: 11, lineHeight: 16, marginTop: 3 },
   catalogCard: { marginTop: 10, minHeight: 86, borderRadius: 18, padding: 15, backgroundColor: '#27463F', borderWidth: 1, borderColor: '#47665E', flexDirection: 'row', alignItems: 'center', gap: 13 },
