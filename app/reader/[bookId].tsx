@@ -63,7 +63,6 @@ export default function ReaderScreen() {
   const [reload, setReload] = useState(0);
   const [progressReady, setProgressReady] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
-  const [aiResult, setAiResult] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scrollPosition = useRef(0);
@@ -449,7 +448,6 @@ export default function ReaderScreen() {
         canPrevious={previousNumber !== undefined}
         canNext={nextNumber !== undefined}
       />
-      <AiSheet visible={sheet === 'ai'} onClose={() => setSheet(null)} onOpen={(path) => router.push({ pathname: path, params: { bookId: book.id, chapter: chapterNumber } })} result={aiResult} onResult={setAiResult} />
       <MoreSheet visible={sheet === 'more'} onClose={() => setSheet(null)} bookmark={bookmark} chapter={chapterNumber} onBookmark={toggleBookmark} onComments={() => { setSheet(null); requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })); }} />
     </View>
   );
@@ -554,7 +552,7 @@ function AudioSheet({
     </View>
     <Text style={audioStyles.title}>{chapterTitle}</Text>
     <Text style={audioStyles.sub}>TTS hệ thống · {player.voiceName}</Text>
-    {player.voiceCount < 2 ? <Text style={audioStyles.voiceHint}>Thiết bị hiện chỉ cung cấp một giọng phù hợp; lựa chọn Nam/Nữ có thể dùng cùng một giọng hệ thống.</Text> : null}
+    {player.voiceCount === 0 ? <Text style={audioStyles.voiceHint}>Chưa phát hiện gói giọng tiếng Việt trên thiết bị. CHƯƠNG sẽ yêu cầu hệ điều hành dùng giọng vi-VN mặc định và tuyệt đối không chọn giọng tiếng Anh thay thế.</Text> : !player.hasDistinctGenderVoices ? <Text style={audioStyles.voiceHint}>Thiết bị đã có giọng tiếng Việt nhưng chưa cung cấp đủ hai giọng Nam/Nữ riêng biệt. CHƯƠNG không giả lập giới tính giọng; hãy cài thêm voice pack tiếng Việt nếu muốn hai giọng khác nhau.</Text> : <Text style={audioStyles.voiceHint}>Đã phát hiện hai giọng tiếng Việt khác nhau cho lựa chọn Nam/Nữ.</Text>}
     {player.error ? <Text style={audioStyles.error}>{player.error}</Text> : null}
     {player.sleepExpired ? <Text style={audioStyles.sleepNotice}>Hẹn giờ ngủ đã dừng giọng đọc.</Text> : null}
 
@@ -581,7 +579,7 @@ function AudioSheet({
     <Text style={audioStyles.optionLabel}>Tốc độ</Text>
     <View style={audioStyles.options}>{TTS_SPEEDS.map((item) => <Pressable key={item} onPress={() => player.setSpeed(item)} style={[audioStyles.option, player.speed === item && audioStyles.optionActive]}><Text style={[audioStyles.optionText, player.speed === item && audioStyles.optionTextActive]}>{item}x</Text></Pressable>)}</View>
 
-    <Text style={audioStyles.optionLabel}>Giọng đọc</Text>
+    <Text style={audioStyles.optionLabel}>Giọng đọc tiếng Việt</Text>
     <Segment options={TTS_VOICES.map((item) => [item, item] as const)} value={player.voice} onChange={(value) => player.setVoice(value as TtsVoice)} />
 
     <View style={audioStyles.autoNextRow}>
@@ -591,23 +589,6 @@ function AudioSheet({
 
     <Text style={audioStyles.optionLabel}>Hẹn giờ ngủ {player.sleepTimer !== 'Tắt' ? `· ${player.sleepTimer}` : ''}</Text>
     <View style={audioStyles.options}>{SLEEP_TIMERS.map((item) => <Pressable key={item} onPress={() => player.setSleepTimer(player.sleepTimer === item ? 'Tắt' : item)} style={[audioStyles.timerChoice, player.sleepTimer === item && audioStyles.optionActive]}><Text style={[audioStyles.timerChoiceText, player.sleepTimer === item && audioStyles.optionTextActive]}>{item}</Text></Pressable>)}</View>
-  </BottomSheet>;
-}
-
-type AiPath = '/ai/convert' | '/ai/recap' | '/ai/chat';
-function AiSheet({ visible, onClose, onOpen, result, onResult }: { visible: boolean; onClose: () => void; onOpen: (path: AiPath) => void; result: string; onResult: (value: string) => void }) {
-  const options: { icon: keyof typeof Ionicons.glyphMap; label: string; detail: string; action: () => void }[] = [
-    { icon: 'sparkles', label: 'Làm mượt đoạn này', detail: 'Câu văn tự nhiên, giữ nguyên ý', action: () => onOpen('/ai/convert') },
-    { icon: 'swap-horizontal', label: 'Convert chuẩn', detail: 'Chuẩn hóa câu chữ bản dịch', action: () => onOpen('/ai/convert') },
-    { icon: 'flash-outline', label: 'Văn phong hiện đại', detail: 'Diễn đạt gọn và đương đại', action: () => onOpen('/ai/convert') },
-    { icon: 'reader-outline', label: 'Tóm tắt đến đây', detail: 'Không tiết lộ chương sau', action: () => onOpen('/ai/recap') },
-    { icon: 'chatbubbles-outline', label: 'Hỏi truyện', detail: 'Hỏi về nhân vật và tình tiết', action: () => onOpen('/ai/chat') },
-    { icon: 'bulb-outline', label: 'Giải thích đoạn này', detail: 'Làm rõ hàm ý trong đoạn', action: () => onResult('Đoạn này cho thấy Diệp Phàm biết trước nguy hiểm nhưng vẫn chọn đi tiếp. “Cánh cửa” là ẩn dụ cho sự thật về người cha mà anh đã tìm kiếm suốt mười năm.') }
-  ];
-  return <BottomSheet visible={visible} title="✨ Công cụ AI" onClose={onClose} scroll>
-    <Text style={sheetStyles.aiNotice}>AI chỉ dựa trên phần truyện bạn đã đọc. Kết quả ở giai đoạn này là bản minh họa cục bộ.</Text>
-    {options.map((item) => <Pressable style={sheetStyles.aiRow} key={item.label} onPress={item.action}><View style={sheetStyles.aiIcon}><Ionicons name={item.icon} size={19} color="#8F1D3F" /></View><View style={{ flex: 1 }}><Text style={sheetStyles.aiTitle}>{item.label}</Text><Text style={sheetStyles.aiDetail}>{item.detail}</Text></View><Ionicons name="chevron-forward" size={17} color="#A2959A" /></Pressable>)}
-    {result ? <View style={sheetStyles.aiResult}><Text style={sheetStyles.aiResultTitle}>Giải thích</Text><Text style={sheetStyles.aiResultText}>{result}</Text></View> : null}
   </BottomSheet>;
 }
 
