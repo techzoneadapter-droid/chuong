@@ -18,11 +18,11 @@ function walk(dir) {
     }
     if (!allowedExt.has(extname(path))) continue;
     const source = readFileSync(path, 'utf8');
-    source.split('\n').forEach((line, index) => {
+    source.split('\\n').forEach((line, index) => {
       if (!han.test(line)) return;
       const chars = [...new Set([...line].filter((char) => han.test(char)))].join('');
       findings.push({
-        file: relative(new URL('../', import.meta.url).pathname, path).replaceAll('\\', '/'),
+        file: relative(new URL('../', import.meta.url).pathname, path).replaceAll('\\\\', '/'),
         line: index + 1,
         chars,
         text: line.trim().slice(0, 220),
@@ -31,12 +31,12 @@ function walk(dir) {
   }
 }
 
-for (const name of roots) walk(new URL(\`../\${name}\`, import.meta.url).pathname);
+for (const name of roots) walk(new URL('../' + name, import.meta.url).pathname);
 
 if (findings.length) {
   console.error('UI COPY AUDIT FAILED: found Han/CJK characters in runtime source.');
   for (const finding of findings) {
-    console.error(\`- \${finding.file}:\${finding.line} [\${finding.chars}] \${finding.text}\`);
+    console.error('- ' + finding.file + ':' + finding.line + ' [' + finding.chars + '] ' + finding.text);
   }
   process.exit(1);
 }
