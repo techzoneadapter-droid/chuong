@@ -32,6 +32,8 @@ jobs:
         run: npx expo install --check
       - name: TypeScript
         run: npm run typecheck
+      - name: UI copy audit
+        run: npm run test:ui-copy
       - name: Release readiness audit
         run: npm run test:release
       - name: Database regression
