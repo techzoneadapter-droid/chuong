@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   titleWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, flex: 1 },
   ornament: { width: 17, height: 22, borderLeftWidth: 1, borderRightWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: xianxia.cinnabar },
-  title: { color: xianxia.ink, fontSize: 18, fontWeight: '600' },
+  title: { color: '#24231F', fontSize: 18, lineHeight: 23, fontWeight: '800' },
   action: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900' },
-  actionLabel: { color: xianxia.muted, fontSize: 10, fontWeight: '800' },
+  actionLabel: { color: '#5F5A53', fontSize: 10, fontWeight: '800' },
 });
