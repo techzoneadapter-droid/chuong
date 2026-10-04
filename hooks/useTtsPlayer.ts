@@ -173,6 +173,7 @@ export function useTtsPlayer({
 
   const setSpeed = useCallback((speed: number) => {
     const resume = playing;
+    preferencesRef.current = { ...preferencesRef.current, speed };
     setPreferences((current) => ({ ...current, speed }));
     if (resume) {
       runId.current += 1;
@@ -184,6 +185,7 @@ export function useTtsPlayer({
 
   const setVoice = useCallback((voice: TtsVoice) => {
     const resume = playing;
+    preferencesRef.current = { ...preferencesRef.current, voice };
     setPreferences((current) => ({ ...current, voice }));
     if (resume) {
       runId.current += 1;
@@ -194,12 +196,14 @@ export function useTtsPlayer({
   }, [playing, runFrom, segmentIndex, setPreferences]);
 
   const setSleepTimer = useCallback((sleepTimerValue: SleepTimer) => {
+    preferencesRef.current = { ...preferencesRef.current, sleepTimer: sleepTimerValue };
     setPreferences((current) => ({ ...current, sleepTimer: sleepTimerValue }));
     if (playing) scheduleSleep(sleepTimerValue);
     else clearSleepTimeout();
   }, [clearSleepTimeout, playing, scheduleSleep, setPreferences]);
 
   const setAutoNext = useCallback((autoNext: boolean) => {
+    preferencesRef.current = { ...preferencesRef.current, autoNext };
     setPreferences((current) => ({ ...current, autoNext }));
   }, [setPreferences]);
 
@@ -227,7 +231,7 @@ export function useTtsPlayer({
     const targetWord = totalWords * Math.min(100, Math.max(0, initialProgressPercent)) / 100;
     const targetIndex = segments.findIndex((item) => targetWord >= item.startWord && targetWord < item.endWord);
     setSegmentIndex(targetIndex >= 0 ? targetIndex : initialProgressPercent >= 100 ? Math.max(0, segments.length - 1) : 0);
-  }, [chapterKey, clearSleepTimeout, initialProgressPercent, segments, totalWords]);
+  }, [chapterKey, clearSleepTimeout, segments, totalWords]);
 
   useEffect(() => () => {
     runId.current += 1;
