@@ -9,18 +9,21 @@ import { xianxia } from '../constants/xianxia';
 import { useAuth } from '../contexts/AuthContext';
 import {
   claimDailyCultivation,
+  claimRewardedAdBonus,
   DailyCultivationState,
   DailyQuest,
   DailyQuestKey,
   dailyQuestProgressText,
   getDailyCultivation,
 } from '../services/rewards';
+import { rewardedAdsAvailable, showDailyRewardedAd } from '../services/rewardedAds';
 
 const questIcon: Record<DailyQuestKey, keyof typeof Ionicons.glyphMap> = {
   checkin: 'calendar-outline',
   read_10m: 'book-outline',
   complete_3: 'checkmark-done-outline',
   review_1: 'star-outline',
+  rewarded_ad: 'play-circle-outline',
 };
 
 export default function RewardsScreen() {
@@ -31,6 +34,7 @@ export default function RewardsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [claiming, setClaiming] = useState<DailyQuestKey | null>(null);
   const [error, setError] = useState('');
+  const [adAvailable] = useState(() => rewardedAdsAvailable());
 
   const load = useCallback(async (refresh = false) => {
     if (!user) return;
@@ -59,7 +63,20 @@ export default function RewardsScreen() {
     setClaiming(quest.key);
     setError('');
     try {
-      setState(await claimDailyCultivation(quest.key));
+      if (quest.key === 'rewarded_ad') {
+        if (!adAvailable) {
+          setError('Quảng cáo thưởng chỉ khả dụng trong bản Android/iOS native. Bản web preview không phát quảng cáo.');
+          return;
+        }
+        const adResult = await showDailyRewardedAd();
+        if (adResult !== 'earned') {
+          setError(adResult === 'closed' ? 'Bạn cần xem hết quảng cáo để nhận Linh Thạch.' : 'Chưa tải được quảng cáo. Vui lòng thử lại sau.');
+          return;
+        }
+        setState(await claimRewardedAdBonus());
+      } else {
+        setState(await claimDailyCultivation(quest.key));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Chưa thể nhận thưởng.');
       await load(true).catch(() => undefined);
@@ -135,11 +152,16 @@ export default function RewardsScreen() {
       <View style={styles.questList}>
         {quests.map((quest) => {
           const progress = Math.min(1, quest.progress / Math.max(1, quest.target));
+          const isRewardedAd = quest.key === 'rewarded_ad';
           const buttonLabel = quest.claimed
             ? 'Đã nhận'
-            : quest.eligible
-              ? 'Nhận +' + quest.reward
-              : dailyQuestProgressText(quest);
+            : isRewardedAd && !adAvailable
+              ? 'Android/iOS'
+              : isRewardedAd
+                ? 'Xem quảng cáo'
+                : quest.eligible
+                  ? 'Nhận +' + quest.reward
+                  : dailyQuestProgressText(quest);
           return <View key={quest.key} style={[styles.quest, quest.claimed && styles.questClaimed]}>
             <View style={[styles.questIcon, quest.claimed && styles.questIconClaimed]}>
               <Ionicons name={quest.claimed ? 'checkmark' : questIcon[quest.key]} size={20} color={quest.claimed ? '#FFF8EA' : xianxia.jadeDeep} />
@@ -154,15 +176,15 @@ export default function RewardsScreen() {
               <Text style={styles.progressText}>{dailyQuestProgressText(quest)}</Text>
             </View>
             <Pressable
-              disabled={quest.claimed || !quest.eligible || Boolean(claiming)}
+              disabled={quest.claimed || (!quest.eligible && quest.key !== 'rewarded_ad') || (quest.key === 'rewarded_ad' && !adAvailable) || Boolean(claiming)}
               onPress={() => void claim(quest)}
               style={[
                 styles.claimButton,
-                quest.eligible && !quest.claimed && styles.claimButtonReady,
-                (quest.claimed || !quest.eligible) && styles.claimButtonDisabled,
+                (quest.eligible || quest.key === 'rewarded_ad') && !quest.claimed && adAvailable && styles.claimButtonReady,
+                (quest.claimed || (!quest.eligible && quest.key !== 'rewarded_ad') || (quest.key === 'rewarded_ad' && !adAvailable)) && styles.claimButtonDisabled,
               ]}
             >
-              <Text style={[styles.claimText, quest.eligible && !quest.claimed && styles.claimTextReady]}>
+              <Text style={[styles.claimText, (quest.eligible || quest.key === 'rewarded_ad') && !quest.claimed && adAvailable && styles.claimTextReady]}>
                 {claiming === quest.key ? 'Đang nhận…' : buttonLabel}
               </Text>
             </Pressable>
