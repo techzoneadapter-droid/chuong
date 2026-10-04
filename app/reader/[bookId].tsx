@@ -552,7 +552,7 @@ function AudioSheet({
     </View>
     <Text style={audioStyles.title}>{chapterTitle}</Text>
     <Text style={audioStyles.sub}>TTS hệ thống · {player.voiceName}</Text>
-    {player.voiceCount === 0 ? <Text style={audioStyles.voiceHint}>Chưa phát hiện gói giọng tiếng Việt trên thiết bị. CHƯƠNG sẽ yêu cầu hệ điều hành dùng giọng vi-VN mặc định và tuyệt đối không chọn giọng tiếng Anh thay thế.</Text> : !player.hasDistinctGenderVoices ? <Text style={audioStyles.voiceHint}>Thiết bị đã có giọng tiếng Việt nhưng chưa cung cấp đủ hai giọng Nam/Nữ riêng biệt. CHƯƠNG không giả lập giới tính giọng; hãy cài thêm voice pack tiếng Việt nếu muốn hai giọng khác nhau.</Text> : <Text style={audioStyles.voiceHint}>Đã phát hiện hai giọng tiếng Việt khác nhau cho lựa chọn Nam/Nữ.</Text>}
+    {player.voiceCount === 0 ? <Text style={audioStyles.voiceHint}>Chưa phát hiện gói giọng tiếng Việt trên thiết bị. CHƯƠNG sẽ yêu cầu hệ điều hành dùng giọng vi-VN mặc định và tuyệt đối không chọn giọng tiếng Anh thay thế.</Text> : !player.hasDistinctGenderVoices ? <Text style={audioStyles.voiceHint}>Thiết bị đã có giọng tiếng Việt nhưng chưa cung cấp đủ hai giọng Nam/Nữ riêng biệt. CHƯƠNG vẫn giữ tiếng Việt và tạo khác biệt Nam/Nữ bằng cao độ; cài thêm voice pack tiếng Việt để có hai giọng tự nhiên riêng biệt.</Text> : <Text style={audioStyles.voiceHint}>Đã phát hiện hai giọng tiếng Việt khác nhau cho lựa chọn Nam/Nữ.</Text>}
     {player.error ? <Text style={audioStyles.error}>{player.error}</Text> : null}
     {player.sleepExpired ? <Text style={audioStyles.sleepNotice}>Hẹn giờ ngủ đã dừng giọng đọc.</Text> : null}
 
