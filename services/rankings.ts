@@ -107,7 +107,7 @@ export function rankingReason(kind: PublicRankingKind, item: RankedBook) {
     return item.uniqueReaders7d + ' độc giả · ' + item.sessions7d + ' phiên đọc trong 7 ngày';
   }
   if (kind === 'hot') {
-    return item.uniqueReaders7d + ' độc giả · ' + item.recentFollows7d + ' theo dõi mới · 7 ngày';
+    return 'Tăng tốc 48 giờ · dữ liệu đọc và theo dõi thực tế';
   }
   if (kind === 'new') {
     return item.releasedAt ? 'Ra mắt ' + new Date(item.releasedAt).toLocaleDateString('vi-VN') : 'Truyện mới ra';
