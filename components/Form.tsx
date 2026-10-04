@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -5,10 +7,30 @@ import { xianxia } from '../constants/xianxia';
 import { XianxiaBackdrop } from './XianxiaBackdrop';
 import { BrandLockup, ButtonArt } from './Artwork';
 
-export function FormScreen({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+export function FormScreen({
+  title,
+  subtitle,
+  children,
+  backHref,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  backHref?: string;
+}) {
+  const router = useRouter();
   return <SafeAreaView style={styles.safe}>
     <XianxiaBackdrop />
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
+      {backHref ? <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Quay lại"
+        onPress={() => router.replace(backHref as never)}
+        style={styles.backButton}
+      >
+        <Ionicons name="arrow-back" size={19} color={xianxia.jadeDeep} />
+        <Text style={styles.backText}>Quay lại</Text>
+      </Pressable> : null}
       <BrandLockup />
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -35,6 +57,8 @@ export function FormMessage({ children, error }: { children: ReactNode; error?: 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: xianxia.paper },
   page: { flexGrow: 1, width: '100%', maxWidth: 540, alignSelf: 'center', padding: 24, justifyContent: 'center' },
+  backButton: { alignSelf: 'flex-start', minHeight: 40, paddingHorizontal: 11, marginBottom: 10, borderRadius: 12, backgroundColor: 'rgba(255,248,234,.92)', borderWidth: 1, borderColor: xianxia.line, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backText: { color: xianxia.jadeDeep, fontSize: 10, fontWeight: '900' },
   title: { color: xianxia.ink, fontSize: 30, fontWeight: '900', marginTop: 18 },
   subtitle: { color: xianxia.muted, fontSize: 13, lineHeight: 20, marginTop: 7 },
   form: { marginTop: 24, borderRadius: 20, backgroundColor: 'rgba(255,253,247,.80)', borderWidth: 1, borderColor: xianxia.line, padding: 16 },
