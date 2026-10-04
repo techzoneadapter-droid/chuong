@@ -3,7 +3,11 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ArtDivider, ArtIcon, BrandLockup, ButtonArt } from '../../components/Artwork';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
+import { artwork } from '../../constants/artwork';
+import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCoins, getWallet, getWalletTransactions, WalletAccount, WalletTransaction, walletTransactionLabel } from '../../services/wallet';
 
@@ -43,39 +47,49 @@ export default function WalletScreen() {
     if (user) void load();
   }, [load, user]);
 
-  if (authLoading || (loading && user)) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải Ví CHƯƠNG…" /></SafeAreaView>;
+  if (authLoading || (loading && user)) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang mở Linh Khố…" /></SafeAreaView>;
   if (!user) return null;
-  if (error && !wallet) return <SafeAreaView style={styles.safe}><RetryState detail={error} onRetry={() => load()} /></SafeAreaView>;
+  if (error && !wallet) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={error} onRetry={() => load()} /></SafeAreaView>;
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
+    <XianxiaBackdrop />
     <View style={styles.topbar}>
-      <Pressable onPress={() => router.back()} style={styles.iconButton}><Ionicons name="arrow-back" size={22} color="#2E2428" /></Pressable>
-      <Text style={styles.topTitle}>Ví CHƯƠNG</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Quay lại" onPress={() => router.back()} style={styles.iconButton}><Ionicons name="arrow-back" size={21} color={xianxia.ink} /></Pressable>
+      <View style={styles.topCopy}><Text style={styles.topKicker}>LINH KHỐ</Text><Text style={styles.topTitle}>Ví CHƯƠNG</Text></View>
       <View style={styles.iconButton} />
     </View>
+
     <ScrollView
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={xianxia.jadeDeep} />}
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
     >
       {error ? <Pressable onPress={() => load()}><Text style={styles.error}>{error} · Chạm để thử lại</Text></Pressable> : null}
 
+      <View style={styles.brandCard}>
+        <BrandLockup compact inverse showTagline={false} />
+        <Text style={styles.brandCardNote}>Linh Thạch dùng để mở khóa nội dung VIP và được quản lý bằng sổ cái giao dịch.</Text>
+      </View>
+
       <View style={styles.hero}>
+        <View style={styles.heroOrnament}><ArtIcon source={artwork.lotus} size={64} /></View>
         <Text style={styles.heroKicker}>SỐ DƯ KHẢ DỤNG</Text>
         <View style={styles.balanceRow}>
           <Text style={styles.balance}>{formatCoins(wallet?.balance_coins ?? 0)}</Text>
-          <View style={styles.coin}><Text style={styles.coinText}>Linh Thạch</Text></View>
+          <View style={styles.coin}><Ionicons name="diamond-outline" size={14} color={xianxia.goldSoft} /><Text style={styles.coinText}>Linh Thạch</Text></View>
         </View>
-        <Text style={styles.heroNote}>Linh Thạch dùng để mở khóa truyện và chương VIP trên nền tảng.</Text>
+        <Text style={styles.heroNote}>Dùng Linh Thạch để mở khóa truyện và chương VIP trên CHƯƠNG.</Text>
         <Pressable style={styles.buyButton} onPress={() => router.push('/wallet/store')}>
-          <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+          <ButtonArt />
+          <Ionicons name="add-circle-outline" size={18} color={xianxia.goldSoft} />
           <Text style={styles.buyButtonText}>Nạp Linh Thạch</Text>
+          <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
         </Pressable>
-        <Text style={styles.storeNote}>Catalog đã sẵn sàng; thanh toán thật chỉ hoạt động trong build Android/iOS sau khi kết nối native billing.</Text>
+        <Text style={styles.storeNote}>Thanh toán thật chỉ hoạt động trên build Android/iOS đã kết nối native billing.</Text>
       </View>
 
       {wallet?.debt_coins ? <View style={styles.debtNotice}>
-        <Ionicons name="warning-outline" size={20} color="#8F1D3F" />
+        <Ionicons name="warning-outline" size={20} color={xianxia.cinnabar} />
         <Text style={styles.debtNoticeText}>Tài khoản đang có {formatCoins(wallet.debt_coins)} Linh Thạch cần bù do giao dịch cửa hàng bị hoàn/hủy. Các lần nạp tiếp theo sẽ ưu tiên bù khoản này trước khi cộng vào số dư khả dụng.</Text>
       </View> : null}
 
@@ -84,16 +98,17 @@ export default function WalletScreen() {
         <Metric label="Đã sử dụng" value={wallet?.lifetime_spent ?? 0} icon="arrow-up-circle-outline" />
       </View>
 
+      <ArtDivider width={220} />
       <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>Lịch sử giao dịch</Text>
+        <View><Text style={styles.sectionKicker}>SỔ LINH THẠCH</Text><Text style={styles.sectionTitle}>Lịch sử giao dịch</Text></View>
         <Text style={styles.sectionMeta}>{items.length ? `${items.length} giao dịch` : 'Chưa có'}</Text>
       </View>
 
-      {!items.length ? <View style={styles.emptyWrap}><EmptyState title="Chưa có giao dịch Linh Thạch" /></View> : items.map((item) => <TransactionRow key={item.id} item={item} />)}
+      {!items.length ? <View style={styles.emptyWrap}><EmptyState title="Chưa có giao dịch Linh Thạch" detail="Khi bạn nạp hoặc sử dụng Linh Thạch, lịch sử sẽ xuất hiện tại đây." /></View> : items.map((item) => <TransactionRow key={item.id} item={item} />)}
 
       <View style={styles.safety}>
-        <Ionicons name="shield-checkmark-outline" size={20} color="#8F1D3F" />
-        <Text style={styles.safetyText}>Số dư được quản lý bằng sổ cái giao dịch bất biến. Ứng dụng không thể tự cộng Linh Thạch; các lần nạp sau này chỉ được ghi nhận sau khi biên lai cửa hàng được xác minh.</Text>
+        <View style={styles.safetyIcon}><Ionicons name="shield-checkmark-outline" size={20} color={xianxia.jadeDeep} /></View>
+        <Text style={styles.safetyText}>Số dư được quản lý bằng sổ cái bất biến. Ứng dụng không thể tự cộng Linh Thạch; các lần nạp chỉ được ghi nhận sau khi biên lai cửa hàng được xác minh.</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;
@@ -101,7 +116,7 @@ export default function WalletScreen() {
 
 function Metric({ label, value, icon }: { label: string; value: number; icon: keyof typeof Ionicons.glyphMap }) {
   return <View style={styles.metric}>
-    <Ionicons name={icon} size={20} color="#8F1D3F" />
+    <View style={styles.metricIcon}><Ionicons name={icon} size={19} color={xianxia.jadeDeep} /></View>
     <Text style={styles.metricValue}>{formatCoins(value)} Linh Thạch</Text>
     <Text style={styles.metricLabel}>{label}</Text>
   </View>;
@@ -111,7 +126,7 @@ function TransactionRow({ item }: { item: WalletTransaction }) {
   const credit = item.amount_coins > 0;
   return <View style={styles.tx}>
     <View style={[styles.txIcon, credit ? styles.creditIcon : styles.debitIcon]}>
-      <Ionicons name={credit ? 'arrow-down' : 'arrow-up'} size={17} color={credit ? '#46724C' : '#9B2946'} />
+      <Ionicons name={credit ? 'arrow-down' : 'arrow-up'} size={17} color={credit ? '#46724C' : xianxia.cinnabar} />
     </View>
     <View style={styles.txCopy}>
       <Text style={styles.txTitle}>{walletTransactionLabel(item.type)}</Text>
@@ -126,45 +141,53 @@ function TransactionRow({ item }: { item: WalletTransaction }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F2E9' },
-  topbar: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
-  topTitle: { color: '#221A1D', fontSize: 18, fontWeight: '900' },
-  iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  safe: { flex: 1, backgroundColor: xianxia.paper },
+  topbar: { minHeight: 62, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(244,235,216,.90)' },
+  topCopy: { flex: 1, alignItems: 'center' },
+  topKicker: { color: xianxia.cinnabar, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.3 },
+  topTitle: { color: xianxia.ink, fontSize: 17, fontWeight: '900', marginTop: 2 },
+  iconButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   page: { padding: 16, paddingBottom: 46, width: '100%', maxWidth: 720, alignSelf: 'center' },
-  error: { color: '#A12B48', backgroundColor: '#F8E7EC', padding: 10, borderRadius: 10, fontSize: 11, marginBottom: 10 },
-  hero: { backgroundColor: '#741632', borderRadius: 24, padding: 22 },
-  heroKicker: { color: '#EFC5D1', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  error: { color: xianxia.danger, backgroundColor: '#F8E7E1', borderWidth: 1, borderColor: '#E7C9BF', padding: 10, borderRadius: 12, fontSize: 10, marginBottom: 10 },
+  brandCard: { minHeight: 72, borderRadius: 17, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#23443A', borderWidth: 1, borderColor: '#4B6C61', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  brandCardNote: { flex: 1, maxWidth: 270, color: 'rgba(255,253,248,.62)', fontSize: 8.5, lineHeight: 13, textAlign: 'right' },
+  hero: { position: 'relative', overflow: 'hidden', marginTop: 12, backgroundColor: '#173F35', borderRadius: 22, borderWidth: 1, borderColor: xianxia.gold, padding: 20 },
+  heroOrnament: { position: 'absolute', right: 10, top: 6, opacity: .36 },
+  heroKicker: { color: xianxia.goldSoft, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
-  balance: { color: '#FFFFFF', fontSize: 40, fontWeight: '900', letterSpacing: -.8 },
-  coin: { backgroundColor: '#A92A50', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  coinText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
-  heroNote: { color: '#ECCBD5', fontSize: 12, lineHeight: 18, marginTop: 9, maxWidth: 420 },
-  buyButton: { marginTop: 18, height: 46, borderRadius: 13, backgroundColor: '#A92A50', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  buyButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
-  storeNote: { color: '#CFA9B5', fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 8 },
-  debtNotice: { marginTop: 12, backgroundColor: '#F8E7EC', borderRadius: 14, padding: 13, flexDirection: 'row', gap: 9 },
-  debtNoticeText: { flex: 1, color: '#7C5360', fontSize: 10, lineHeight: 16 },
+  balance: { color: xianxia.white, fontSize: 40, fontWeight: '900', letterSpacing: -.8 },
+  coin: { backgroundColor: 'rgba(185,137,69,.16)', borderWidth: 1, borderColor: 'rgba(229,209,163,.45)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  coinText: { color: xianxia.goldSoft, fontSize: 10, fontWeight: '900' },
+  heroNote: { color: 'rgba(255,253,248,.72)', fontSize: 11, lineHeight: 17, marginTop: 9, maxWidth: 420 },
+  buyButton: { position: 'relative', overflow: 'hidden', marginTop: 18, minHeight: 48, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  buyButtonText: { flex: 1, textAlign: 'center', color: xianxia.white, fontSize: 11, fontWeight: '900' },
+  storeNote: { color: 'rgba(255,253,248,.52)', fontSize: 8, lineHeight: 13, textAlign: 'center', marginTop: 8 },
+  debtNotice: { marginTop: 12, backgroundColor: '#F4E4DE', borderWidth: 1, borderColor: '#E2C5BA', borderRadius: 14, padding: 13, flexDirection: 'row', gap: 9 },
+  debtNoticeText: { flex: 1, color: '#76544E', fontSize: 9.5, lineHeight: 15 },
   metrics: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  metric: { flex: 1, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E4D8D1', borderRadius: 16, padding: 15 },
-  metricValue: { color: '#2C2226', fontSize: 17, fontWeight: '900', marginTop: 8 },
-  metricLabel: { color: '#83777B', fontSize: 10, marginTop: 3 },
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 26, marginBottom: 10 },
-  sectionTitle: { color: '#221A1D', fontSize: 18, fontWeight: '900' },
-  sectionMeta: { color: '#8F1D3F', fontSize: 10, fontWeight: '800' },
-  emptyWrap: { minHeight: 160, justifyContent: 'center' },
-  tx: { minHeight: 78, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E7DCD5', borderRadius: 15, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  txIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  creditIcon: { backgroundColor: '#EDF5EC' },
-  debitIcon: { backgroundColor: '#FAE9EE' },
+  metric: { flex: 1, backgroundColor: 'rgba(255,248,234,.92)', borderWidth: 1, borderColor: xianxia.line, borderRadius: 16, padding: 14 },
+  metricIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B9CBBF', alignItems: 'center', justifyContent: 'center' },
+  metricValue: { color: xianxia.ink, fontSize: 15, fontWeight: '900', marginTop: 8 },
+  metricLabel: { color: xianxia.muted, fontSize: 9, marginTop: 3 },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4, marginBottom: 10 },
+  sectionKicker: { color: xianxia.cinnabar, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.1 },
+  sectionTitle: { color: xianxia.ink, fontSize: 18, fontWeight: '900', marginTop: 2 },
+  sectionMeta: { color: xianxia.jade, fontSize: 9, fontWeight: '800' },
+  emptyWrap: { minHeight: 160, justifyContent: 'center', backgroundColor: 'rgba(255,248,234,.74)', borderRadius: 16, borderWidth: 1, borderColor: xianxia.line },
+  tx: { minHeight: 78, backgroundColor: 'rgba(255,248,234,.92)', borderWidth: 1, borderColor: xianxia.line, borderRadius: 15, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  txIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  creditIcon: { backgroundColor: '#E3EEE4' },
+  debitIcon: { backgroundColor: '#F4E4DE' },
   txCopy: { flex: 1 },
-  txTitle: { color: '#33282D', fontSize: 12, fontWeight: '900' },
-  txDesc: { color: '#74686D', fontSize: 10, lineHeight: 15, marginTop: 3 },
-  txDate: { color: '#9A8F93', fontSize: 8, marginTop: 3 },
+  txTitle: { color: xianxia.ink, fontSize: 11, fontWeight: '900' },
+  txDesc: { color: xianxia.muted, fontSize: 9, lineHeight: 14, marginTop: 3 },
+  txDate: { color: '#9A8F86', fontSize: 7.5, marginTop: 3 },
   txAmountWrap: { alignItems: 'flex-end' },
-  txAmount: { fontSize: 12, fontWeight: '900' },
+  txAmount: { fontSize: 11, fontWeight: '900' },
   creditText: { color: '#47704D' },
-  debitText: { color: '#9B2946' },
-  txBalance: { color: '#9A8E92', fontSize: 8, marginTop: 4 },
-  safety: { marginTop: 18, backgroundColor: '#F0E1E5', borderRadius: 15, padding: 14, flexDirection: 'row', gap: 10 },
-  safetyText: { flex: 1, color: '#65575D', fontSize: 10, lineHeight: 16 },
+  debitText: { color: xianxia.cinnabar },
+  txBalance: { color: '#9A8E82', fontSize: 7.5, marginTop: 4 },
+  safety: { marginTop: 18, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', borderRadius: 15, padding: 13, flexDirection: 'row', gap: 10 },
+  safetyIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(255,253,248,.72)', alignItems: 'center', justifyContent: 'center' },
+  safetyText: { flex: 1, color: '#53675F', fontSize: 9, lineHeight: 15 },
 });
