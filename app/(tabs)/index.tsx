@@ -8,7 +8,7 @@ import { EmptyState, LoadingState, RetryState } from '../../components/States';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
 import { artwork } from '../../constants/artwork';
-import { ArtDivider, ArtIcon, ButtonArt } from '../../components/Artwork';
+import { ArtDivider, ArtIcon, BrandLockup, ButtonArt } from '../../components/Artwork';
 import { useAuth } from '../../contexts/AuthContext';
 import { books as demoBooks } from '../../data/books';
 import { getBooks } from '../../services/books';
@@ -109,10 +109,7 @@ export default function HomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.page}>
         <View style={styles.header}>
           <View style={styles.brandRow}>
-            <View style={{ flex: 1 }}>
-              <Image source={artwork.logo} accessibilityLabel="Logo CHƯƠNG" resizeMode="contain" style={styles.horizontalLogo} />
-              <Text style={styles.tagline}>Mỗi chương, một thế giới.</Text>
-            </View>
+            <BrandLockup />
           </View>
           <View style={styles.headerActions}>
             <Pressable accessibilityRole="button" accessibilityLabel="Tìm truyện" style={styles.iconButton} onPress={() => router.push('/discover')}>
@@ -257,11 +254,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandRow: { flex: 1, minWidth: 0, paddingRight: 12 },
-  horizontalLogo: { width: '100%', maxWidth: 270, height: 76 },
   brandSeal: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, borderColor: xianxia.gold, backgroundColor: xianxia.cinnabar, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-3deg' }] },
   brandSealText: { color: '#F7E6BA', fontSize: 17, fontWeight: '900' },
   brand: { color: xianxia.ink, fontSize: 23, fontWeight: '900', letterSpacing: 2.1 },
-  tagline: { color: xianxia.inkSoft, fontSize: 10, marginTop: 2, textAlign: 'center', maxWidth: 270 },
   headerActions: { flexDirection: 'row', gap: 8 },
   iconButton: { width: 40, height: 40, borderRadius: 13, backgroundColor: 'rgba(255,253,247,.82)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: xianxia.line, position: 'relative' },
   headerBadge: { position: 'absolute', right: -4, top: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: xianxia.cinnabar, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: xianxia.paper },
