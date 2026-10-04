@@ -1,6 +1,6 @@
 export const xianxia = {
   ink: '#2B2A24',
-  inkSoft: '#40504C',
+  inkSoft: '#344640',
   jade: '#3E6659',
   jadeDeep: '#173F35',
   jadeMist: '#DDE8E1',
@@ -11,7 +11,7 @@ export const xianxia = {
   paperDeep: '#E9DFD0',
   card: '#FFF8EA',
   line: '#D8CCB9',
-  muted: '#766F66',
+  muted: '#5F5A53',
   white: '#FFFDF8',
   danger: '#A84545',
 } as const;
