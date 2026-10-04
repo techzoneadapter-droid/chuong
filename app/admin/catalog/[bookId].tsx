@@ -147,9 +147,14 @@ export default function AdminCatalogBookScreen() {
   };
 
   if (profile?.role !== 'admin' && !authLoading) return null;
-  if (loading && !book) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang mở hồ sơ truyện…" /></SafeAreaView>;
-  if (error && !book) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={error} onRetry={load} /></SafeAreaView>;
-  if (!book) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><EmptyState title="Không tìm thấy truyện" /></SafeAreaView>;
+  const fallbackTopbar = <View style={styles.topbar}>
+    <Pressable style={styles.backButton} onPress={() => router.replace('/admin/catalog')}><Ionicons name="arrow-back" size={18} color={xianxia.ink} /><Text style={styles.backButtonText}>Quay lại</Text></Pressable>
+    <View style={styles.topCopy}><Text style={styles.kicker}>TÀNG KINH CÁC · QUẢN LÝ</Text><Text numberOfLines={1} style={styles.topTitle}>{book?.title || 'Hồ sơ truyện'}</Text></View>
+    <View style={styles.previewButton} />
+  </View>;
+  if (loading && !book) return <SafeAreaView style={styles.safe} edges={['top']}><XianxiaBackdrop />{fallbackTopbar}<LoadingState label="Đang mở hồ sơ truyện…" /></SafeAreaView>;
+  if (error && !book) return <SafeAreaView style={styles.safe} edges={['top']}><XianxiaBackdrop />{fallbackTopbar}<RetryState detail={error} onRetry={load} /></SafeAreaView>;
+  if (!book) return <SafeAreaView style={styles.safe} edges={['top']}><XianxiaBackdrop />{fallbackTopbar}<EmptyState title="Không tìm thấy truyện" /></SafeAreaView>;
 
   const published = chapters.filter((chapter) => chapter.status === 'published').length;
   const drafts = chapters.length - published;
