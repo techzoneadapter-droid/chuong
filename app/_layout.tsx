@@ -7,6 +7,7 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { PushNotificationBridge } from '../components/PushNotificationBridge';
 import { OfflineSyncBridge } from '../components/OfflineSyncBridge';
 import { AdsBridge } from '../components/AdsBridge';
+import { DataCleanupBridge } from '../components/DataCleanupBridge';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(Ionicons.font);
@@ -22,6 +23,7 @@ export default function RootLayout() {
         <PushNotificationBridge />
         <OfflineSyncBridge />
         <AdsBridge />
+        <DataCleanupBridge />
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />
       </AuthProvider>
