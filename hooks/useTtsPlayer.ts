@@ -84,6 +84,11 @@ export function useTtsPlayer({
 
   const runFrom = useCallback(async (startIndex: number) => {
     if (!segments.length) return;
+    if (!voices.length) {
+      setError('Thiết bị chưa có giọng tiếng Việt. Hãy cài voice pack tiếng Việt trong cài đặt Text-to-Speech rồi thử lại.');
+      setPlaying(false);
+      return;
+    }
     runId.current += 1;
     const token = runId.current;
     await stopTts();
@@ -258,7 +263,7 @@ export function useTtsPlayer({
     sleepTimer: preferences.sleepTimer,
     autoNext: preferences.autoNext,
     sleepExpired,
-    hasSpeech: segments.length > 0,
+    hasSpeech: segments.length > 0 && voices.length > 0,
     voiceCount: voices.length,
     hasDistinctGenderVoices: hasDistinctGenderVoices(voices),
     toggle,
