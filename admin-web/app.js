@@ -30,7 +30,14 @@ async function jsonFetch(url, options={}) {
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!res.ok) throw new Error(data?.message || data?.error_description || data?.error || ('HTTP ' + res.status));
+  if (!res.ok) {
+    const code = data?.code || data?.error_code || '';
+    let message = data?.message || data?.msg || data?.error_description || data?.error || ('HTTP ' + res.status);
+    if (code === 'invalid_credentials' || /invalid login credentials/i.test(String(message))) {
+      message = 'Email hoặc mật khẩu không đúng. Hãy kiểm tra lại mật khẩu của tài khoản Admin.';
+    }
+    throw new Error(message);
+  }
   return data;
 }
 async function rest(path, { method='GET', body, prefer }={}) {
