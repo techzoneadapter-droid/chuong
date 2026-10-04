@@ -91,6 +91,7 @@ const requiredFiles = [
   'docs/PUSH_NOTIFICATIONS.md',
   'docs/OFFLINE_READING.md',
   'docs/READING_ANALYTICS.md',
+  'docs/READ_ALOUD.md',
   'docs/COMMUNITY_SOCIAL.md',
 ];
 for (const file of requiredFiles) {
