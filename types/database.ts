@@ -2748,6 +2748,26 @@ export type Database = {
           score: number
         }[]
       }
+      get_public_book_rankings: {
+        Args: { p_kind?: string; p_limit?: number }
+        Returns: {
+          active_seconds_7d: number
+          book_id: string
+          completions_7d: number
+          followers_count: number
+          last_chapter_at: string
+          rank_no: number
+          rating: number
+          rating_count: number
+          recent_follows_7d: number
+          released_at: string
+          returning_readers_7d: number
+          score: number
+          sessions_7d: number
+          unique_readers_7d: number
+          views_count: number
+        }[]
+      }
       get_public_genre_counts: {
         Args: { p_limit?: number }
         Returns: {
