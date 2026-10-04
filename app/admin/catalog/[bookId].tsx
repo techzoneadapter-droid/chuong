@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../../components/States';
+import { AssetBookCover, ButtonArt } from '../../../components/Artwork';
 import { XianxiaBackdrop } from '../../../components/XianxiaBackdrop';
 import { xianxia } from '../../../constants/xianxia';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -168,8 +169,9 @@ export default function AdminCatalogBookScreen() {
 
       <View style={styles.bookHero}>
         <Pressable onPress={changeCover} style={styles.coverWrap}>
-          <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-            {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text numberOfLines={4} style={styles.coverText}>{book.title}</Text>}
+          <View style={styles.cover}>
+            <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+            <View pointerEvents="none" style={styles.coverShade} />
             <View style={styles.coverEdit}><Ionicons name="camera" size={14} color={xianxia.white} /></View>
           </View>
           <Text style={styles.changeCover}>{busy ? 'Đang lưu…' : 'Thay bìa'}</Text>
@@ -236,6 +238,7 @@ export default function AdminCatalogBookScreen() {
           <Ionicons name="save-outline" size={17} color={xianxia.jadeDeep} /><Text style={styles.draftButtonText}>Nhập bản nháp</Text>
         </Pressable>
         <Pressable disabled={busy || !parsed.length} style={[styles.publishButton, (busy || !parsed.length) && styles.disabled]} onPress={() => importChapters(true)}>
+          <ButtonArt />
           <Ionicons name="paper-plane-outline" size={17} color={xianxia.goldSoft} /><Text style={styles.publishButtonText}>Nhập & xuất bản</Text>
         </Pressable>
       </View>
@@ -269,9 +272,8 @@ const styles = StyleSheet.create({
   successText: { color: '#4C7356', fontSize: 10, lineHeight: 15, flex: 1, fontWeight: '700' },
   bookHero: { borderRadius: 21, backgroundColor: 'rgba(255,253,247,.90)', borderWidth: 1, borderColor: xianxia.line, padding: 14, flexDirection: 'row', gap: 15 },
   coverWrap: { alignItems: 'center' },
-  cover: { width: 92, height: 138, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: xianxia.goldSoft, justifyContent: 'center', padding: 9 },
-  coverImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
-  coverText: { color: xianxia.white, fontSize: 12, lineHeight: 16, fontWeight: '900', textAlign: 'center' },
+  cover: { width: 92, height: 138, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: xianxia.gold, justifyContent: 'center' },
+  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,20,18,.05)' },
   coverEdit: { position: 'absolute', right: 6, bottom: 6, width: 27, height: 27, borderRadius: 9, backgroundColor: 'rgba(25,39,35,.78)', alignItems: 'center', justifyContent: 'center' },
   changeCover: { color: xianxia.cinnabar, fontSize: 8.5, fontWeight: '900', marginTop: 6 },
   heroCopy: { flex: 1, paddingVertical: 5 },
@@ -309,7 +311,7 @@ const styles = StyleSheet.create({
   importActions: { flexDirection: 'row', gap: 9, marginTop: 10 },
   draftButton: { flex: 1, minHeight: 49, borderRadius: 14, borderWidth: 1, borderColor: '#9CB4A5', backgroundColor: xianxia.jadeMist, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   draftButtonText: { color: xianxia.jadeDeep, fontSize: 10, fontWeight: '900' },
-  publishButton: { flex: 1, minHeight: 49, borderRadius: 14, borderWidth: 1, borderColor: '#496A61', backgroundColor: xianxia.jadeDeep, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  publishButton: { position: 'relative', overflow: 'hidden', flex: 1, minHeight: 49, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   publishButtonText: { color: xianxia.white, fontSize: 10, fontWeight: '900' },
   disabled: { opacity: .42 },
   emptyChapters: { borderRadius: 16, backgroundColor: 'rgba(255,253,247,.85)', borderWidth: 1, borderColor: xianxia.line, padding: 24, alignItems: 'center' },
