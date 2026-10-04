@@ -246,9 +246,12 @@ async function parseZip(buffer: ArrayBuffer, sourceName: string): Promise<Parsed
   }
 
   const results: ParsedImportBook[] = [];
+  const textGroups = [...grouped.entries()].filter(([, groupEntries]) =>
+    groupEntries.some((entry) => TEXT_EXTS.has(extOf(entry.name))),
+  );
   let index = 0;
 
-  for (const [groupTitle, groupEntries] of grouped.entries()) {
+  for (const [groupTitle, groupEntries] of textGroups) {
     const docs = groupEntries.filter((entry) => TEXT_EXTS.has(extOf(entry.name))).sort((a, b) => {
       const an = naturalNumber(a.name);
       const bn = naturalNumber(b.name);
@@ -295,7 +298,7 @@ async function parseZip(buffer: ArrayBuffer, sourceName: string): Promise<Parsed
     const duplicate = chapters.find((chapter, position) => chapters.findIndex((other) => other.chapterNumber === chapter.chapterNumber) !== position);
     if (duplicate) warnings.push(`Có số chương trùng: ${duplicate.chapterNumber}. Hãy kiểm tra trước khi nhập.`);
 
-    const images = groupEntries.filter((entry) => IMAGE_EXTS.has(extOf(entry.name)));
+    const images = (textGroups.length === 1 ? supported : groupEntries).filter((entry) => IMAGE_EXTS.has(extOf(entry.name)));
     const preferred = images.find((entry) => /(?:^|[\/_-])(cover|bia|bìa)(?:[._-]|$)/i.test(entry.name)) ?? images[0];
     let coverDataUri: string | undefined;
     let coverMimeType: string | undefined;
