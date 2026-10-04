@@ -63,8 +63,8 @@ function demoSearch(input: DiscoveryQuery): DiscoveryResult {
   if (input.access === 'free') rows = rows.filter((book) => !book.isVip);
 
   if (input.sort === 'rating') rows.sort((a, b) => b.rating - a.rating);
-  else if (input.sort === 'popular') rows.sort((a, b) => (b.viewsCount ?? 0) - (a.viewsCount ?? 0));
-  else if (input.sort === 'newest') rows.sort((a, b) => (b.latestChapter ?? 0) - (a.latestChapter ?? 0));
+  else if (input.sort === 'popular' || input.sort === 'trending' || input.sort === 'hot' || input.sort === 'top') rows.sort((a, b) => (b.viewsCount ?? 0) - (a.viewsCount ?? 0) || (b.followersCount ?? 0) - (a.followersCount ?? 0));
+  else if (input.sort === 'newest' || input.sort === 'new' || input.sort === 'updated') rows.sort((a, b) => (b.latestChapter ?? 0) - (a.latestChapter ?? 0));
 
   const total = rows.length;
   const offset = Math.max(0, input.offset ?? 0);
