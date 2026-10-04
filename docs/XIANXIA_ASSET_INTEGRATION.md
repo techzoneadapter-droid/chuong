@@ -10,11 +10,7 @@ The product name is always:
 
 Do not render the previous horizontal raster wordmark in product UI. Its brush lettering can be visually misread as “CHƯỞNG”.
 
-Runtime brand lockups must use:
-
-- the supplied book/emblem artwork
-- literal Unicode text `CHƯƠNG`
-- the tagline `Mỗi chương, một thế giới.` when space allows
+Runtime brand lockups must use the new user-supplied horizontal CHƯƠNG logo. The tagline `Mỗi chương, một thế giới.` may be rendered beneath it when space allows.
 
 The canonical component is `BrandLockup` in `components/Artwork.tsx`.
 
@@ -39,13 +35,8 @@ Current integrated artwork:
 - `button-jade.png`: primary CTA background
 - `divider.png`: decorative section/reader divider
 - `badge-vip.png`: VIP marker
-- `cover-palace.png`
-- `cover-bamboo.png`
-- `cover-archive.png`
 
-The three supplied covers are **fallback placeholders only**. A real `cover_url` uploaded by an author/admin always wins.
-
-This prevents decorative assets from replacing or falsifying an actual book cover.
+Demo cover artwork is intentionally not used. A book cover is shown only when an author/admin has uploaded a real `cover_url`. Otherwise the UI shows a neutral “Chưa có bìa” placeholder.
 
 ## Main surfaces
 
@@ -56,17 +47,17 @@ This prevents decorative assets from replacing or falsifying an actual book cove
 - supplied hero banner
 - ornamental section icon/divider
 - supplied jade CTA background
-- supplied cover placeholders when a real cover is missing
+- neutral no-cover placeholder until an author/admin uploads a real cover
 
 ### Discover / Tàng Kinh Các
 
-- supplied cover placeholders
+- real uploaded covers only; otherwise a neutral no-cover placeholder
 - supplied VIP badge
 - parchment/jade palette
 
 ### Book detail
 
-- real cover first, supplied placeholder fallback
+- real uploaded cover when available; otherwise a neutral no-cover placeholder
 - supplied VIP badge
 - supplied jade main CTA
 - parchment background and jade/bronze framing
@@ -80,7 +71,7 @@ This prevents decorative assets from replacing or falsifying an actual book cove
 
 ### Library
 
-- supplied cover placeholders
+- real uploaded covers only; otherwise a neutral no-cover placeholder
 - supplied jade “Đọc tiếp” button
 - supplied banner in “Khám phá thêm thế giới mới”
 - supplied empty-state artwork through shared EmptyState
@@ -109,6 +100,7 @@ Release checks must fail if:
 - Home returns to the ambiguous raster logo.
 - The Home source contains the typo `CHƯỞNG`.
 - Required supplied assets disappear.
+- Demo cover assets are reintroduced into runtime.
 - Real book covers are ignored when `cover_url` exists.
 
 The UI may be refined, but these rules should remain stable.
