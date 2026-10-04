@@ -385,9 +385,18 @@ Deno.serve(async (req: Request) => {
             updated_at: new Date().toISOString(),
           })
           .eq("id", next.id);
-        if (chapterError) throw chapterError;
+        if (chapterError) {
+          await admin
+            .from("ai_translation_revisions")
+            .delete()
+            .eq("job_id", job.id)
+            .eq("chapter_id", next.id);
+          throw chapterError;
+        }
 
-        const completedChapters = Math.min(job.total_chapters, job.completed_chapters + 1);
+        // Derive progress from durable revision rows so a retry after a network/error
+        // cannot double count or silently skip an already translated chapter.
+        const completedChapters = Math.min(job.total_chapters, done.size + 1);
         const finished = completedChapters >= job.total_chapters;
         const { data: updated, error: updateError } = await admin
           .from("ai_translation_jobs")
