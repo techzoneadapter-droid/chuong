@@ -1,7 +1,7 @@
 import { requireSupabase } from '../lib/supabase';
 import { toServiceError } from './errors';
 
-export type DailyQuestKey = 'checkin' | 'read_10m' | 'complete_3' | 'review_1';
+export type DailyQuestKey = 'checkin' | 'read_10m' | 'complete_3' | 'review_1' | 'rewarded_ad';
 
 export type DailyQuest = {
   key: DailyQuestKey;
@@ -60,6 +60,16 @@ export async function claimDailyCultivation(key: DailyQuestKey): Promise<DailyCu
     return mapState(data);
   } catch (error) {
     throw toServiceError(error, 'Chưa thể nhận phần thưởng nhiệm vụ.');
+  }
+}
+
+export async function claimRewardedAdBonus(): Promise<DailyCultivationState> {
+  try {
+    const { data, error } = await requireSupabase().rpc('claim_rewarded_ad_bonus');
+    if (error) throw error;
+    return mapState(data);
+  } catch (error) {
+    throw toServiceError(error, 'Chưa thể cộng thưởng quảng cáo.');
   }
 }
 
