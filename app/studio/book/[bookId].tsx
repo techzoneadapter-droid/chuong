@@ -52,6 +52,9 @@ export default function StudioBookManager() {
   const [language, setLanguage] = useState('vi');
   const [sourceType, setSourceType] = useState<SourceType>('authorized');
   const [bulkText, setBulkText] = useState('');
+  const [chapterQuery, setChapterQuery] = useState('');
+  const [chapterFilter, setChapterFilter] = useState<'all' | 'draft' | 'published'>('all');
+  const [chapterPage, setChapterPage] = useState(0);
 
   const load = useCallback(async () => {
     if (!user || profile?.role !== 'admin') return;
@@ -96,6 +99,19 @@ export default function StudioBookManager() {
   const parsed = useMemo(() => splitChaptersFromText(bulkText), [bulkText]);
   const published = chapters.filter((chapter) => chapter.status === 'published').length;
   const drafts = chapters.length - published;
+  const filteredChapters = useMemo(() => {
+    const normalized = chapterQuery.trim().toLocaleLowerCase('vi');
+    return chapters.filter((chapter) => {
+      if (chapterFilter !== 'all' && chapter.status !== chapterFilter) return false;
+      if (!normalized) return true;
+      return String(chapter.number).includes(normalized)
+        || chapter.title.toLocaleLowerCase('vi').includes(normalized);
+    });
+  }, [chapterFilter, chapterQuery, chapters]);
+  const chapterPageSize = 50;
+  const chapterPageCount = Math.max(1, Math.ceil(filteredChapters.length / chapterPageSize));
+  const safeChapterPage = Math.min(chapterPage, chapterPageCount - 1);
+  const chapterPageItems = filteredChapters.slice(safeChapterPage * chapterPageSize, (safeChapterPage + 1) * chapterPageSize);
 
   const saveMetadata = async () => {
     if (!book || busy) return;
@@ -303,9 +319,38 @@ export default function StudioBookManager() {
 
         <Panel title="Danh sách chương" subtitle={published + ' đã xuất bản · ' + drafts + ' bản nháp'}>
           {!chapters.length ? <View style={styles.chapterEmpty}><Ionicons name="reader-outline" size={28} color={xianxia.jade} /><Text style={styles.chapterEmptyText}>Chưa có chương nào.</Text></View> : <View>
-            {chapters.slice(0, 120).map((chapter) => <View key={chapter.id || chapter.number} style={styles.chapter}>
+            <View style={styles.chapterToolbar}>
+              <View style={styles.chapterSearch}>
+                <Ionicons name="search-outline" size={16} color="#7A716C" />
+                <TextInput
+                  value={chapterQuery}
+                  onChangeText={(value) => { setChapterQuery(value); setChapterPage(0); }}
+                  placeholder="Tìm số chương hoặc tiêu đề…"
+                  placeholderTextColor="#9D958F"
+                  style={styles.chapterSearchInput}
+                />
+                {chapterQuery ? <Pressable onPress={() => { setChapterQuery(''); setChapterPage(0); }}><Ionicons name="close-circle" size={16} color="#A69C94" /></Pressable> : null}
+              </View>
+              <View style={styles.chapterFilters}>
+                {([
+                  ['all', 'Tất cả'],
+                  ['published', 'Đã xuất bản'],
+                  ['draft', 'Bản nháp'],
+                ] as const).map(([value, label]) => <Pressable
+                  key={value}
+                  onPress={() => { setChapterFilter(value); setChapterPage(0); }}
+                  style={[styles.chapterFilter, chapterFilter === value && styles.chapterFilterActive]}
+                >
+                  <Text style={[styles.chapterFilterText, chapterFilter === value && styles.chapterFilterTextActive]}>{label}</Text>
+                </Pressable>)}
+              </View>
+            </View>
+
+            <Text style={styles.chapterResult}>{filteredChapters.length} chương phù hợp · Trang {safeChapterPage + 1}/{chapterPageCount}</Text>
+
+            {chapterPageItems.map((chapter) => <View key={chapter.id || chapter.number} style={styles.chapter}>
               <View style={[styles.chapterNo, chapter.status === 'published' && styles.chapterNoLive]}><Text style={styles.chapterNoText}>{chapter.number}</Text></View>
-              <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={styles.chapterTitle}>{chapter.title}</Text><Text style={styles.chapterMeta}>{chapter.status === 'published' ? 'Đang hiển thị' : 'Bản nháp'}</Text></View>
+              <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={styles.chapterTitle}>{chapter.title}</Text><Text style={styles.chapterMeta}>{chapter.status === 'published' ? 'Đang hiển thị' : 'Bản nháp'}{chapter.access === 'vip' ? ` · VIP ${chapter.priceCoins || 0} Linh Thạch` : ' · Miễn phí'}</Text></View>
               <Pressable disabled={!chapter.id || busy} onPress={() => toggleChapter(chapter)} style={[styles.chapterToggle, chapter.status === 'published' && styles.chapterToggleLive]}>
                 <Text style={[styles.chapterToggleText, chapter.status === 'published' && styles.chapterToggleTextLive]}>{chapter.status === 'published' ? 'Ẩn' : 'Xuất bản'}</Text>
               </Pressable>
@@ -317,7 +362,18 @@ export default function StudioBookManager() {
                 <Text style={styles.chapterEditText}>Sửa</Text>
               </Pressable> : null}
             </View>)}
-            {chapters.length > 120 ? <Text style={styles.more}>Đang hiển thị 120 chương đầu tiên trong Studio.</Text> : null}
+
+            {!chapterPageItems.length ? <Text style={styles.noChapterMatch}>Không có chương phù hợp bộ lọc.</Text> : null}
+
+            {chapterPageCount > 1 ? <View style={styles.pager}>
+              <Pressable disabled={safeChapterPage === 0} style={[styles.pageButton, safeChapterPage === 0 && styles.disabled]} onPress={() => setChapterPage(Math.max(0, safeChapterPage - 1))}>
+                <Ionicons name="chevron-back" size={15} color={xianxia.jadeDeep} /><Text style={styles.pageButtonText}>Trang trước</Text>
+              </Pressable>
+              <Text style={styles.pageCounter}>{safeChapterPage + 1} / {chapterPageCount}</Text>
+              <Pressable disabled={safeChapterPage >= chapterPageCount - 1} style={[styles.pageButton, safeChapterPage >= chapterPageCount - 1 && styles.disabled]} onPress={() => setChapterPage(Math.min(chapterPageCount - 1, safeChapterPage + 1))}>
+                <Text style={styles.pageButtonText}>Trang sau</Text><Ionicons name="chevron-forward" size={15} color={xianxia.jadeDeep} />
+              </Pressable>
+            </View> : null}
           </View>}
         </Panel>
 
@@ -392,6 +448,15 @@ const styles = StyleSheet.create({
   statusActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.jadeDeep },
   statusText: { color: '#675F5B', fontSize: 8.5, fontWeight: '900' },
   statusTextActive: { color: '#FFF8EA' },
+  chapterToolbar: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, alignItems: 'center', marginBottom: 8 },
+  chapterSearch: { flex: 1, minWidth: 220, minHeight: 38, borderRadius: 10, borderWidth: 1, borderColor: '#DDD4C8', backgroundColor: '#FAF7F1', paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chapterSearchInput: { flex: 1, color: '#2B2528', fontSize: 8.5, paddingVertical: 0 },
+  chapterFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  chapterFilter: { minHeight: 34, borderRadius: 9, paddingHorizontal: 8, borderWidth: 1, borderColor: '#DDD4C8', backgroundColor: '#FAF7F1', alignItems: 'center', justifyContent: 'center' },
+  chapterFilterActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.jadeDeep },
+  chapterFilterText: { color: '#6D6560', fontSize: 7.5, fontWeight: '800' },
+  chapterFilterTextActive: { color: '#FFF8EA' },
+  chapterResult: { color: '#7C736D', fontSize: 7.5, marginBottom: 5, fontWeight: '700' },
   chapterEmpty: { minHeight: 130, alignItems: 'center', justifyContent: 'center' },
   chapterEmptyText: { color: '#7C736D', fontSize: 9, marginTop: 6 },
   chapter: { minHeight: 56, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E4DCD0', flexDirection: 'row', alignItems: 'center', gap: 9 },
@@ -404,7 +469,11 @@ const styles = StyleSheet.create({
   chapterToggleLive: { backgroundColor: '#E4EFE7' },
   chapterToggleText: { color: xianxia.cinnabar, fontSize: 7.5, fontWeight: '900' },
   chapterToggleTextLive: { color: '#47704D' },
-  more: { color: xianxia.cinnabar, fontSize: 8, fontWeight: '800', marginTop: 9 },
+  noChapterMatch: { color: '#7C736D', fontSize: 8.5, textAlign: 'center', paddingVertical: 18 },
+  pager: { marginTop: 10, minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  pageButton: { minHeight: 34, borderRadius: 9, paddingHorizontal: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pageButtonText: { color: xianxia.jadeDeep, fontSize: 7.5, fontWeight: '900' },
+  pageCounter: { color: '#6D6560', fontSize: 8, fontWeight: '900' },
   delete: { alignSelf: 'center', minHeight: 40, borderRadius: 11, paddingHorizontal: 12, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', flexDirection: 'row', alignItems: 'center', gap: 6 },
   chapterEdit: { minHeight: 34, borderRadius: 9, paddingHorizontal: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#C1D1C6', flexDirection: 'row', alignItems: 'center', gap: 4 },
   chapterEditText: { color: xianxia.jadeDeep, fontSize: 7.5, fontWeight: '900' },
