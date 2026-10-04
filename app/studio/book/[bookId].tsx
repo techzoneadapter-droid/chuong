@@ -264,6 +264,7 @@ export default function StudioBookManager() {
         </View>
       </View>
     </View>
+    <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Khuyến nghị bìa đẹp nhất</Text><Text style={styles.coverGuideText}>Tỷ lệ 2:3 · nên dùng 1200 × 1800 px · tối thiểu 800 × 1200 px · dung lượng lý tưởng 300 KB – 1.5 MB · tối đa 5 MB. Ưu tiên WebP hoặc JPG chất lượng cao để ảnh nét và tải nhanh.</Text></View>
 
     <View style={styles.columns}>
       <View style={styles.left}>
@@ -404,6 +405,9 @@ const styles = StyleSheet.create({
   errorText: { flex: 1, color: xianxia.danger, fontSize: 9, lineHeight: 14 },
   success: { borderRadius: 13, padding: 11, backgroundColor: '#E8F3EC', borderWidth: 1, borderColor: '#C9DDCD', flexDirection: 'row', gap: 8, marginBottom: 14 },
   successText: { flex: 1, color: '#47704D', fontSize: 9, lineHeight: 14 },
+  coverGuide: { marginTop: 12, borderRadius: 13, padding: 11, backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#C4D7C8' },
+  coverGuideTitle: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '900', marginBottom: 4 },
+  coverGuideText: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13 },
   hero: { minHeight: 220, borderRadius: 20, padding: 16, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E1D9CC', flexDirection: 'row', gap: 18 },
   cover: { width: 132, height: 194, borderRadius: 13, overflow: 'hidden', backgroundColor: '#EDE5D7', borderWidth: 1, borderColor: '#D9CCBA' },
   coverEdit: { position: 'absolute', left: 8, right: 8, bottom: 8, minHeight: 34, borderRadius: 10, backgroundColor: 'rgba(19,33,30,.86)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
