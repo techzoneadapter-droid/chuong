@@ -41,7 +41,7 @@ export function BookCard({ book, compact = false }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: { width: 146, marginRight: 14 },
+  card: { width: 146, marginRight: 14, padding: 5, paddingBottom: 9, borderRadius: 11, backgroundColor: 'rgba(255,253,247,.97)', borderWidth: 1, borderColor: '#D6C9B5', shadowColor: '#2B342E', shadowOpacity: .08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   compact: { width: 122 },
   pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
   coverFrame: { borderRadius: 9, padding: 2, backgroundColor: xianxia.gold, shadowColor: '#2B342E', shadowOpacity: .16, shadowRadius: 9, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
@@ -55,10 +55,10 @@ const styles = StyleSheet.create({
   badge: { color: '#FFF9EA', backgroundColor: 'rgba(23,63,53,.88)', borderWidth: 1, borderColor: 'rgba(229,209,163,.72)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 99, fontSize: 7.5, fontWeight: '900' },
   chapterPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(19,43,37,.76)', borderWidth: 1, borderColor: 'rgba(229,209,163,.42)', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 99 },
   chapterText: { color: xianxia.goldSoft, fontSize: 8, fontWeight: '900' },
-  title: { color: xianxia.ink, fontSize: 14, lineHeight: 20, fontWeight: '800', marginTop: 10 },
-  meta: { color: xianxia.jade, fontSize: 10, fontWeight: '700', marginTop: 3 },
+  title: { color: '#24231F', fontSize: 13.5, lineHeight: 18, fontWeight: '800', marginTop: 9 },
+  meta: { color: xianxia.jadeDeep, fontSize: 9.5, fontWeight: '700', marginTop: 3 },
   genreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  genre: { flexShrink: 1, color: xianxia.muted, fontSize: 9 },
+  genre: { flexShrink: 1, color: '#5F5A53', fontSize: 8.8, fontWeight: '600' },
   dot: { color: '#B6A993', fontSize: 9 },
   rating: { color: xianxia.gold, fontSize: 9, fontWeight: '800' },
 });
