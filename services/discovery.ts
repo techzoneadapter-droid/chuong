@@ -4,8 +4,9 @@ import { supabase } from '../lib/supabase';
 import { Book } from '../types';
 import { getBooksByIds } from './books';
 import { toServiceError } from './errors';
+import { getPublicBookRankings, PublicRankingKind } from './rankings';
 
-export type DiscoverySort = 'relevance' | 'popular' | 'newest' | 'rating';
+export type DiscoverySort = 'relevance' | 'popular' | 'newest' | 'rating' | 'trending' | 'hot' | 'new' | 'top' | 'updated';
 export type DiscoveryAccess = 'all' | 'free' | 'vip';
 export type DiscoveryStatus = 'all' | 'ongoing' | 'completed' | 'paused';
 
@@ -76,6 +77,19 @@ export async function searchDiscovery(input: DiscoveryQuery = {}): Promise<Disco
   if (!supabase) return demoSearch(input);
 
   try {
+    const requestedSort = input.sort ?? ((input.query?.trim() || '') ? 'relevance' : 'trending');
+    const rankingKinds = new Set<DiscoverySort>(['trending','hot','new','top','updated']);
+    const hasFilters = Boolean(input.query?.trim() || input.genre?.trim() || (input.access && input.access !== 'all') || (input.status && input.status !== 'all'));
+
+    if (!hasFilters && rankingKinds.has(requestedSort)) {
+      const ranked = await getPublicBookRankings(requestedSort as PublicRankingKind, Math.max(1, Math.min(input.limit ?? 30, 50)));
+      const offset = Math.max(0, input.offset ?? 0);
+      return {
+        books: ranked.slice(offset).map((item) => item.book),
+        total: ranked.length,
+        mode: 'supabase',
+      };
+    }
     const args: {
       p_query?: string;
       p_genre?: string;
@@ -88,7 +102,9 @@ export async function searchDiscovery(input: DiscoveryQuery = {}): Promise<Disco
       p_query: input.query?.trim() || '',
       p_access: input.access ?? 'all',
       p_status: input.status ?? 'all',
-      p_sort: input.sort ?? ((input.query?.trim() || '') ? 'relevance' : 'popular'),
+      p_sort: requestedSort === 'new' || requestedSort === 'updated' ? 'newest'
+        : requestedSort === 'trending' || requestedSort === 'hot' || requestedSort === 'top' ? 'popular'
+        : requestedSort,
       p_limit: Math.max(1, Math.min(input.limit ?? 30, 60)),
       p_offset: Math.max(0, input.offset ?? 0),
     };
