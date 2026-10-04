@@ -99,7 +99,7 @@ export default function AdminCreateCatalogBookScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <XianxiaBackdrop />
     <View style={styles.topbar}>
-      <Pressable style={styles.iconButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={21} color={xianxia.ink} /></Pressable>
+      <Pressable style={styles.backButton} onPress={() => router.replace('/admin/catalog')}><Ionicons name="arrow-back" size={18} color={xianxia.ink} /><Text style={styles.backButtonText}>Quay lại</Text></Pressable>
       <View style={styles.topCopy}><Text style={styles.kicker}>TÀNG KINH CÁC · BIÊN TẬP</Text><Text style={styles.topTitle}>Thêm truyện</Text></View>
       <View style={styles.iconSpacer} />
     </View>
@@ -174,8 +174,10 @@ export default function AdminCreateCatalogBookScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: xianxia.paper },
-  topbar: { minHeight: 66, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(245,239,228,.88)' },
-  iconButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,253,247,.9)', borderWidth: 1, borderColor: xianxia.line },
+  topbar: { minHeight: 66, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: xianxia.line, backgroundColor: 'rgba(245,239,228,.96)', zIndex: 30, elevation: 8 },
+  backButton: { minWidth: 88, height: 40, borderRadius: 13, paddingHorizontal: 10, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,253,247,.96)', borderWidth: 1, borderColor: xianxia.line },
+  backButtonText: { color: xianxia.ink, fontSize: 8.5, fontWeight: '900' },
+  iconButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   iconSpacer: { width: 40 },
   topCopy: { flex: 1, marginLeft: 11 },
   kicker: { color: xianxia.cinnabar, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
