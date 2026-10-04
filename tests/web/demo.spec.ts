@@ -47,7 +47,7 @@ test('anonymous library and reader progress/bookmarks persist across reload', as
   await expect(page.getByText(/Đọc tiếp · Chương/)).toBeVisible();
 });
 
-test('reader settings and audio/AI demo remain interactive', async ({ page }) => {
+test('reader settings and real TTS/AI controls remain interactive', async ({ page }) => {
   await page.goto('/settings/reading');
   await page.getByText('Lật trang', { exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('reader:settings'))).toContain('"mode":"page"');
@@ -65,5 +65,8 @@ test('reader settings and audio/AI demo remain interactive', async ({ page }) =>
   await expect.poll(() => page.evaluate(() => localStorage.getItem('reader:settings'))).toContain('night');
   await page.goto('/reader/kiem-yen-van?chapter=1');
   await page.getByText('Nghe', { exact: true }).click();
-  await expect(page.locator('body')).toContainText('Giọng đọc thử nghiệm');
+  await expect(page.locator('body')).toContainText('TTS hệ thống');
+  await expect(page.getByText('Tự động sang chương sau', { exact: true })).toBeVisible();
+  await page.getByText('1.25x', { exact: true }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('reader:tts'))).toContain('"speed":1.25');
 });
