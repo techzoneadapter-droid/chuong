@@ -3,10 +3,12 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AdBanner } from '../components/AdBanner';
 import { EmptyState, LoadingState, RetryState } from '../components/States';
 import { useAuth } from '../contexts/AuthContext';
 import { getConnectivityState } from '../services/connectivity';
 import {
+  applyOfflineStoragePlan,
   clearOfflineDownloads,
   formatOfflineBytes,
   getOfflineBookRecords,
@@ -16,22 +18,17 @@ import {
   OfflineStorageStats,
   pruneExpiredVipDownloads,
   removeOfflineBook,
-  setOfflineQuotaBytes,
 } from '../services/offlineDownloads';
+import { getMembershipStatus, MembershipStatus } from '../services/membership';
 import { flushOfflineSyncQueue, getOfflineSyncQueueStats } from '../services/offlineSync';
 
-const quotaOptions = [
-  { label: '100 MB', bytes: 100 * 1024 * 1024 },
-  { label: '250 MB', bytes: 250 * 1024 * 1024 },
-  { label: '500 MB', bytes: 500 * 1024 * 1024 },
-  { label: '1 GB', bytes: 1024 * 1024 * 1024 },
-];
 
 export default function DownloadsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [books, setBooks] = useState<OfflineBookSummary[]>([]);
   const [stats, setStats] = useState<OfflineStorageStats | null>(null);
+  const [membership, setMembership] = useState<MembershipStatus | null>(null);
   const [online, setOnline] = useState(true);
   const [pendingSync, setPendingSync] = useState(0);
   const [stalledSync, setStalledSync] = useState(0);
@@ -43,12 +40,15 @@ export default function DownloadsScreen() {
     refresh ? setRefreshing(true) : setLoading(true);
     setError('');
     try {
+      const member = await getMembershipStatus(user?.id);
+      await applyOfflineStoragePlan(member.isPremium);
       const [items, storage, connectivity, pending] = await Promise.all([
         listOfflineBooks(),
         getOfflineStorageStats(),
         getConnectivityState(),
         getOfflineSyncQueueStats(user?.id),
       ]);
+      setMembership(member);
       setBooks(items);
       setStats(storage);
       setOnline(connectivity.reachable);
@@ -153,22 +153,27 @@ export default function DownloadsScreen() {
         <View style={styles.track}><View style={[styles.fill, { width: `${usedPercent}%` }]} /></View>
         <Text style={styles.storageHint}>Khi vượt giới hạn, CHƯƠNG tự dọn các chương ít dùng nhất trước. Bản vừa tải được giữ lại.</Text>
 
-        <Text style={styles.quotaTitle}>Giới hạn lưu trữ</Text>
-        <View style={styles.quotaRow}>
-          {quotaOptions.map((option) => {
-            const active = stats?.quotaBytes === option.bytes;
-            return <Pressable
-              key={option.label}
-              style={[styles.quotaChip, active && styles.quotaChipActive]}
-              onPress={() => {
-                void setOfflineQuotaBytes(option.bytes).then(() => load());
-              }}
-            >
-              <Text style={[styles.quotaText, active && styles.quotaTextActive]}>{option.label}</Text>
-            </Pressable>;
-          })}
+        <View style={styles.planRow}>
+          <View>
+            <Text style={styles.quotaTitle}>Gói lưu trữ hiện tại</Text>
+            <Text style={styles.planName}>{membership?.isPremium ? 'CHƯƠNG VIP' : 'Gói Thường'}</Text>
+          </View>
+          <View style={[styles.planBadge, membership?.isPremium && styles.planBadgeVip]}>
+            <Ionicons name={membership?.isPremium ? 'diamond' : 'person-outline'} size={14} color={membership?.isPremium ? '#F1D89A' : '#8F1D3F'} />
+            <Text style={[styles.planBadgeText, membership?.isPremium && styles.planBadgeTextVip]}>{membership?.isPremium ? '2 GB' : '100 MB'}</Text>
+          </View>
         </View>
+        {!membership?.isPremium ? <Pressable style={styles.upgrade} onPress={() => router.push('/premium')}>
+          <Ionicons name="diamond-outline" size={17} color="#F1D89A" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.upgradeTitle}>Nâng cấp VIP để có 2 GB offline</Text>
+            <Text style={styles.upgradeBody}>Tăng 20× dung lượng và loại bỏ quảng cáo trong CHƯƠNG.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color="#F1D89A" />
+        </Pressable> : <Text style={styles.premiumHint}>VIP đang hoạt động · 2 GB lưu truyện offline · không quảng cáo.</Text>}
       </View>
+
+      <AdBanner compact />
 
       {pendingSync > 0 ? <View style={styles.syncCard}>
         <Ionicons name="sync-outline" size={21} color="#8F1D3F" />
@@ -256,12 +261,17 @@ const styles = StyleSheet.create({
   track: { height: 6, borderRadius: 99, backgroundColor: '#E9DFDA', overflow: 'hidden', marginTop: 12 },
   fill: { height: 6, borderRadius: 99, backgroundColor: '#8F1D3F' },
   storageHint: { color: '#85787D', fontSize: 9, lineHeight: 14, marginTop: 8 },
-  quotaTitle: { color: '#4A3D42', fontSize: 9, fontWeight: '900', marginTop: 13, marginBottom: 7 },
-  quotaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  quotaChip: { borderRadius: 999, borderWidth: 1, borderColor: '#DED1CA', backgroundColor: '#FAF6F2', paddingHorizontal: 10, paddingVertical: 6 },
-  quotaChipActive: { backgroundColor: '#8F1D3F', borderColor: '#8F1D3F' },
-  quotaText: { color: '#756B6F', fontSize: 8, fontWeight: '800' },
-  quotaTextActive: { color: '#FFF' },
+  quotaTitle: { color: '#4A3D42', fontSize: 9, fontWeight: '900', marginTop: 13, marginBottom: 4 },
+  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  planName: { color: '#2B2125', fontSize: 13, fontWeight: '900' },
+  planBadge: { minHeight: 34, borderRadius: 12, paddingHorizontal: 10, backgroundColor: '#F1E4E8', borderWidth: 1, borderColor: '#E0C8CF', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  planBadgeVip: { backgroundColor: '#27423B', borderColor: '#C7A95D' },
+  planBadgeText: { color: '#8F1D3F', fontSize: 9, fontWeight: '900' },
+  planBadgeTextVip: { color: '#F1D89A' },
+  upgrade: { minHeight: 58, marginTop: 12, borderRadius: 14, paddingHorizontal: 12, backgroundColor: '#27423B', borderWidth: 1, borderColor: '#C7A95D', flexDirection: 'row', alignItems: 'center', gap: 9 },
+  upgradeTitle: { color: '#FFF8EA', fontSize: 10, fontWeight: '900' },
+  upgradeBody: { color: 'rgba(255,248,234,.68)', fontSize: 8, lineHeight: 12, marginTop: 2 },
+  premiumHint: { color: '#527058', fontSize: 8.5, fontWeight: '800', marginTop: 11 },
   syncCard: { marginTop: 12, borderRadius: 15, backgroundColor: '#F0E1E5', borderWidth: 1, borderColor: '#E2CCD3', padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
   syncTitle: { color: '#713049', fontSize: 10, fontWeight: '900' },
   syncBody: { color: '#806E74', fontSize: 8, lineHeight: 13, marginTop: 2 },
