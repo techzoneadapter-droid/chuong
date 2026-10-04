@@ -9,7 +9,7 @@ interface Props { onSelect: (tool: ReaderTool) => void; dark?: boolean; }
 
 const tools: { id: ReaderTool; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { id: 'chapters', icon: 'list', label: 'Mục lục' },
-  { id: 'settings', icon: 'text', label: 'Cài đặt' },
+  { id: 'settings', icon: 'text', label: 'Giao diện' },
   { id: 'audio', icon: 'headset-outline', label: 'Nghe' },
   { id: 'ai', icon: 'sparkles-outline', label: 'AI' },
   { id: 'more', icon: 'ellipsis-horizontal', label: 'Thêm' },
