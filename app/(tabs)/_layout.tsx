@@ -2,10 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { xianxia } from '../../constants/xianxia';
+import { ArtIcon } from '../../components/Artwork';
+import { artwork } from '../../constants/artwork';
 
 function TabIcon({ name, color, size, focused }: { name: keyof typeof Ionicons.glyphMap; color: string; size: number; focused: boolean }) {
+  const source = name === 'home-outline' ? artwork.home : name === 'compass-outline' ? artwork.discover : name === 'brush-outline' ? artwork.write : name === 'library-outline' ? artwork.library : artwork.profile;
   return <View style={[styles.iconShell, focused && styles.iconShellActive]}>
-    <Ionicons name={name} color={focused ? xianxia.goldSoft : color} size={focused ? size - 1 : size} />
+    <ArtIcon source={source} size={focused ? 34 : 30} />
   </View>;
 }
 
@@ -17,16 +20,16 @@ export default function TabsLayout() {
         tabBarActiveTintColor: xianxia.jadeDeep,
         tabBarInactiveTintColor: '#827B71',
         tabBarStyle: {
-          height: 72,
+          height: 80,
           paddingTop: 6,
           paddingBottom: 8,
-          backgroundColor: '#FBF7EF',
+          backgroundColor: '#FFF8EA',
           borderTopColor: xianxia.line,
           borderTopWidth: 1,
         },
         tabBarLabelStyle: {
-          fontSize: 9,
-          fontWeight: '800',
+          fontSize: 10,
+          fontWeight: '600',
         },
       }}
     >
@@ -40,6 +43,6 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  iconShell: { width: 32, height: 30, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  iconShellActive: { backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61' },
+  iconShell: { width: 44, height: 38, alignItems: 'center', justifyContent: 'center' },
+  iconShellActive: { borderBottomWidth: 2, borderColor: xianxia.gold },
 });

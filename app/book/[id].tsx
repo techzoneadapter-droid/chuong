@@ -11,7 +11,8 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { BottomSheet } from '../../components/BottomSheet';
 import { ChapterRow } from '../../components/ChapterRow';
 import { SectionHeader } from '../../components/SectionHeader';
-import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
+import { ButtonArt } from '../../components/Artwork';
 import { xianxia } from '../../constants/xianxia';
 import { getBook as getDemoBook } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
@@ -140,17 +141,14 @@ export default function BookDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.page}>
         {loadError ? <Pressable onPress={() => setReload((value) => value + 1)}><Text style={styles.loadError}>{loadError} · Chạm để thử lại</Text></Pressable> : null}
         <View style={styles.heroCard}>
-          <XianxiaCoverArt />
           <View style={styles.hero}>
             <View style={styles.coverFrame}>
               <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-                <XianxiaCoverArt seed={book.id} />
                 {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <>
                   <Text style={styles.coverBrand}>CHƯƠNG</Text>
                   <Text numberOfLines={4} style={styles.coverTitle}>{book.title}</Text>
                   <Text numberOfLines={1} style={styles.coverAuthor}>{book.author}</Text>
                 </>}
-                <View style={styles.coverSeal}><Text style={styles.coverSealText}>仙</Text></View>
               </View>
             </View>
             <View style={styles.heroInfo}>
@@ -175,6 +173,7 @@ export default function BookDetailScreen() {
         <Pressable onPress={() => setExpanded((value) => !value)}><Text style={styles.more}>{expanded ? 'Thu gọn' : 'Xem thêm'}</Text></Pressable>
 
         <Pressable style={styles.primary} onPress={() => openReader()}>
+          <ButtonArt />
           <View style={styles.primaryGlyph}><Ionicons name="book" size={17} color={xianxia.goldSoft} /></View>
           <Text style={styles.primaryText}>{book.totalChapters === 0 ? 'Chưa có chương' : progress || book.progress > 0 ? `Đọc tiếp · Chương ${currentChapter}` : 'Mở linh quyển'}</Text>
           <Ionicons name="arrow-forward" size={17} color={xianxia.white} />
@@ -263,7 +262,7 @@ const styles = StyleSheet.create({
   topTitleWrap: { flex: 1, marginHorizontal: 10, alignItems: 'center' },
   topKicker: { color: xianxia.cinnabar, fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
   topTitle: { maxWidth: '100%', textAlign: 'center', color: xianxia.ink, fontSize: 13, fontWeight: '900', marginTop: 2 },
-  page: { paddingHorizontal: 16, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  page: { paddingHorizontal: 16, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center', backgroundColor: 'rgba(255,248,234,.93)' },
   heroCard: { marginTop: 14, borderRadius: 23, backgroundColor: '#27423B', borderWidth: 1, borderColor: '#4A685F', overflow: 'hidden', padding: 15, shadowColor: '#17231F', shadowOpacity: .14, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   hero: { flexDirection: 'row', gap: 17, zIndex: 2 },
   coverFrame: { borderRadius: 17, padding: 2, backgroundColor: xianxia.goldSoft, alignSelf: 'flex-start' },
@@ -289,7 +288,7 @@ const styles = StyleSheet.create({
   tag: { color: xianxia.inkSoft, borderWidth: 1, borderColor: xianxia.line, backgroundColor: 'rgba(255,253,247,.66)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, fontSize: 9, fontWeight: '800' },
   description: { color: xianxia.inkSoft, fontSize: 13, lineHeight: 21, marginTop: 14 },
   more: { color: xianxia.cinnabar, fontSize: 10, fontWeight: '900', marginTop: 5 },
-  primary: { minHeight: 54, borderRadius: 16, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: '#496A61', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 20, paddingHorizontal: 14 },
+  primary: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 20, paddingHorizontal: 28 },
   primaryGlyph: { width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(229,209,163,.10)', alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: xianxia.white, fontSize: 13, fontWeight: '900', flex: 1, textAlign: 'center' },
   actions: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 15 },

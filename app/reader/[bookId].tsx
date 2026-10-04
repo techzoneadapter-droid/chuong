@@ -10,6 +10,7 @@ import { useReadingAnalytics } from '../../hooks/useReadingAnalytics';
 import { messageForError } from '../../services/errors';
 import { Comments } from '../../components/Comments';
 import { BottomSheet } from '../../components/BottomSheet';
+import { ArtDivider } from '../../components/Artwork';
 import { ChapterRow } from '../../components/ChapterRow';
 import { ReaderToolbar, ReaderTool } from '../../components/ReaderToolbar';
 import { getBook as getDemoBook } from '../../data/books';
@@ -306,7 +307,7 @@ export default function ReaderScreen() {
           <Text style={[styles.bookKicker, { color: palette.muted }]}>{book.title.toUpperCase()}</Text>
           <Text style={[styles.chapterNumber, { color: palette.text }]}>Chương {chapterNumber}</Text>
           <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapter.title}</Text>
-          <View style={[styles.rule, { backgroundColor: palette.muted }]} />
+          {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
           {content.map((paragraph, index) => (
             <Text key={`${chapterNumber}-${index}`} style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{paragraph}</Text>
           ))}

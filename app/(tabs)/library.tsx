@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState } from '../../components/States';
-import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBooks } from '../../services/books';
@@ -112,9 +112,7 @@ export default function LibraryScreen() {
           return <Pressable onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })} style={({ pressed }) => [styles.row, pressed && styles.pressed]} key={entry.bookId}>
             <View style={styles.coverFrame}>
               <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-                <XianxiaCoverArt compact seed={book.id} />
                 {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : <Text style={styles.coverText}>{book.title.slice(0, 1).toUpperCase()}</Text>}
-                <View style={styles.coverSeal}><Text style={styles.coverSealText}>藏</Text></View>
               </View>
             </View>
             <View style={styles.meta}>
@@ -144,7 +142,7 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: xianxia.paper },
   page: { padding: 16, paddingBottom: 42, width: '100%', maxWidth: 720, alignSelf: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, padding: 12, backgroundColor: 'rgba(255,248,234,.9)' },
   eyebrow: { color: xianxia.cinnabar, fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
   title: { color: xianxia.ink, fontSize: 29, fontWeight: '900', marginTop: 3 },
   subtitle: { color: xianxia.muted, fontSize: 9, marginTop: 4 },

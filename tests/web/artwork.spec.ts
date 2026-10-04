@@ -15,7 +15,11 @@ test('artwork loads across reader screens on mobile and desktop', async ({ page 
     ]) {
       await page.goto(route);
       await expect(page.locator('body')).toContainText(text);
-      if (name === 'home') await expect(page.getByRole('img', { name: 'Logo CHƯƠNG' })).toBeVisible();
+      if (name === 'home') {
+        await expect(page.getByRole('img', { name: 'Logo CHƯƠNG' })).toBeVisible();
+        const coverImages = await page.getByRole('button', { name: 'Mở truyện Kiếm Yên Vân', exact: true }).first().locator('img').evaluateAll((images) => images.map(image => image.getAttribute('src')));
+        expect(coverImages.every(src => !src || src.includes('badge-vip'))).toBe(true);
+      }
       await expect.poll(() => page.locator('img').evaluateAll((images) => images.every((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0))).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       await page.screenshot({ path: `test-results/${name}-${width}.png` });

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
-import { XianxiaBackdrop, XianxiaCoverArt } from '../../components/XianxiaBackdrop';
+import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
 import {
   addSearchHistory,
@@ -265,7 +265,6 @@ function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; o
   return <Pressable onPress={onOpen} style={({ pressed }) => [styles.bookRow, pressed && styles.pressed]}>
     {rank ? <View style={[styles.rank, rank <= 3 && styles.rankTop]}><Text style={[styles.rankText, rank <= 3 && styles.rankTextTop]}>{rank}</Text></View> : null}
     <View style={[styles.cover, { backgroundColor: book.cover || xianxia.jadeDeep }]}>
-      <XianxiaCoverArt compact seed={book.id} />
       {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={styles.coverImage} /> : null}
       {book.coverUrl ? <View pointerEvents="none" style={styles.coverShade} /> : null}
       <Text style={styles.coverBrand}>CHƯƠNG</Text>

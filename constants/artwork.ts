@@ -2,15 +2,15 @@ export const artwork = {
   icon: require('../assets/xianxia/icon.png'),
   banner: require('../assets/xianxia/library-banner.png'),
   emptyLibrary: require('../assets/xianxia/empty-library.png'),
+  background: require('../assets/xianxia/app-background.jpg'),
+  logo: require('../assets/xianxia/logo-horizontal.png'),
+  home: require('../assets/xianxia/nav-home.png'),
+  discover: require('../assets/xianxia/nav-discover.png'),
+  write: require('../assets/xianxia/nav-write.png'),
+  library: require('../assets/xianxia/nav-library.png'),
+  profile: require('../assets/xianxia/nav-profile.png'),
+  lotus: require('../assets/xianxia/lotus.png'),
+  button: require('../assets/xianxia/button-jade.png'),
+  divider: require('../assets/xianxia/divider.png'),
+  vip: require('../assets/xianxia/badge-vip.png'),
 };
-
-const covers = [
-  require('../assets/xianxia/cover-palace.png'),
-  require('../assets/xianxia/cover-bamboo.png'),
-  require('../assets/xianxia/cover-archive.png'),
-];
-
-export function coverArtwork(seed: string) {
-  const index = Array.from(seed).reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 0);
-  return covers[index % covers.length];
-}
