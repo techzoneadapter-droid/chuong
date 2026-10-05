@@ -41,7 +41,7 @@ export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
   const client = requireSupabase();
   const { data, error } = await client
     .from('chapters')
-    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,published_at,updated_at')
+    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
     .eq('book_id', bookId)
     .order('chapter_number');
   if (error) throw toServiceError(error, 'Không thể tải bản thảo.');
@@ -56,6 +56,7 @@ export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
     configuredVip: row.is_vip,
     priceCoins: row.price_coins,
     earlyAccessUntil: row.early_access_until,
+    scheduledPublishAt: row.scheduled_publish_at,
     status: row.status,
     publishedAt: row.published_at,
     isRead: false,
@@ -73,7 +74,7 @@ export async function getAuthorChapter(bookId: string, chapterId: string): Promi
     }),
     client
       .from('chapters')
-      .select('is_vip,price_coins,early_access_until')
+      .select('is_vip,price_coins,early_access_until,scheduled_publish_at')
       .eq('book_id', bookId)
       .eq('id', chapterId)
       .maybeSingle(),
@@ -94,6 +95,7 @@ export async function getAuthorChapter(bookId: string, chapterId: string): Promi
     configuredVip: accessMeta?.is_vip ?? row.is_vip,
     priceCoins: accessMeta?.price_coins ?? row.price_coins,
     earlyAccessUntil: accessMeta?.early_access_until ?? null,
+    scheduledPublishAt: accessMeta?.scheduled_publish_at ?? null,
     status: row.status,
     publishedAt: row.published_at,
     isRead: false,
