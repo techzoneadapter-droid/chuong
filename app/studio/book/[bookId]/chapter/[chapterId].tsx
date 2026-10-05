@@ -29,6 +29,7 @@ export default function StudioChapterEditor() {
   const [content, setContent] = useState('');
   const [isVip, setIsVip] = useState(false);
   const [priceCoins, setPriceCoins] = useState('0');
+  const [earlyAccessUntil, setEarlyAccessUntil] = useState<string | null>(null);
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -55,6 +56,7 @@ export default function StudioChapterEditor() {
         setContent('');
         setIsVip(false);
         setPriceCoins('0');
+        setEarlyAccessUntil(null);
         setStatus('draft');
       } else {
         const current = await getAdminCatalogChapter(bookId, chapterId);
@@ -63,8 +65,9 @@ export default function StudioChapterEditor() {
         setChapterNumber(String(current.number));
         setTitle(current.title);
         setContent(current.content || '');
-        setIsVip(current.access === 'vip');
+        setIsVip(current.configuredVip ?? current.access === 'vip');
         setPriceCoins(String(current.priceCoins || 0));
+        setEarlyAccessUntil(current.earlyAccessUntil ?? null);
         setStatus(current.status === 'published' ? 'published' : 'draft');
       }
     } catch (cause) {
@@ -96,6 +99,15 @@ export default function StudioChapterEditor() {
     };
   }, [content]);
 
+  const setEarlyDays = (days: number) => {
+    setEarlyAccessUntil(new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString());
+  };
+  const earlyConfigured = Boolean(earlyAccessUntil);
+  const earlyExpired = Boolean(earlyAccessUntil && new Date(earlyAccessUntil).getTime() <= Date.now());
+  const earlyLabel = earlyAccessUntil
+    ? new Date(earlyAccessUntil).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+    : '';
+
   const save = async (nextStatus: 'draft' | 'published') => {
     if (!book || busy) return;
     const number = Number(chapterNumber);
@@ -113,6 +125,7 @@ export default function StudioChapterEditor() {
         status: nextStatus,
         isVip,
         priceCoins: isVip ? price : 0,
+        earlyAccessUntil: isVip ? earlyAccessUntil : null,
       });
       setStatus(nextStatus);
       setMessage(nextStatus === 'published' ? 'Đã lưu và xuất bản chương.' : 'Đã lưu bản nháp.');
@@ -219,11 +232,24 @@ export default function StudioChapterEditor() {
               <Text style={styles.switchTitle}>Chương VIP</Text>
               <Text style={styles.switchBody}>{isVip ? 'Độc giả cần mở khóa bằng Linh Thạch.' : 'Độc giả có thể đọc miễn phí.'}</Text>
             </View>
-            <Switch value={isVip} onValueChange={setIsVip} />
+            <Switch value={isVip} onValueChange={(value) => { setIsVip(value); if (!value) setEarlyAccessUntil(null); }} />
           </View>
           {isVip ? <>
             <Text style={styles.label}>Giá Linh Thạch</Text>
             <TextInput value={priceCoins} onChangeText={setPriceCoins} keyboardType="number-pad" style={styles.input} />
+            <View style={styles.earlyBox}>
+              <View style={styles.switchRowPlain}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.switchTitle}>Tiên Cơ · đọc sớm</Text>
+                  <Text style={styles.switchBody}>Tạm khóa bằng Linh Thạch rồi tự mở miễn phí khi hết hạn.</Text>
+                </View>
+                <Switch value={earlyConfigured} onValueChange={(value) => value ? setEarlyDays(3) : setEarlyAccessUntil(null)} />
+              </View>
+              {earlyConfigured ? <>
+                <Text style={[styles.earlyDeadline, earlyExpired && styles.earlyExpired]}>{earlyExpired ? 'Đã hết Tiên Cơ · hiện đang miễn phí' : `Tự mở miễn phí: ${earlyLabel}`}</Text>
+                <View style={styles.durationRow}>{[1, 3, 7, 14].map((days) => <Pressable key={days} style={styles.duration} onPress={() => setEarlyDays(days)}><Text style={styles.durationText}>{days} ngày</Text></Pressable>)}</View>
+              </> : <Text style={styles.earlyHint}>Không bật Tiên Cơ = VIP vĩnh viễn.</Text>}
+            </View>
           </> : null}
         </View>
 
@@ -233,6 +259,7 @@ export default function StudioChapterEditor() {
           <Check ok={title.trim().length >= 2} label="Có tiêu đề chương" />
           <Check ok={content.trim().length >= 50} label="Nội dung từ 50 ký tự" />
           <Check ok={!isVip || Number(priceCoins) > 0} label={isVip ? 'Có giá Linh Thạch' : 'Chương miễn phí'} />
+          {earlyConfigured ? <Check ok={!earlyExpired} label={earlyExpired ? 'Tiên Cơ đã hết hạn' : 'Tiên Cơ còn hiệu lực'} /> : null}
         </View>
 
         {!creating && status === 'draft' ? <Pressable disabled={busy} style={styles.delete} onPress={() => void remove()}>
@@ -287,6 +314,14 @@ const styles = StyleSheet.create({
   switchRow: { minHeight: 64, marginTop: 12, borderRadius: 13, padding: 10, backgroundColor: '#F4F1E9', borderWidth: 1, borderColor: '#DED5C8', flexDirection: 'row', alignItems: 'center', gap: 9 },
   switchTitle: { color: '#2B2528', fontSize: 9.5, fontWeight: '900' },
   switchBody: { color: '#7B726D', fontSize: 8, lineHeight: 12, marginTop: 2 },
+  earlyBox: { marginTop: 10, borderRadius: 13, padding: 10, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
+  switchRowPlain: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  earlyDeadline: { color: '#47704D', fontSize: 8.5, fontWeight: '900', marginTop: 9 },
+  earlyExpired: { color: xianxia.danger },
+  durationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  duration: { minHeight: 32, borderRadius: 9, paddingHorizontal: 8, borderWidth: 1, borderColor: '#AFC4B7', backgroundColor: '#FFFDFC', alignItems: 'center', justifyContent: 'center' },
+  durationText: { color: xianxia.jadeDeep, fontSize: 7.5, fontWeight: '900' },
+  earlyHint: { color: '#7C8A83', fontSize: 7.5, lineHeight: 11, marginTop: 7 },
   check: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 7 },
   checkText: { color: '#5D5551', fontSize: 8.5, fontWeight: '700' },
   delete: { minHeight: 42, borderRadius: 11, paddingHorizontal: 12, backgroundColor: '#F6E7E4', borderWidth: 1, borderColor: '#E4C4BD', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
