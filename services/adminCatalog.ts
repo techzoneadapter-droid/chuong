@@ -229,7 +229,7 @@ export async function getAdminCatalogChapters(bookId: string): Promise<Chapter[]
   const { client } = await requireAdmin();
   const { data, error } = await client
     .from('chapters')
-    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,published_at,updated_at')
+    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,early_access_until,published_at,updated_at')
     .eq('book_id', bookId)
     .order('chapter_number');
   if (error) throw toServiceError(error, 'Không thể tải danh sách chương.');
@@ -245,13 +245,14 @@ export type AdminCatalogChapterInput = {
   status: 'draft' | 'published';
   isVip: boolean;
   priceCoins: number;
+  earlyAccessUntil?: string | null;
 };
 
 export async function getAdminCatalogChapter(bookId: string, chapterId: string): Promise<Chapter | null> {
   const { client } = await requireAdmin();
   const { data, error } = await client
     .from('chapters')
-    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,published_at,updated_at')
+    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,early_access_until,published_at,updated_at')
     .eq('book_id', bookId)
     .eq('id', chapterId)
     .maybeSingle();
@@ -264,7 +265,9 @@ export async function saveAdminCatalogChapter(input: AdminCatalogChapterInput) {
   if (!Number.isInteger(input.chapterNumber) || input.chapterNumber <= 0) throw new Error('Số chương phải lớn hơn 0.');
   if (input.title.trim().length < 2) throw new Error('Tiêu đề chương cần ít nhất 2 ký tự.');
   if (input.status === 'published' && input.content.trim().length < 50) throw new Error('Chương cần ít nhất 50 ký tự trước khi xuất bản.');
-  if (input.isVip && (!Number.isInteger(input.priceCoins) || input.priceCoins <= 0)) throw new Error('Chương VIP cần giá Linh Thạch lớn hơn 0.');
+  if (input.isVip && (!Number.isInteger(input.priceCoins) || input.priceCoins <= 0)) throw new Error('Chương VIP/Tiên Cơ cần giá Linh Thạch lớn hơn 0.');
+  if (input.earlyAccessUntil && !input.isVip) throw new Error('Tiên Cơ chỉ dùng cho chương có mở khóa bằng Linh Thạch.');
+  if (input.earlyAccessUntil && Number.isNaN(Date.parse(input.earlyAccessUntil))) throw new Error('Thời điểm kết thúc Tiên Cơ không hợp lệ.');
 
   const duplicateQuery = client
     .from('chapters')
@@ -284,6 +287,7 @@ export async function saveAdminCatalogChapter(input: AdminCatalogChapterInput) {
     status: input.status,
     is_vip: input.isVip,
     price_coins: input.isVip ? input.priceCoins : 0,
+    early_access_until: input.isVip ? input.earlyAccessUntil ?? null : null,
     published_at: input.status === 'published' ? new Date().toISOString() : null,
     updated_at: new Date().toISOString(),
   };
@@ -370,6 +374,7 @@ export async function importAdminCatalogChapters(
             published_at: null,
             is_vip: false,
             price_coins: 0,
+            early_access_until: null,
           })),
         )
         .select('id,chapter_number');
