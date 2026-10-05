@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { Href, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Comments } from '../../components/Comments';
@@ -84,6 +84,16 @@ export default function BookDetailScreen() {
     load(); return () => { active = false; };
   }, [id, user?.id, reload]);
 
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (book.authorId && user?.id) {
+      void getFollowState('author', book.authorId, user.id).then(value => {
+        if (active) setFollowing(value);
+      }).catch(() => {});
+    }
+    return () => { active = false; };
+  }, [book.authorId, user?.id]));
+
   const newest = useMemo(() => [...book.chapters].reverse().slice(0, 5), [book.chapters]);
   const similar = catalog.filter((item) => item.id !== book.id && (item.genre === book.genre || item.isVip === book.isVip)).slice(0, 5);
 
@@ -129,6 +139,7 @@ export default function BookDetailScreen() {
   const toggleFollow = async (kind: 'author' | 'book') => {
     const targetId = kind === 'author' ? book.authorId ?? (!isSupabaseConfigured ? book.author : undefined) : book.id;
     if (!targetId) return;
+    if (kind === 'author' && isSupabaseConfigured && !user) { router.push('/auth/login'); return; }
     const current = kind === 'author' ? following : followingBook; const setter = kind === 'author' ? setFollowing : setFollowingBook;
     setter(!current);
     try { await setFollowState(kind, targetId, !current, user?.id); } catch (error) { setter(current); Alert.alert('Không thể cập nhật', error instanceof Error ? error.message : 'Vui lòng thử lại.'); }
@@ -193,8 +204,8 @@ export default function BookDetailScreen() {
 
         <View style={styles.authorSection}>
           <View style={styles.authorSeal}><Ionicons name="person-outline" size={15} color={xianxia.goldSoft} /></View>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{book.author.split(' ').map((part) => part[0]).join('').slice(0, 2)}</Text></View>
-          <Pressable style={styles.authorCopy} disabled={!book.authorUserId} onPress={() => book.authorUserId && router.push({ pathname: '/user/[id]', params: { id: book.authorUserId } })}><Text style={styles.authorKicker}>TÁC GIẢ</Text><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Mở trang tác giả" disabled={!book.authorId} onPress={() => book.authorId && router.push(`/creator/${book.authorId}` as Href)} style={styles.avatar}><Text style={styles.avatarText}>{book.author.split(' ').map((part) => part[0]).join('').slice(0, 2)}</Text></Pressable>
+          <Pressable style={styles.authorCopy} disabled={!book.authorId} onPress={() => book.authorId && router.push(`/creator/${book.authorId}` as Href)}><Text style={styles.authorKicker}>TÁC GIẢ</Text><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></Pressable>
           <Pressable style={[styles.follow, following && styles.following]} onPress={() => toggleFollow('author')}><Text style={[styles.followText, following && styles.followingText]}>{following ? 'Đang theo dõi' : 'Theo dõi tác giả'}</Text></Pressable>
         </View>
 

@@ -727,3 +727,97 @@ test('release notifications keep single chapter links and send batches to real u
   expect(writes.some(w => /unlock|debit/.test(w.table))).toBe(false);
   expect(errors).toEqual([]);
 });
+
+test('creator hub shares author follow with book detail and preserves reader social routes', async ({ page }) => {
+  await mock(page, true);
+  let authorFollowing = false;
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/rest/v1/authors?**', route => route.fulfill({ json: [{ ...author, user_id: targetUserId }] }));
+  await page.route('**/rest/v1/author_follows?**', route => {
+    const method = route.request().method();
+    if (method === 'POST') authorFollowing = true;
+    if (method === 'DELETE') authorFollowing = false;
+    return route.fulfill({ json: method === 'GET' ? authorFollowing ? { user_id: userId } : null : {} });
+  });
+  await page.route('**/rest/v1/rpc/get_public_author_hub', route => route.fulfill({ json: [{
+    author_id: authorId, pen_name: author.pen_name, bio: 'Hồ sơ sáng tác công khai', avatar_url: null,
+    verified: true, followers_count: authorFollowing ? 1 : 0, public_books_count: 1,
+    viewer_follows: authorFollowing, viewer_is_author: false, viewer_can_follow: true,
+    gift_book_id: bookId, gift_book_title: book.title,
+  }] }));
+  await page.route('**/rest/v1/rpc/get_public_author_books', route => route.fulfill({ json: [{ ...book, genre: 'Fantasy' }] }));
+  await page.goto(`/book/${bookId}`);
+  await page.getByText('Theo dõi tác giả', { exact: true }).click();
+  await expect.poll(() => authorFollowing).toBe(true);
+  await page.getByText(author.pen_name, { exact: true }).last().click();
+  await expect(page).toHaveURL(new RegExp(`/creator/${authorId}`));
+  await expect(page.getByRole('button', { name: 'Đang theo dõi', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Đang theo dõi', exact: true }).click();
+  await expect.poll(() => authorFollowing).toBe(false);
+  await page.getByRole('button', { name: 'Quay lại' }).click();
+  await expect(page.getByText('Theo dõi tác giả', { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('public creator catalog paginates on mobile and desktop; anonymous follow requires login', async ({ page }) => {
+  await mock(page);
+  const offsets: number[] = [];
+  await page.route('**/rest/v1/rpc/get_public_author_hub', route => route.fulfill({ json: [{
+    author_id: authorId, pen_name: 'Tác giả công khai', bio: 'Tiểu sử tác giả', avatar_url: null,
+    verified: true, followers_count: 12, public_books_count: 21,
+    viewer_follows: false, viewer_is_author: false, viewer_can_follow: false,
+    gift_book_id: null, gift_book_title: null,
+  }] }));
+  await page.route('**/rest/v1/rpc/get_public_author_books', route => {
+    const { p_limit, p_offset } = route.request().postDataJSON();
+    expect(p_limit).toBe(20); offsets.push(p_offset);
+    return route.fulfill({ json: Array.from({ length: p_offset === 0 ? 20 : 1 }, (_, i) => ({ ...book, id: `catalog-${p_offset+i}`, title: `Truyện công khai ${p_offset+i}`, genre: 'Fantasy' })) });
+  });
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/creator/${authorId}`);
+    await expect(page.getByText('Tác giả công khai', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Chưa có truyện công khai để nhận quà.', { exact: true })).toBeVisible();
+    await page.screenshot({ path: `test-results/creator-profile-${width}.png` });
+    await page.getByRole('button', { name: 'Xem thêm truyện' }).click();
+    await expect(page.getByText('Đã hiển thị tất cả truyện công khai.', { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: `test-results/creator-${width}.png`, fullPage: true });
+  }
+  expect(offsets).toEqual([0,20,0,20]);
+  await page.getByRole('button', { name: 'Theo dõi tác giả' }).click();
+  await expect(page).toHaveURL(/\/auth\/login/);
+});
+
+test('creator hub handles unavailable author and catalog retry', async ({ page }) => {
+  await mock(page);
+  await page.route('**/rest/v1/rpc/get_public_author_hub', route => route.fulfill({ json: [] }));
+  await page.goto(`/creator/${authorId}`);
+  await expect(page.getByText('Không tìm thấy tác giả', { exact: true })).toBeVisible();
+  await page.route('**/rest/v1/rpc/get_public_author_hub', route => route.fulfill({ status: 500, json: { message: 'network unavailable' } }));
+  await page.reload();
+  await expect(page.getByText('Thử lại', { exact: true })).toBeVisible();
+});
+
+test('notification settings save new_books independently from chapter releases', async ({ page }) => {
+  await mock(page, true);
+  let saved: Record<string, unknown> | undefined;
+  await page.route('**/rest/v1/notification_preferences?**', route => route.fulfill({ json: {
+    user_id: userId, in_app_enabled: true, purchases: true, author_earnings: true,
+    payouts: true, comments: true, moderation: true, new_chapters: false,
+    new_books: true, system: true, push_enabled: false,
+  } }));
+  await page.route('**/rest/v1/rpc/update_notification_preferences', route => {
+    saved = route.request().postDataJSON();
+    return route.fulfill({ json: {} });
+  });
+  await page.goto('/notifications/settings');
+  const row = page.getByText('Truyện mới từ tác giả theo dõi', { exact: true }).locator('..').locator('..');
+  await expect(page.getByText('Nhận thông báo khi tác giả bạn theo dõi phát hành truyện mới.', { exact: true })).toBeVisible();
+  await row.getByRole('switch').click();
+  await expect.poll(() => saved?.p_new_books).toBe(false);
+  expect(saved?.p_new_chapters).toBe(false);
+  expect(saved?.p_purchases).toBe(true);
+  expect(saved?.p_push_enabled).toBe(false);
+});

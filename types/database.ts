@@ -1361,6 +1361,7 @@ export type Database = {
           created_at: string
           in_app_enabled: boolean
           moderation: boolean
+          new_books: boolean
           new_chapters: boolean
           payouts: boolean
           purchases: boolean
@@ -1375,6 +1376,7 @@ export type Database = {
           created_at?: string
           in_app_enabled?: boolean
           moderation?: boolean
+          new_books?: boolean
           new_chapters?: boolean
           payouts?: boolean
           purchases?: boolean
@@ -1389,6 +1391,7 @@ export type Database = {
           created_at?: string
           in_app_enabled?: boolean
           moderation?: boolean
+          new_books?: boolean
           new_chapters?: boolean
           payouts?: boolean
           purchases?: boolean
@@ -2439,6 +2442,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_author_hub: {
+        Args: { p_author_id: string }
+        Returns: { author_id: string; pen_name: string; bio: string | null; avatar_url: string | null; verified: boolean; followers_count: number; public_books_count: number; viewer_follows: boolean; viewer_is_author: boolean; viewer_can_follow: boolean; gift_book_id: string | null; gift_book_title: string | null }[]
+      }
+      get_public_author_books: {
+        Args: { p_author_id: string; p_limit?: number; p_offset?: number }
+        Returns: { id: string; title: string; cover_url: string | null; status: Database['public']['Enums']['book_status']; is_vip: boolean; rating: number; total_chapters: number; genre: string | null; credited_author_name: string | null }[]
+      }
       get_my_followed_book_updates: {
         Args: { p_limit?: number; p_offset?: number; p_updates_only?: boolean }
         Returns: {
@@ -3276,6 +3287,7 @@ export type Database = {
           p_comments: boolean
           p_in_app_enabled: boolean
           p_moderation: boolean
+          p_new_books?: boolean
           p_new_chapters: boolean
           p_payouts: boolean
           p_purchases: boolean
@@ -3288,6 +3300,7 @@ export type Database = {
           created_at: string
           in_app_enabled: boolean
           moderation: boolean
+          new_books: boolean
           new_chapters: boolean
           payouts: boolean
           purchases: boolean

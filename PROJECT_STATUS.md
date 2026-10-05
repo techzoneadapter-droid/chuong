@@ -1,5 +1,28 @@
 # CHƯƠNG — PROJECT STATUS
 
+## Phase 4R4 — 2026-10-05
+
+- Implemented `/creator/[authorId]`, public-only catalog pages of 20, shared
+  `author_follows` state with Book Detail focus refresh, and existing gift sheet.
+  Reader community routes/follows remain separate.
+- Added first-book-release ledger, reader/author/UTC-hour notification batches,
+  INSERT-only push queuing and separate default-on `new_books` preference.
+- Applied only additive R4 migration to production. Historical seed: 1 book,
+  0 missing entries; release notification count remained 0 (no historical blast).
+- R4 and existing R3 production rollback smoke tests passed. No temporary books,
+  devices, alerts or push rows remained. Security Advisor run; intentional public
+  RPC/private-ledger notices and existing unrelated warnings documented.
+- Local `npm run verify` passes, including R1–R3 chapter batching, Update Center,
+  economy, typecheck and build. Backend browser suite: 20 passed, with 4
+  demo-only checks skipped. Separate demo/artwork run: 4 passed; details in
+  `docs/PHASE_4R4.md`.
+- Source remains in the current working tree for review, without commit/push or
+  hosting deployment, per this task's opening repository instruction.
+- Historical first-release information is incomplete in the pre-R4 schema;
+  conservative seeding behavior and limitations are documented in
+  `docs/PHASE_4R4.md`. Native push device delivery was not exercised.
+
+
 > Current audit: **2026-10-04**. See `docs/PROJECT_AUDIT_2026-10-04.md` for the current production/source status. The chronological sections below preserve earlier phase notes and may describe limitations that were subsequently completed.
 
 Updated: 2026-10-03
