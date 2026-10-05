@@ -228,6 +228,78 @@ function mostCommonText(values) {
   return [...counts.values()].sort((a,b)=>b.count-a.count||b.value.length-a.value.length)[0]?.value||'';
 }
 
+
+function inferGenreFromTitle(title){
+  const original=String(title||'').trim();
+  if(!original)return {genre:'',score:0,matched:[]};
+  const text=original.toLocaleLowerCase('vi');
+  const plain=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
+  const rules=[
+    {genre:'Hệ thống',terms:[
+      ['hệ thống',10],['he thong',10],['ban thưởng',8],['ban thuong',8],['ký đến',8],['ky den',8],
+      ['đánh dấu',6],['danh dau',6],['rút thưởng',6],['rut thuong',6],['nhiệm vụ',5],['nhiem vu',5],
+      ['bảng thuộc tính',5],['bang thuoc tinh',5],['điểm kỹ năng',5],['diem ky nang',5],['vô hạn điểm',5],['vo han diem',5]
+    ]},
+    {genre:'Tiên hiệp',terms:[
+      ['tu tiên',10],['tu tien',10],['tu chân',9],['tu chan',9],['tiên đế',7],['tien de',7],['tiên tôn',7],['tien ton',7],
+      ['trường sinh',7],['truong sinh',7],['phi thăng',7],['phi thang',7],['độ kiếp',7],['do kiep',7],
+      ['linh căn',6],['linh can',6],['nguyên anh',6],['nguyen anh',6],['đan điền',5],['dan dien',5],
+      ['tông môn',5],['tong mon',5],['tiên môn',5],['tien mon',5],['kiếm tiên',5],['kiem tien',5],['ma tôn',4],['ma ton',4]
+    ]},
+    {genre:'Huyền huyễn',terms:[
+      ['huyền huyễn',10],['huyen huyen',10],['đấu la',9],['dau la',9],['đấu phá',9],['dau pha',9],
+      ['võ hồn',8],['vo hon',8],['dị giới',7],['di gioi',7],['thần vực',6],['than vuc',6],
+      ['đại đế',5],['dai de',5],['thần đế',5],['than de',5],['vạn cổ',4],['van co',4],
+      ['chí tôn',4],['chi ton',4],['triệu hoán',5],['trieu hoan',5],['phế vật',3],['phe vat',3]
+    ]},
+    {genre:'Đô thị',terms:[
+      ['đô thị',10],['do thi',10],['thần y',7],['than y',7],['bác sĩ',6],['bac si',6],
+      ['giáo hoa',6],['giao hoa',6],['hoa khôi',6],['hoa khoi',6],['binh vương',5],['binh vuong',5],
+      ['siêu cấp bảo tiêu',6],['sieu cap bao tieu',6],['đại thiếu',4],['dai thieu',4],['thành phố',3],['thanh pho',3]
+    ]},
+    {genre:'Ngôn tình',terms:[
+      ['ngôn tình',10],['ngon tinh',10],['tổng tài',8],['tong tai',8],['phu nhân',7],['phu nhan',7],
+      ['hào môn',6],['hao mon',6],['cưới',5],['cuoi',5],['hôn nhân',5],['hon nhan',5],
+      ['vợ',4],['vo ',4],['chồng',4],['chong',4],['bạn trai',4],['ban trai',4],['bạn gái',4],['ban gai',4],
+      ['tình yêu',4],['tinh yeu',4]
+    ]},
+    {genre:'Kiếm hiệp',terms:[
+      ['kiếm hiệp',10],['kiem hiep',10],['võ lâm',8],['vo lam',8],['giang hồ',7],['giang ho',7],
+      ['hiệp khách',6],['hiep khach',6],['minh chủ',5],['minh chu',5],['võ hiệp',8],['vo hiep',8]
+    ]},
+    {genre:'Kinh dị',terms:[
+      ['kinh dị',10],['kinh di',10],['linh dị',9],['linh di',9],['cương thi',8],['cuong thi',8],
+      ['quỷ',6],['quy',6],['âm phủ',6],['am phu',6],['ma quái',6],['ma quai',6],
+      ['kinh hoàng',6],['kinh hoang',6],['nhà ma',5],['nha ma',5]
+    ]},
+    {genre:'Khoa huyễn',terms:[
+      ['khoa huyễn',10],['khoa huyen',10],['mạt thế',9],['mat the',9],['tận thế',8],['tan the',8],
+      ['tinh tế',8],['tinh te',8],['cơ giáp',8],['co giap',8],['phi thuyền',6],['phi thuyen',6],
+      ['vũ trụ',6],['vu tru',6],['zombie',7],['người máy',5],['nguoi may',5]
+    ]},
+    {genre:'Trinh thám',terms:[
+      ['trinh thám',10],['trinh tham',10],['phá án',9],['pha an',9],['thám tử',9],['tham tu',9],
+      ['pháp y',8],['phap y',8],['vụ án',7],['vu an',7],['hung thủ',6],['hung thu',6],
+      ['cảnh sát',5],['canh sat',5]
+    ]},
+    {genre:'Fantasy',terms:[
+      ['fantasy',10],['ma pháp',9],['ma phap',9],['pháp sư',8],['phap su',8],['phù thủy',8],['phu thuy',8],
+      ['dũng giả',7],['dung gia',7],['ma vương',6],['ma vuong',6],['rồng',5],['rong',5],['phép thuật',7],['phep thuat',7]
+    ]}
+  ];
+  const scored=rules.map(rule=>{
+    let score=0;const matched=[];
+    for(const [term,weight] of rule.terms){
+      const source=/[^\x00-\x7F]/.test(term)?text:plain;
+      if(source.includes(term)){score+=weight;matched.push(term);}
+    }
+    return {genre:rule.genre,score,matched};
+  }).sort((a,b)=>b.score-a.score);
+  const best=scored[0];
+  if(!best||best.score<4)return {genre:'',score:best?.score||0,matched:best?.matched||[]};
+  return best;
+}
+
 function findEocd(bytes){
   const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
   for(let pos=bytes.length-22;pos>=Math.max(0,bytes.length-65557);pos--) if(view.getUint32(pos,true)===0x06054b50)return pos;
@@ -472,6 +544,7 @@ async function parseStoryFile(file){
   state.chapters=chapters.filter(x=>x.content.trim()).sort((a,b)=>a.chapterNumber-b.chapterNumber);
   if(!state.chapters.length)throw new Error('Không nhận diện được chương/nội dung hợp lệ từ file.');
   $('bookTitle').value=title;$('pasteTitle').value=title;
+  if(ext==='zip'){const inferredGenre=inferGenreFromTitle(title);if(inferredGenre.genre)$('genre').value=inferredGenre.genre;}
   if(!$('authorName').value.trim())$('authorName').value=detectedAuthor||'Chuong';
   if(coverBlob)setCover(coverBlob,coverMime,'Bìa tự nhận từ '+file.name);
   renderPreview();
