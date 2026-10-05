@@ -122,7 +122,7 @@ export default function NotificationsScreen() {
         <ArtIcon source={artwork.lotus} size={76} />
         <View style={styles.emptyIcon}><Ionicons name="notifications-outline" size={28} color={xianxia.jadeDeep} /></View>
         <Text style={styles.emptyTitle}>{filter === 'unread' ? 'Không còn thông báo chưa đọc' : 'Chưa có thông báo'}</Text>
-        <Text style={styles.emptyBody}>Doanh thu, Hạ Phẩm · Thượng Phẩm, bình luận, kiểm duyệt và thanh toán tác giả sẽ xuất hiện tại đây.</Text>
+        <Text style={styles.emptyBody}>Chương mới, doanh thu, Hạ Phẩm · Thượng Phẩm, bình luận, kiểm duyệt và thanh toán tác giả sẽ xuất hiện tại đây.</Text>
       </View> : items.map((item) => <Pressable key={item.id} onPress={() => { void openItem(item); }} style={[styles.item, !item.read_at && styles.itemUnread]}>
         <View style={[styles.categoryIcon, categoryStyle(item.category).background]}>
           <Ionicons name={categoryStyle(item.category).icon} size={20} color={categoryStyle(item.category).color} />
@@ -147,6 +147,7 @@ function categoryStyle(category: string): { icon: keyof typeof Ionicons.glyphMap
   if (category === 'payout') return { icon: 'cash-outline', color: '#9B6A22', background: { backgroundColor: '#F6EFE3' } };
   if (category === 'comment') return { icon: 'chatbubble-ellipses-outline', color: '#4D668C', background: { backgroundColor: '#E8EDF4' } };
   if (category === 'moderation') return { icon: 'shield-checkmark-outline', color: '#8F1D3F', background: { backgroundColor: '#F8E7EC' } };
+  if (category === 'release') return { icon: 'book-outline', color: '#315247', background: { backgroundColor: '#E4EFE8' } };
   return { icon: 'sparkles-outline', color: '#6D6570', background: { backgroundColor: '#EEE9EB' } };
 }
 
