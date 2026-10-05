@@ -374,9 +374,15 @@ export default function StudioBookManager() {
 
             {chapterPageItems.map((chapter) => <View key={chapter.id || chapter.number} style={styles.chapter}>
               <View style={[styles.chapterNo, chapter.status === 'published' && styles.chapterNoLive]}><Text style={styles.chapterNoText}>{chapter.number}</Text></View>
-              <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={styles.chapterTitle}>{chapter.title}</Text><Text style={styles.chapterMeta}>{chapter.status === 'published' ? 'Đang hiển thị' : 'Bản nháp'}{chapter.access === 'vip' ? ` · VIP ${chapter.priceCoins || 0} Linh Thạch` : ' · Miễn phí'}</Text></View>
-              <Pressable disabled={!chapter.id || busy} onPress={() => toggleChapter(chapter)} style={[styles.chapterToggle, chapter.status === 'published' && styles.chapterToggleLive]}>
-                <Text style={[styles.chapterToggleText, chapter.status === 'published' && styles.chapterToggleTextLive]}>{chapter.status === 'published' ? 'Ẩn' : 'Xuất bản'}</Text>
+              <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={styles.chapterTitle}>{chapter.title}</Text><Text style={styles.chapterMeta}>{chapter.scheduledPublishAt ? `Hẹn đăng · ${new Date(chapter.scheduledPublishAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}` : chapter.status === 'published' ? 'Đang hiển thị' : 'Bản nháp'}{chapter.access === 'vip' ? ` · VIP ${chapter.priceCoins || 0} Linh Thạch` : ' · Miễn phí'}</Text></View>
+              <Pressable
+                disabled={!chapter.id || busy}
+                onPress={() => chapter.scheduledPublishAt
+                  ? router.push({ pathname: '/studio/book/[bookId]/schedule', params: { bookId: book.id } })
+                  : toggleChapter(chapter)}
+                style={[styles.chapterToggle, chapter.status === 'published' && styles.chapterToggleLive]}
+              >
+                <Text style={[styles.chapterToggleText, chapter.status === 'published' && styles.chapterToggleTextLive]}>{chapter.scheduledPublishAt ? 'Theo lịch' : chapter.status === 'published' ? 'Ẩn' : 'Xuất bản'}</Text>
               </Pressable>
               {chapter.id ? <Pressable
                 style={styles.chapterEdit}
