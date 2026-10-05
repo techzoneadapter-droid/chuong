@@ -1361,6 +1361,7 @@ export type Database = {
           created_at: string
           in_app_enabled: boolean
           moderation: boolean
+          new_chapters: boolean
           payouts: boolean
           purchases: boolean
           push_enabled: boolean
@@ -1374,6 +1375,7 @@ export type Database = {
           created_at?: string
           in_app_enabled?: boolean
           moderation?: boolean
+          new_chapters?: boolean
           payouts?: boolean
           purchases?: boolean
           push_enabled?: boolean
@@ -1387,6 +1389,7 @@ export type Database = {
           created_at?: string
           in_app_enabled?: boolean
           moderation?: boolean
+          new_chapters?: boolean
           payouts?: boolean
           purchases?: boolean
           push_enabled?: boolean
@@ -3259,6 +3262,7 @@ export type Database = {
           p_comments: boolean
           p_in_app_enabled: boolean
           p_moderation: boolean
+          p_new_chapters: boolean
           p_payouts: boolean
           p_purchases: boolean
           p_push_enabled: boolean
@@ -3270,6 +3274,7 @@ export type Database = {
           created_at: string
           in_app_enabled: boolean
           moderation: boolean
+          new_chapters: boolean
           payouts: boolean
           purchases: boolean
           push_enabled: boolean
