@@ -126,7 +126,9 @@
     row.author=chosenAuthor;
     row.detectedAuthor=detectedAuthor;
     row.status=chosenStatus;
-    row.genre=metadata.genre||el('bulkDefaultGenre').value;
+    const inferredGenre=metadata.genre?{genre:metadata.genre,score:100,matched:['metadata']}:inferGenreFromTitle(title);
+    row.genre=metadata.genre||inferredGenre.genre||el('bulkDefaultGenre').value;
+    row.genreSource=metadata.genre?'metadata':(inferredGenre.genre?'title':'default');
     row.chapterCount=docs.length;
     row.hasCover=Boolean(cover);
     row.coverEntry=cover?.name||'';
