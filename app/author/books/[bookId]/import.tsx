@@ -8,7 +8,7 @@ import { ButtonArt } from '../../../../components/Artwork';
 import { XianxiaBackdrop } from '../../../../components/XianxiaBackdrop';
 import { xianxia } from '../../../../constants/xianxia';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { parseAdminImportFile, parseAdminImportPaste, ParsedImportBook } from '../../../../services/adminImport';
+import { auditParsedImportChapters, normalizeImportChapterTitles, parseAdminImportFile, parseAdminImportPaste, ParsedImportBook, removeShortImportChapters, renumberImportChapters } from '../../../../services/adminImport';
 import { importAuthorParsedBook } from '../../../../services/authorImport';
 import { getAuthorForUser, getMyBooks } from '../../../../services/authors';
 import { messageForError } from '../../../../services/errors';
@@ -73,6 +73,18 @@ export default function AuthorImportBookScreen() {
     () => candidates.find((item) => item.id === selectedId) ?? candidates[0] ?? null,
     [candidates, selectedId],
   );
+
+  const selectedAudit = useMemo(
+    () => selected ? auditParsedImportChapters(selected.chapters) : null,
+    [selected],
+  );
+
+  const updateSelectedChapters = (updater: (chapters: ParsedImportBook['chapters']) => ParsedImportBook['chapters']) => {
+    if (!selected) return;
+    setCandidates((items) => items.map((item) => item.id === selected.id ? { ...item, chapters: updater(item.chapters) } : item));
+    setError('');
+    setSuccess('');
+  };
 
   const setParsed = (items: ParsedImportBook[]) => {
     setCandidates(items);
@@ -155,6 +167,19 @@ export default function AuthorImportBookScreen() {
 
   const startImport = async () => {
     if (!selected || !book || busy) return;
+    const audit = auditParsedImportChapters(selected.chapters);
+    if (audit.duplicateNumbers.length) {
+      setError(`File có số chương trùng: ${audit.duplicateNumbers.slice(0, 12).join(', ')}.`);
+      return;
+    }
+    if (audit.emptyIndexes.length) {
+      setError(`Có ${audit.emptyIndexes.length} chương rỗng. Hãy loại bỏ hoặc sửa trước khi nhập.`);
+      return;
+    }
+    if (publish && audit.shortIndexes.length) {
+      setError(`Có ${audit.shortIndexes.length} chương quá ngắn. Hãy tắt “Xuất bản ngay” hoặc xử lý trước khi nhập.`);
+      return;
+    }
     if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) {
       setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
       return;
@@ -266,12 +291,29 @@ export default function AuthorImportBookScreen() {
         <View style={styles.candidateList}>
           {candidates.map((item) => {
             const active = selected?.id === item.id;
+            const audit = auditParsedImportChapters(item.chapters);
             return <Pressable key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.candidate, active && styles.candidateActive]}>
               <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={20} color={active ? xianxia.gold : xianxia.jade} />
-              <View style={{ flex: 1 }}><Text style={[styles.candidateTitle, active && styles.candidateTitleActive]}>{item.title}</Text><Text style={[styles.candidateMeta, active && styles.candidateMetaActive]}>{item.chapters.length} chương · {item.sourceName}</Text></View>
+              <View style={{ flex: 1 }}><Text style={[styles.candidateTitle, active && styles.candidateTitleActive]}>{item.title}</Text><Text style={[styles.candidateMeta, active && styles.candidateMetaActive]}>{item.chapters.length} chương · {audit.totalWords.toLocaleString('vi-VN')} từ · {item.sourceName}</Text></View>
             </Pressable>;
           })}
         </View>
+
+        {selected && selectedAudit ? <View style={styles.auditCard}>
+          <View style={styles.auditGrid}>
+            <View style={styles.auditMetric}><Text style={styles.auditValue}>{selectedAudit.chapterCount}</Text><Text style={styles.auditLabel}>chương</Text></View>
+            <View style={styles.auditMetric}><Text style={styles.auditValue}>{selectedAudit.totalWords.toLocaleString('vi-VN')}</Text><Text style={styles.auditLabel}>từ</Text></View>
+            <View style={styles.auditMetric}><Text style={[styles.auditValue, (selectedAudit.shortIndexes.length || selectedAudit.emptyIndexes.length) && styles.auditDanger]}>{selectedAudit.shortIndexes.length + selectedAudit.emptyIndexes.length}</Text><Text style={styles.auditLabel}>cần xem lại</Text></View>
+          </View>
+          <View style={styles.auditActions}>
+            <Pressable style={styles.auditAction} onPress={() => updateSelectedChapters((chapters) => renumberImportChapters(chapters, 1))}><Text style={styles.auditActionText}>Đánh lại số 1→N</Text></Pressable>
+            <Pressable style={styles.auditAction} onPress={() => updateSelectedChapters(normalizeImportChapterTitles)}><Text style={styles.auditActionText}>Chuẩn hóa tiêu đề</Text></Pressable>
+            <Pressable style={[styles.auditAction, styles.auditDangerButton]} onPress={() => updateSelectedChapters(removeShortImportChapters)}><Text style={styles.auditDangerText}>Bỏ chương quá ngắn</Text></Pressable>
+          </View>
+          {selectedAudit.duplicateNumbers.length ? <Text style={styles.auditWarning}>Trùng số chương: {selectedAudit.duplicateNumbers.slice(0, 12).join(', ')}</Text> : null}
+          {selectedAudit.missingNumbers.length ? <Text style={styles.auditHint}>Thiếu số: {selectedAudit.missingNumbers.slice(0, 12).join(', ')}{selectedAudit.missingNumbers.length > 12 ? '…' : ''}</Text> : null}
+          {selectedAudit.shortIndexes.length ? <Text style={styles.auditHint}>{selectedAudit.shortIndexes.length} chương dưới 50 ký tự hoặc dưới 15 từ.</Text> : null}
+        </View> : null}
       </> : null}
 
       <Text style={styles.section}>3. Xử lý sau khi tải lên</Text>
@@ -392,6 +434,19 @@ const styles = StyleSheet.create({
   candidateTitleActive: { color: '#FFF8EA' },
   candidateMeta: { color: xianxia.muted, fontSize: 8, marginTop: 3 },
   candidateMetaActive: { color: 'rgba(255,248,234,.65)' },
+  auditCard: { marginTop: 10, borderRadius: 15, padding: 12, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: xianxia.line },
+  auditGrid: { flexDirection: 'row', gap: 7 },
+  auditMetric: { flex: 1, minHeight: 58, borderRadius: 11, backgroundColor: '#F1ECE4', alignItems: 'center', justifyContent: 'center', padding: 7 },
+  auditValue: { color: xianxia.jadeDeep, fontSize: 16, fontWeight: '900' },
+  auditDanger: { color: xianxia.danger },
+  auditLabel: { color: xianxia.muted, fontSize: 7.5, marginTop: 2, fontWeight: '800' },
+  auditActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9 },
+  auditAction: { minHeight: 34, borderRadius: 9, paddingHorizontal: 9, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#BED0C3', alignItems: 'center', justifyContent: 'center' },
+  auditActionText: { color: xianxia.jadeDeep, fontSize: 7.8, fontWeight: '900' },
+  auditDangerButton: { backgroundColor: '#F6E7E4', borderColor: '#E3C4BD' },
+  auditDangerText: { color: xianxia.danger, fontSize: 7.8, fontWeight: '900' },
+  auditWarning: { color: xianxia.danger, fontSize: 8.5, lineHeight: 13, marginTop: 8, fontWeight: '800' },
+  auditHint: { color: xianxia.muted, fontSize: 8, lineHeight: 12, marginTop: 5 },
   optionCard: { borderRadius: 18, padding: 14, backgroundColor: 'rgba(255,248,234,.95)', borderWidth: 1, borderColor: xianxia.line },
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   optionTitle: { color: xianxia.ink, fontSize: 11, fontWeight: '900' },
