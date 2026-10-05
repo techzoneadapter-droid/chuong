@@ -187,10 +187,82 @@ export type Database = {
           },
         ]
       }
+      author_gifts: {
+        Row: {
+          amount_coins: number
+          author_earnings_coins: number
+          author_id: string
+          author_share_bps: number
+          book_id: string
+          created_at: string
+          gift_key: string
+          id: string
+          platform_share_coins: number
+          sender_user_id: string
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          amount_coins: number
+          author_earnings_coins: number
+          author_id: string
+          author_share_bps: number
+          book_id: string
+          created_at?: string
+          gift_key: string
+          id?: string
+          platform_share_coins: number
+          sender_user_id: string
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          amount_coins?: number
+          author_earnings_coins?: number
+          author_id?: string
+          author_share_bps?: number
+          book_id?: string
+          created_at?: string
+          gift_key?: string
+          id?: string
+          platform_share_coins?: number
+          sender_user_id?: string
+          wallet_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_gifts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_gifts_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_gifts_sender_user_id_fkey"
+            columns: ["sender_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_gifts_wallet_transaction_id_fkey"
+            columns: ["wallet_transaction_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       author_revenue_accounts: {
         Row: {
           author_earnings_coins: number
           author_id: string
+          gross_gifts_coins: number
           gross_sales_coins: number
           paid_out_coins: number
           refunded_coins: number
@@ -200,6 +272,7 @@ export type Database = {
         Insert: {
           author_earnings_coins?: number
           author_id: string
+          gross_gifts_coins?: number
           gross_sales_coins?: number
           paid_out_coins?: number
           refunded_coins?: number
@@ -2577,6 +2650,10 @@ export type Database = {
         Returns: Json
       }
       claim_rewarded_ad_bonus: { Args: never; Returns: Json }
+      get_book_gift_summary: {
+        Args: { p_book_id: string }
+        Returns: { total_coins: number; total_gifts: number }[]
+      }
       get_daily_cultivation: { Args: never; Returns: Json }
       claim_push_deliveries: {
         Args: { p_limit?: number }
@@ -3038,6 +3115,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      send_author_gift: {
+        Args: { p_book_id: string; p_gift_key: string; p_idempotency_key: string }
+        Returns: {
+          already_sent: boolean
+          amount_coins: number
+          author_earnings_coins: number
+          balance_coins: number
+          gift_id: string
+          platform_share_coins: number
+        }[]
+      }
       unlock_book: {
         Args: { p_book_id: string; p_idempotency_key: string }
         Returns: {
@@ -3116,7 +3204,7 @@ export type Database = {
     }
     Enums: {
       author_payout_status: "pending" | "approved" | "paid" | "cancelled"
-      author_revenue_type: "sale" | "refund" | "adjustment"
+      author_revenue_type: "sale" | "refund" | "adjustment" | "gift"
       book_status: "draft" | "ongoing" | "completed" | "paused"
       book_visibility: "public" | "private" | "unlisted"
       chapter_status: "draft" | "published"
@@ -3150,6 +3238,7 @@ export type Database = {
         | "author_payout_debit"
         | "purchase_reversal_debit"
         | "refund_reversal_credit"
+        | "gift_debit"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3278,7 +3367,7 @@ export const Constants = {
   public: {
     Enums: {
       author_payout_status: ["pending", "approved", "paid", "cancelled"],
-      author_revenue_type: ["sale", "refund", "adjustment"],
+      author_revenue_type: ["sale", "refund", "adjustment", "gift"],
       book_status: ["draft", "ongoing", "completed", "paused"],
       book_visibility: ["public", "private", "unlisted"],
       chapter_status: ["draft", "published"],
