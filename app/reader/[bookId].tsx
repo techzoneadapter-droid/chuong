@@ -22,6 +22,7 @@ import { getChapterContent } from '../../data/readerContent';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { useTtsPlayer } from '../../hooks/useTtsPlayer';
 import { defaultReaderSettings } from '../../services/storage';
+import { shareQuote } from '../../services/sharing';
 import { getBookById } from '../../services/books';
 import { ContentLockedError, getChapter, getChaptersByBook } from '../../services/chapters';
 import { unlockBook, unlockChapter, UnlockError } from '../../services/entitlements';
@@ -67,6 +68,9 @@ export default function ReaderScreen() {
   const [chapterSearch, setChapterSearch] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [autoScrolling, setAutoScrolling] = useState(false);
+  const [quoteToShare, setQuoteToShare] = useState<string | null>(null);
+  const [sharingQuote, setSharingQuote] = useState(false);
+  const [shareNotice, setShareNotice] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const scrollPosition = useRef(0);
 
@@ -317,6 +321,43 @@ export default function ReaderScreen() {
     }
   };
 
+  const openQuoteShare = (quote: string) => {
+    if (!quote.trim()) return;
+    setAutoScrolling(false);
+    setControlsVisible(true);
+    setSheet(null);
+    setShareNotice('');
+    setQuoteToShare(quote);
+  };
+
+  const shareCurrentQuote = async () => {
+    if (!quoteToShare || sharingQuote) return;
+    setSharingQuote(true);
+    setShareNotice('');
+    try {
+      const result = await shareQuote({
+        bookId: book.id,
+        bookTitle: book.title,
+        authorName: book.author,
+        chapterNumber,
+        chapterTitle: chapter.title,
+        quote: quoteToShare,
+      });
+      if (result === 'copied') setShareNotice('Đã sao chép trích đoạn và liên kết đọc.');
+      if (result === 'unavailable') setShareNotice('Thiết bị này chưa hỗ trợ chia sẻ hoặc sao chép tự động.');
+    } catch {
+      setShareNotice('Chưa thể chia sẻ trích đoạn. Vui lòng thử lại.');
+    } finally {
+      setSharingQuote(false);
+    }
+  };
+
+  const shareNearReadingPosition = () => {
+    if (!content.length) return;
+    const index = Math.min(content.length - 1, Math.max(0, Math.floor((readingProgress / 100) * content.length)));
+    openQuoteShare(content[index] ?? content[0]);
+  };
+
   const toggleBookmark = async () => {
     const previous = bookmarked; setBookmarked(!previous);
     try { const next = await persistBookmark({ bookId: book.id, chapterId: chapter.id, chapterNumber, position: readingProgress, note: null }, user?.id); setBookmarked(next); }
@@ -434,7 +475,18 @@ export default function ReaderScreen() {
             {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
           </> : null}
           {visibleContent.map((paragraph, index) => (
-            <Text key={`${chapterNumber}-${pageIndex}-${index}`} style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{paragraph}</Text>
+            <Text
+              key={`${chapterNumber}-${pageIndex}-${index}`}
+              style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}
+              onLongPress={(event) => {
+                event.stopPropagation?.();
+                openQuoteShare(paragraph);
+              }}
+              delayLongPress={360}
+              suppressHighlighting
+            >
+              {paragraph}
+            </Text>
           ))}
           {settings.mode === 'page' ? <View style={[styles.pagePager, { borderColor: dark ? '#4C494B' : xianxia.line }]}>
             <Pressable disabled={pageIndex === 0} onPress={() => goReaderPage(pageIndex - 1)} style={[styles.pageButton, pageIndex === 0 && styles.disabled]}><Ionicons name="chevron-back" size={17} color={palette.text} /><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang trước</Text></Pressable>
@@ -500,6 +552,18 @@ export default function ReaderScreen() {
         </>
       ) : null}
 
+      <ShareQuoteSheet
+        visible={Boolean(quoteToShare)}
+        quote={quoteToShare ?? ''}
+        bookTitle={book.title}
+        authorName={book.author}
+        chapterNumber={chapterNumber}
+        chapterTitle={chapter.title}
+        sharing={sharingQuote}
+        notice={shareNotice}
+        onShare={() => void shareCurrentQuote()}
+        onClose={() => { setQuoteToShare(null); setShareNotice(''); }}
+      />
       <ChapterSheet visible={sheet === 'chapters'} onClose={() => setSheet(null)} chapters={filteredChapters} query={chapterSearch} onQuery={setChapterSearch} onSelect={goChapter} current={chapterNumber} />
       <SettingsSheet
         visible={sheet === 'settings'}
@@ -522,7 +586,15 @@ export default function ReaderScreen() {
         canPrevious={previousNumber !== undefined}
         canNext={nextNumber !== undefined}
       />
-      <MoreSheet visible={sheet === 'more'} onClose={() => setSheet(null)} bookmark={bookmark} chapter={chapterNumber} onBookmark={toggleBookmark} onComments={() => { setSheet(null); requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })); }} />
+      <MoreSheet
+        visible={sheet === 'more'}
+        onClose={() => setSheet(null)}
+        bookmark={bookmark}
+        chapter={chapterNumber}
+        onBookmark={toggleBookmark}
+        onComments={() => { setSheet(null); requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })); }}
+        onShareQuote={shareNearReadingPosition}
+      />
     </View>
   );
 }
@@ -698,10 +770,57 @@ function AudioSheet({
   </BottomSheet>;
 }
 
-function MoreSheet({ visible, onClose, bookmark, chapter, onBookmark, onComments }: { visible: boolean; onClose: () => void; bookmark: Bookmark | null; chapter: number; onBookmark: () => void; onComments: () => void }) {
+function ShareQuoteSheet({
+  visible,
+  quote,
+  bookTitle,
+  authorName,
+  chapterNumber,
+  chapterTitle,
+  sharing,
+  notice,
+  onShare,
+  onClose,
+}: {
+  visible: boolean;
+  quote: string;
+  bookTitle: string;
+  authorName?: string | null;
+  chapterNumber: number;
+  chapterTitle?: string | null;
+  sharing: boolean;
+  notice: string;
+  onShare: () => void;
+  onClose: () => void;
+}) {
+  const preview = quote.replace(/\s+/g, ' ').trim();
+  const clipped = preview.length > 420 ? preview.slice(0, 417).trimEnd() + '…' : preview;
+  return <BottomSheet visible={visible} title="Chia sẻ trích đoạn" onClose={onClose} scroll>
+    <View style={quoteStyles.card}>
+      <View style={quoteStyles.brandRow}>
+        <View style={quoteStyles.brandSeal}><Text style={quoteStyles.brandSealText}>C</Text></View>
+        <Text style={quoteStyles.brand}>CHƯƠNG</Text>
+      </View>
+      <Text style={quoteStyles.quote}>“{clipped}”</Text>
+      <View style={quoteStyles.rule} />
+      <Text style={quoteStyles.book}>{bookTitle}</Text>
+      <Text style={quoteStyles.meta}>Chương {chapterNumber}{chapterTitle?.trim() ? ' · ' + chapterTitle.trim() : ''}</Text>
+      {authorName?.trim() ? <Text style={quoteStyles.author}>Tác giả · {authorName.trim()}</Text> : null}
+    </View>
+    <Text style={quoteStyles.hint}>Nhấn giữ bất kỳ đoạn văn nào trong Reader để chọn chính xác trích đoạn muốn chia sẻ. Liên kết mở thẳng về chương hiện tại.</Text>
+    {notice ? <Text style={quoteStyles.notice}>{notice}</Text> : null}
+    <Pressable disabled={sharing || !clipped} onPress={onShare} style={[quoteStyles.shareButton, (sharing || !clipped) && styles.disabled]}>
+      <Ionicons name="share-social-outline" size={18} color="#FFFDF8" />
+      <Text style={quoteStyles.shareButtonText}>{sharing ? 'Đang mở chia sẻ…' : 'Chia sẻ trích đoạn'}</Text>
+    </Pressable>
+  </BottomSheet>;
+}
+
+function MoreSheet({ visible, onClose, bookmark, chapter, onBookmark, onComments, onShareQuote }: { visible: boolean; onClose: () => void; bookmark: Bookmark | null; chapter: number; onBookmark: () => void; onComments: () => void; onShareQuote: () => void }) {
   return <BottomSheet visible={visible} title="Thêm" onClose={onClose}>
     <Pressable style={sheetStyles.moreRow} onPress={onBookmark}><Ionicons name={bookmark?.chapter === chapter ? 'bookmark' : 'bookmark-outline'} size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>{bookmark?.chapter === chapter ? 'Bỏ dấu trang' : 'Lưu vị trí đọc'}</Text><Text style={sheetStyles.aiDetail}>{bookmark ? `Đã lưu Chương ${bookmark.chapter} · ${bookmark.progress}%` : 'Chưa có dấu trang'}</Text></View></Pressable>
     <Pressable style={sheetStyles.moreRow} onPress={onComments}><Ionicons name="chatbubble-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Bình luận chương</Text><Text style={sheetStyles.aiDetail}>Tham gia thảo luận ở cuối chương</Text></View></Pressable>
+    <Pressable style={sheetStyles.moreRow} onPress={onShareQuote}><Ionicons name="share-social-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Chia sẻ trích đoạn</Text><Text style={sheetStyles.aiDetail}>Chọn đoạn gần vị trí đang đọc · hoặc nhấn giữ đoạn bất kỳ</Text></View></Pressable>
     <Pressable style={sheetStyles.moreRow} onPress={() => Alert.alert('Báo lỗi nội dung', 'Đã ghi nhận. Tính năng gửi báo cáo sẽ kết nối với CHƯƠNG backend ở giai đoạn sau.')}><Ionicons name="flag-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Báo lỗi nội dung</Text><Text style={sheetStyles.aiDetail}>Gửi ghi chú cho ban biên tập</Text></View></Pressable>
   </BottomSheet>;
 }
@@ -767,6 +886,23 @@ const sheetStyles = StyleSheet.create({
   readerOptionTitle: { color: '#31272B', fontSize: 11, fontWeight: '900' },
   readerOptionBody: { color: '#756A6E', fontSize: 8.5, lineHeight: 13, marginTop: 3 },
   moreRow: { flexDirection: 'row', alignItems: 'center', minHeight: 65, gap: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E1D5CF' }
+});
+
+const quoteStyles = StyleSheet.create({
+  card: { borderRadius: 20, padding: 18, backgroundColor: '#27423B', borderWidth: 1, borderColor: xianxia.gold, shadowColor: '#2A2A25', shadowOpacity: .12, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  brandSeal: { width: 28, height: 28, borderRadius: 9, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center' },
+  brandSealText: { color: xianxia.goldSoft, fontSize: 12, fontWeight: '900' },
+  brand: { color: xianxia.goldSoft, fontSize: 9, fontWeight: '900', letterSpacing: 1.4 },
+  quote: { color: '#FFFDF8', fontSize: 17, lineHeight: 27, fontWeight: '700', marginTop: 16 },
+  rule: { width: 34, height: 1, backgroundColor: 'rgba(229,209,163,.72)', marginTop: 18, marginBottom: 13 },
+  book: { color: '#FFF7E8', fontSize: 12, fontWeight: '900' },
+  meta: { color: 'rgba(255,253,248,.80)', fontSize: 9, lineHeight: 14, marginTop: 4 },
+  author: { color: xianxia.goldSoft, fontSize: 8.5, fontWeight: '800', marginTop: 6 },
+  hint: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13, marginTop: 12 },
+  notice: { color: xianxia.jadeDeep, fontSize: 9, lineHeight: 13, marginTop: 10, fontWeight: '800' },
+  shareButton: { minHeight: 48, borderRadius: 14, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  shareButtonText: { color: '#FFFDF8', fontSize: 10.5, fontWeight: '900' },
 });
 
 const audioStyles = StyleSheet.create({
