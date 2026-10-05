@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Comments } from '../../components/Comments';
+import { AuthorGiftSheet } from '../../components/AuthorGiftSheet';
 import { BookReviews } from '../../components/BookReviews';
 import { BookCard } from '../../components/BookCard';
 import { LoadingState, RetryState } from '../../components/States';
@@ -17,6 +18,7 @@ import { xianxia } from '../../constants/xianxia';
 import { getBook as getDemoBook } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBookById, getBooks } from '../../services/books';
+import { BookGiftSummary, getBookGiftSummary } from '../../services/gifts';
 import { getChaptersByBook } from '../../services/chapters';
 import { getFollowState, getLibrary, getReadingProgress, removeFromLibrary, setFollowState, setLibraryStatus } from '../../services/library';
 import { downloadBookForOffline, DownloadSelection } from '../../services/downloadManager';
@@ -51,6 +53,8 @@ export default function BookDetailScreen() {
   const [downloadedBytes, setDownloadedBytes] = useState(0);
   const [downloading, setDownloading] = useState<DownloadOption | null>(null);
   const [downloadProgress, setDownloadProgress] = useState({ completed: 0, total: 0 });
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [giftSummary, setGiftSummary] = useState<BookGiftSummary>({ totalGifts: 0, totalCoins: 0 });
 
   useEffect(() => {
     let active = true;
@@ -63,15 +67,17 @@ export default function BookDetailScreen() {
         if (!active) return;
         const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length || result.data.totalChapters, latestChapter: chapters.data.at(-1)?.number ?? result.data.latestChapter };
         setBook(hydrated);
-        const [library, savedProgress, authorFollow, bookFollow, catalogResult, offlineRecords] = await Promise.all([
+        const [library, savedProgress, authorFollow, bookFollow, catalogResult, offlineRecords, gifts] = await Promise.all([
           getLibrary(user?.id), getReadingProgress(hydrated.id, user?.id),
           hydrated.authorId || result.mode === 'demo' ? getFollowState('author', hydrated.authorId ?? hydrated.author, user?.id) : false,
-          getFollowState('book', hydrated.id, user?.id), getBooks(), getOfflineBookRecords(hydrated.id)
+          getFollowState('book', hydrated.id, user?.id), getBooks(), getOfflineBookRecords(hydrated.id),
+          isSupabaseConfigured ? getBookGiftSummary(hydrated.id).catch(() => ({ totalGifts: 0, totalCoins: 0 })) : Promise.resolve({ totalGifts: 0, totalCoins: 0 })
         ]);
         if (!active) return;
         setInLibrary(library.some((entry) => entry.bookId === hydrated.id)); setProgress(savedProgress); setFollowing(authorFollow); setFollowingBook(bookFollow); setCatalog(catalogResult.data);
         setDownloadedChapterCount(offlineRecords.length);
         setDownloadedBytes(offlineRecords.reduce((sum, item) => sum + item.bytes, 0));
+        setGiftSummary(gifts);
       } catch (error) { if (active) setLoadError(error instanceof Error ? error.message : 'Không thể tải dữ liệu mới.'); }
       finally { if (active) setLoading(false); }
     };
@@ -191,6 +197,17 @@ export default function BookDetailScreen() {
           <View style={styles.authorCopy}><Text style={styles.authorKicker}>TÁC GIẢ</Text><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></View>
           <Pressable style={[styles.follow, following && styles.following]} onPress={() => toggleFollow('author')}><Text style={[styles.followText, following && styles.followingText]}>{following ? 'Đang theo dõi' : 'Theo dõi tác giả'}</Text></Pressable>
         </View>
+        <View style={styles.giftSupport}>
+          <View style={styles.giftSupportIcon}><Ionicons name="gift-outline" size={19} color={xianxia.goldSoft} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.giftSupportTitle}>Ủng hộ tác giả</Text>
+            <Text style={styles.giftSupportBody}>{giftSummary.totalGifts ? `${giftSummary.totalGifts.toLocaleString('vi-VN')} lượt tặng · ${giftSummary.totalCoins.toLocaleString('vi-VN')} Linh Thạch` : 'Chưa có quà tặng · Hãy trở thành người đầu tiên ủng hộ tác giả.'}</Text>
+          </View>
+          {book.authorUserId !== user?.id ? <Pressable
+            style={styles.giftSupportButton}
+            onPress={() => user ? setGiftOpen(true) : router.push('/auth/login')}
+          ><Text style={styles.giftSupportButtonText}>Tặng quà</Text></Pressable> : null}
+        </View>
 
         <SectionHeader title="Danh sách chương" action={`${book.totalChapters} chương`} onPress={() => router.push({ pathname: '/book/[id]/chapters', params: { id: book.id } })} />
         <View style={styles.chapterList}>
@@ -243,6 +260,17 @@ export default function BookDetailScreen() {
           );
         })}
       </BottomSheet>
+
+      {user && book.authorUserId !== user.id ? <AuthorGiftSheet
+        visible={giftOpen}
+        onClose={() => setGiftOpen(false)}
+        bookId={book.id}
+        bookTitle={book.title}
+        authorName={book.author}
+        userId={user.id}
+        onGiftSent={setGiftSummary}
+        onOpenWallet={() => { setGiftOpen(false); router.push('/wallet/store'); }}
+      /> : null}
     </SafeAreaView>
   );
 }
@@ -304,6 +332,12 @@ const styles = StyleSheet.create({
   authorKicker: { color: xianxia.cinnabar, fontSize: 6.5, fontWeight: '900', letterSpacing: 1 },
   authorName: { color: xianxia.ink, fontSize: 13, fontWeight: '900', marginTop: 2 },
   authorFollowers: { color: xianxia.muted, fontSize: 8.5, marginTop: 2 },
+  giftSupport: { minHeight: 66, borderRadius: 16, borderWidth: 1, borderColor: '#D7C49A', backgroundColor: '#F8F0DB', paddingHorizontal: 12, marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  giftSupportIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center' },
+  giftSupportTitle: { color: xianxia.ink, fontSize: 10.5, fontWeight: '900' },
+  giftSupportBody: { color: xianxia.muted, fontSize: 8, lineHeight: 12, marginTop: 3 },
+  giftSupportButton: { minHeight: 36, borderRadius: 11, paddingHorizontal: 11, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center' },
+  giftSupportButtonText: { color: xianxia.goldSoft, fontSize: 8.5, fontWeight: '900' },
   follow: { borderWidth: 1, borderColor: '#91AA9B', backgroundColor: xianxia.jadeMist, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 8 },
   following: { borderColor: xianxia.line, backgroundColor: '#EEE8DE' },
   followText: { color: xianxia.jadeDeep, fontSize: 9, fontWeight: '900' },
