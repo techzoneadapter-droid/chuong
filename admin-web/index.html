@@ -133,15 +133,27 @@
             <div class="section-head"><span>3</span><div><h2>Kiểm tra trước khi đẩy</h2><p>Đối chiếu số chương trước khi ghi database.</p></div></div>
             <div id="emptyPreview" class="empty-preview">Chưa có truyện được phân tích.</div>
             <div id="chapterPreview" class="hidden">
-              <div class="summary-grid">
+              <div class="summary-grid summary-grid-4">
                 <div><b id="chapterCount">0</b><span>chương nhận diện</span></div>
                 <div><b id="chapterRange">—</b><span>khoảng chương</span></div>
+                <div><b id="wordCount">0</b><span>tổng số từ</span></div>
+                <div><b id="problemCount">0</b><span>chương cần xem lại</span></div>
+              </div>
+              <div class="bulk-tools">
+                <div class="bulk-start"><label>Bắt đầu từ<input id="renumberStart" type="number" min="1" step="1" value="1" /></label></div>
+                <button id="renumberBtn" class="secondary mini" type="button">Đánh lại số liên tục</button>
+                <button id="normalizeTitlesBtn" class="secondary mini" type="button">Chuẩn hóa tiêu đề</button>
+                <button id="removeBadBtn" class="danger-soft mini" type="button">Xóa chương quá ngắn</button>
               </div>
               <div id="auditBox" class="audit"></div>
               <div id="chapterList" class="chapter-list"></div>
             </div>
             <button id="uploadBtn" class="primary large" type="button" disabled>Đẩy truyện lên app</button>
             <div id="uploadMessage" class="message hidden"></div>
+            <div class="import-log-panel">
+              <div class="import-log-head"><strong>Nhật ký nhập gần đây</strong><button id="refreshLogsBtn" class="ghost mini" type="button">Làm mới</button></div>
+              <div id="importLogs" class="import-logs"><span class="tiny">Chưa tải nhật ký.</span></div>
+            </div>
           </section>
         </div>
       </div>
