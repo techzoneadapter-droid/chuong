@@ -10,6 +10,7 @@ import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
 import { useReadingAnalytics } from '../../hooks/useReadingAnalytics';
 import { messageForError } from '../../services/errors';
 import { AdBanner } from '../../components/AdBanner';
+import { AuthorGiftSheet } from '../../components/AuthorGiftSheet';
 import { Comments } from '../../components/Comments';
 import { BottomSheet } from '../../components/BottomSheet';
 import { ArtDivider, ButtonArt } from '../../components/Artwork';
@@ -69,6 +70,7 @@ export default function ReaderScreen() {
   const [pageIndex, setPageIndex] = useState(0);
   const [autoScrolling, setAutoScrolling] = useState(false);
   const [quoteToShare, setQuoteToShare] = useState<string | null>(null);
+  const [giftOpen, setGiftOpen] = useState(false);
   const [sharingQuote, setSharingQuote] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
   const scrollRef = useRef<ScrollView>(null);
@@ -594,7 +596,22 @@ export default function ReaderScreen() {
         onBookmark={toggleBookmark}
         onComments={() => { setSheet(null); requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true })); }}
         onShareQuote={shareNearReadingPosition}
+        canGiftAuthor={book.authorUserId !== user?.id}
+        onGiftAuthor={() => {
+          setSheet(null);
+          if (!user) router.push('/auth/login');
+          else setGiftOpen(true);
+        }}
       />
+      {user && book.authorUserId !== user.id ? <AuthorGiftSheet
+        visible={giftOpen}
+        onClose={() => setGiftOpen(false)}
+        bookId={book.id}
+        bookTitle={book.title}
+        authorName={book.author}
+        userId={user.id}
+        onOpenWallet={() => { setGiftOpen(false); router.push('/wallet/store'); }}
+      /> : null}
     </View>
   );
 }
@@ -816,11 +833,32 @@ function ShareQuoteSheet({
   </BottomSheet>;
 }
 
-function MoreSheet({ visible, onClose, bookmark, chapter, onBookmark, onComments, onShareQuote }: { visible: boolean; onClose: () => void; bookmark: Bookmark | null; chapter: number; onBookmark: () => void; onComments: () => void; onShareQuote: () => void }) {
+function MoreSheet({
+  visible,
+  onClose,
+  bookmark,
+  chapter,
+  onBookmark,
+  onComments,
+  onShareQuote,
+  onGiftAuthor,
+  canGiftAuthor,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  bookmark: Bookmark | null;
+  chapter: number;
+  onBookmark: () => void;
+  onComments: () => void;
+  onShareQuote: () => void;
+  onGiftAuthor: () => void;
+  canGiftAuthor: boolean;
+}) {
   return <BottomSheet visible={visible} title="Thêm" onClose={onClose}>
     <Pressable style={sheetStyles.moreRow} onPress={onBookmark}><Ionicons name={bookmark?.chapter === chapter ? 'bookmark' : 'bookmark-outline'} size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>{bookmark?.chapter === chapter ? 'Bỏ dấu trang' : 'Lưu vị trí đọc'}</Text><Text style={sheetStyles.aiDetail}>{bookmark ? `Đã lưu Chương ${bookmark.chapter} · ${bookmark.progress}%` : 'Chưa có dấu trang'}</Text></View></Pressable>
     <Pressable style={sheetStyles.moreRow} onPress={onComments}><Ionicons name="chatbubble-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Bình luận chương</Text><Text style={sheetStyles.aiDetail}>Tham gia thảo luận ở cuối chương</Text></View></Pressable>
     <Pressable style={sheetStyles.moreRow} onPress={onShareQuote}><Ionicons name="share-social-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Chia sẻ trích đoạn</Text><Text style={sheetStyles.aiDetail}>Chọn đoạn gần vị trí đang đọc · hoặc nhấn giữ đoạn bất kỳ</Text></View></Pressable>
+    {canGiftAuthor ? <Pressable style={sheetStyles.moreRow} onPress={onGiftAuthor}><Ionicons name="gift-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Tặng quà tác giả</Text><Text style={sheetStyles.aiDetail}>Ủng hộ tác giả bằng Linh Thạch</Text></View></Pressable> : null}
     <Pressable style={sheetStyles.moreRow} onPress={() => Alert.alert('Báo lỗi nội dung', 'Đã ghi nhận. Tính năng gửi báo cáo sẽ kết nối với CHƯƠNG backend ở giai đoạn sau.')}><Ionicons name="flag-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Báo lỗi nội dung</Text><Text style={sheetStyles.aiDetail}>Gửi ghi chú cho ban biên tập</Text></View></Pressable>
   </BottomSheet>;
 }
