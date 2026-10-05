@@ -97,34 +97,75 @@ function splitChapters(raw) {
   }
   return out.sort((a,b)=>a.chapterNumber-b.chapterNumber);
 }
+function countWords(value) {
+  const text=normalizeText(value);
+  return text ? text.split(/\s+/).filter(Boolean).length : 0;
+}
+function cleanChapterTitle(title, number) {
+  const cleaned=String(title||'')
+    .replace(/^(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?(?:\d+|[ivxlcdm]+)\s*[:.\-–—]?\s*/i,'')
+    .replace(/^\d+\s*[:.\-–—]?\s*/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+  return cleaned || ('Chương '+number);
+}
 function auditChapters(chapters) {
-  const nums = chapters.map(x=>x.chapterNumber);
+  const nums = chapters.map(x=>Number(x.chapterNumber)).filter(Number.isFinite);
   const seen = new Set(), dup = [];
   for (const n of nums) { if (seen.has(n)) dup.push(n); seen.add(n); }
   const missing = [];
   if (nums.length) for (let n=Math.min(...nums); n<=Math.max(...nums); n++) if (!seen.has(n)) missing.push(n);
-  return { duplicates:[...new Set(dup)], missing, first:nums.length?Math.min(...nums):0, last:nums.length?Math.max(...nums):0 };
+  const metrics=chapters.map((chapter,index)=>{
+    const chars=String(chapter.content||'').trim().length;
+    const words=countWords(chapter.content);
+    return { index, chars, words, empty:chars===0, short:chars>0&&(chars<50||words<15) };
+  });
+  const empty=metrics.filter(x=>x.empty).map(x=>x.index);
+  const short=metrics.filter(x=>x.short).map(x=>x.index);
+  const totalWords=metrics.reduce((sum,x)=>sum+x.words,0);
+  return {
+    duplicates:[...new Set(dup)],
+    missing,
+    first:nums.length?Math.min(...nums):0,
+    last:nums.length?Math.max(...nums):0,
+    empty,
+    short,
+    totalWords,
+    problemCount:new Set([...empty,...short]).size,
+    metrics
+  };
 }
 function renderPreview() {
   const chapters=state.chapters, audit=auditChapters(chapters);
   $('emptyPreview').classList.toggle('hidden', chapters.length>0);
   $('chapterPreview').classList.toggle('hidden', !chapters.length);
-  $('uploadBtn').disabled = !chapters.length || audit.duplicates.length>0;
+  $('uploadBtn').disabled = !chapters.length || audit.duplicates.length>0 || audit.empty.length>0;
   if (!chapters.length) return;
   $('chapterCount').textContent=chapters.length.toLocaleString('vi-VN');
   $('chapterRange').textContent=audit.first===audit.last ? String(audit.first) : audit.first + ' → ' + audit.last;
+  $('wordCount').textContent=audit.totalWords.toLocaleString('vi-VN');
+  $('problemCount').textContent=audit.problemCount.toLocaleString('vi-VN');
   const box=$('auditBox');
-  if (audit.duplicates.length) {
+  const notes=[];
+  if(audit.duplicates.length) notes.push('Trùng số chương: '+audit.duplicates.slice(0,30).join(', ')+(audit.duplicates.length>30?'…':'')+'.');
+  if(audit.empty.length) notes.push('Có '+audit.empty.length+' chương rỗng.');
+  if(audit.short.length) notes.push('Có '+audit.short.length+' chương quá ngắn (<50 ký tự hoặc <15 từ).');
+  if(audit.missing.length) notes.push('Thiếu số: '+audit.missing.slice(0,30).join(', ')+(audit.missing.length>30?'…':'')+'.');
+  if(audit.duplicates.length||audit.empty.length){
     box.className='audit bad';
-    box.textContent='Có số chương bị trùng: ' + audit.duplicates.slice(0,30).join(', ') + '. Cần sửa trước khi đẩy.';
-  } else if (audit.missing.length) {
+    box.textContent=notes.join(' ')+' Cần xử lý trước khi đẩy.';
+  }else if(audit.short.length||audit.missing.length){
     box.className='audit warn';
-    box.textContent='Tách được ' + chapters.length + ' chương nhưng thiếu số: ' + audit.missing.slice(0,30).join(', ') + (audit.missing.length>30?'…':'') + '. Bạn vẫn có thể đẩy nếu truyện cố ý bỏ số.';
-  } else {
+    box.textContent=notes.join(' ')+' Có thể nhập bản nháp, nhưng cần kiểm tra trước khi xuất bản.';
+  }else{
     box.className='audit';
-    box.textContent='✓ Số chương liên tục và không trùng. Sau khi tải, hệ thống sẽ đọc ngược database để xác minh lại đủ ' + chapters.length + '/' + chapters.length + ' chương.';
+    box.textContent='✓ '+chapters.length+' chương sạch · '+audit.totalWords.toLocaleString('vi-VN')+' từ · số chương liên tục và không trùng.';
   }
-  $('chapterList').innerHTML=chapters.slice(0,250).map(ch=>'<div class="chapter-row"><strong>Ch. '+ch.chapterNumber+'</strong><span>'+escapeHtml(ch.title)+'</span></div>').join('') + (chapters.length>250?'<div class="chapter-row"><strong>…</strong><span>Còn '+(chapters.length-250)+' chương</span></div>':'');
+  $('chapterList').innerHTML=chapters.slice(0,500).map((ch,index)=>{
+    const m=audit.metrics[index];
+    const cls=m.empty?'chapter-row bad':m.short?'chapter-row problem':'chapter-row';
+    return '<div class="'+cls+'" data-index="'+index+'"><strong>Ch. '+ch.chapterNumber+'</strong><span class="chapter-copy"><span class="chapter-title">'+escapeHtml(ch.title)+'</span><span class="chapter-meta">'+m.words.toLocaleString('vi-VN')+' từ · '+m.chars.toLocaleString('vi-VN')+' ký tự'+(m.empty?' · RỖNG':m.short?' · QUÁ NGẮN':'')+'</span></span><button class="chapter-remove" type="button" data-remove-index="'+index+'" title="Bỏ chương này">×</button></div>';
+  }).join('') + (chapters.length>500?'<div class="chapter-row"><strong>…</strong><span class="chapter-copy"><span class="chapter-title">Còn '+(chapters.length-500)+' chương</span></span><span></span></div>':'');
 }
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[ch]));
