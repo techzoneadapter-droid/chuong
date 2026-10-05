@@ -229,7 +229,7 @@ export async function getAdminCatalogChapters(bookId: string): Promise<Chapter[]
   const { client } = await requireAdmin();
   const { data, error } = await client
     .from('chapters')
-    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,early_access_until,published_at,updated_at')
+    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
     .eq('book_id', bookId)
     .order('chapter_number');
   if (error) throw toServiceError(error, 'Không thể tải danh sách chương.');
@@ -252,7 +252,7 @@ export async function getAdminCatalogChapter(bookId: string, chapterId: string):
   const { client } = await requireAdmin();
   const { data, error } = await client
     .from('chapters')
-    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,early_access_until,published_at,updated_at')
+    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
     .eq('book_id', bookId)
     .eq('id', chapterId)
     .maybeSingle();
