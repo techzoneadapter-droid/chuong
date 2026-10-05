@@ -150,6 +150,7 @@ export default function NotificationSettingsScreen() {
         <PreferenceRow icon="cash-outline" title="Thanh toán tác giả" body="Yêu cầu rút được duyệt, hủy hoặc đã thanh toán." value={prefs.payouts} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('payouts', value); }} />
         <PreferenceRow icon="chatbubble-ellipses-outline" title="Bình luận" body="Trả lời bình luận và bình luận mới trên truyện của bạn." value={prefs.comments} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('comments', value); }} />
         <PreferenceRow icon="shield-checkmark-outline" title="Kiểm duyệt" body="Trạng thái nội dung, báo cáo và quyết định kiểm duyệt." value={prefs.moderation} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('moderation', value); }} />
+        <PreferenceRow icon="book-outline" title="Chương mới" body="Báo khi truyện bạn theo dõi vừa xuất bản chương mới, kể cả chương đăng theo lịch." value={prefs.newChapters} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('newChapters', value); }} />
         <PreferenceRow icon="sparkles-outline" title="Hệ thống CHƯƠNG" body="Thông báo vận hành quan trọng từ nền tảng." value={prefs.system} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('system', value); }} last />
       </View>
 
