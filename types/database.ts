@@ -801,6 +801,7 @@ export type Database = {
           search_text: string
           slug: string
           source_type: Database["public"]["Enums"]["source_type"]
+          schedule_final_status: Database["public"]["Enums"]["book_status"] | null
           status: Database["public"]["Enums"]["book_status"]
           tags: string[]
           title: string
@@ -831,6 +832,7 @@ export type Database = {
           search_text?: string
           slug: string
           source_type?: Database["public"]["Enums"]["source_type"]
+          schedule_final_status?: Database["public"]["Enums"]["book_status"] | null
           status?: Database["public"]["Enums"]["book_status"]
           tags?: string[]
           title: string
@@ -861,6 +863,7 @@ export type Database = {
           search_text?: string
           slug?: string
           source_type?: Database["public"]["Enums"]["source_type"]
+          schedule_final_status?: Database["public"]["Enums"]["book_status"] | null
           status?: Database["public"]["Enums"]["book_status"]
           tags?: string[]
           title?: string
@@ -1017,6 +1020,7 @@ export type Database = {
           moderation_state: Database["public"]["Enums"]["moderation_state"]
           price_coins: number
           published_at: string | null
+          scheduled_publish_at: string | null
           status: Database["public"]["Enums"]["chapter_status"]
           title: string
           updated_at: string
@@ -1035,6 +1039,7 @@ export type Database = {
           moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           published_at?: string | null
+          scheduled_publish_at?: string | null
           status?: Database["public"]["Enums"]["chapter_status"]
           title: string
           updated_at?: string
@@ -1053,6 +1058,7 @@ export type Database = {
           moderation_state?: Database["public"]["Enums"]["moderation_state"]
           price_coins?: number
           published_at?: string | null
+          scheduled_publish_at?: string | null
           status?: Database["public"]["Enums"]["chapter_status"]
           title?: string
           updated_at?: string
@@ -2706,6 +2712,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      cancel_book_chapter_schedule: {
+        Args: { p_book_id: string; p_chapter_numbers?: number[] | null }
+        Returns: number
+      }
+      schedule_book_chapters: {
+        Args: {
+          p_book_id: string
+          p_chapter_numbers: number[]
+          p_final_status?: Database["public"]["Enums"]["book_status"]
+          p_per_day: number
+          p_start_at: string
+        }
+        Returns: {
+          chapter_number: number
+          scheduled_publish_at: string
+        }[]
       }
       get_author_book_engagement: {
         Args: { p_author_id: string; p_days?: number }
