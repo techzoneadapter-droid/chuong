@@ -396,14 +396,21 @@
   }
   function switchMode(mode){
     const single=mode==='single';
+    const bulk=mode==='bulk';
+    const manage=mode==='manage';
     el('singleImportMode').classList.toggle('hidden',!single);
-    el('bulkImportMode').classList.toggle('hidden',single);
+    el('bulkImportMode').classList.toggle('hidden',!bulk);
+    el('catalogManageMode')?.classList.toggle('hidden',!manage);
     el('singleModeBtn').classList.toggle('active',single);
-    el('bulkModeBtn').classList.toggle('active',!single);
+    el('bulkModeBtn').classList.toggle('active',bulk);
+    el('manageModeBtn')?.classList.toggle('active',manage);
+    if(manage)window.chuongLoadCatalog?.();
   }
+  window.chuongAdminSwitchMode=switchMode;
 
   el('singleModeBtn')?.addEventListener('click',()=>switchMode('single'));
   el('bulkModeBtn')?.addEventListener('click',()=>switchMode('bulk'));
+  el('manageModeBtn')?.addEventListener('click',()=>switchMode('manage'));
   el('bulkZipFiles')?.addEventListener('change',event=>{addFiles(event.target.files||[]);event.target.value='';});
   el('bulkZipFolder')?.addEventListener('change',event=>{addFiles(event.target.files||[]);event.target.value='';});
   el('bulkScanBtn')?.addEventListener('click',()=>void scanAll());
