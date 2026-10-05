@@ -20,6 +20,7 @@ export interface Chapter {
   earlyAccessUntil?: string | null;
   status?: ChapterStatus;
   publishedAt?: string | null;
+  scheduledPublishAt?: string | null;
   updatedAt?: string | null;
   offline?: boolean;
   isRead: boolean;
