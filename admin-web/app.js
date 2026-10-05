@@ -496,6 +496,53 @@ async function translateWholeBook(bookId,genre){
   showMessage(uploadMessage,'✓ AI đã xử lý đủ '+job.done+'/'+job.total+' chương.','success');
   return job;
 }
+async function loadRecentImportLogs(){
+  const box=$('importLogs'); if(!box||!state.token)return;
+  try{
+    const rows=await rest('admin_import_logs?select=id,book_id,source_name,book_title,chapter_count,word_count,status,detail,created_at,completed_at&order=created_at.desc&limit=8');
+    if(!rows.length){box.innerHTML='<span class="tiny">Chưa có lần nhập nào được ghi lại.</span>';return;}
+    box.innerHTML=rows.map(row=>{
+      const cls=row.status==='completed'?'ok':row.status==='failed'?'fail':'run';
+      const status=row.status==='completed'?'Thành công':row.status==='failed'?'Lỗi':'Đang xử lý';
+      const when=new Date(row.completed_at||row.created_at).toLocaleString('vi-VN');
+      return '<div class="import-log"><strong>'+escapeHtml(row.book_title||row.source_name||'Lần nhập')+'</strong><span class="'+cls+'">'+status+'</span><span>'+Number(row.chapter_count||0).toLocaleString('vi-VN')+' chương · '+Number(row.word_count||0).toLocaleString('vi-VN')+' từ</span><span>'+escapeHtml(when)+'</span></div>';
+    }).join('');
+  }catch(err){box.innerHTML='<span class="tiny">Không tải được nhật ký: '+escapeHtml(err.message||String(err))+'</span>';}
+}
+async function createImportLog({title,author,chapters}){
+  const audit=auditChapters(chapters);
+  const rows=await rest('admin_import_logs?select=id',{method:'POST',prefer:'return=representation',body:{
+    admin_user_id:state.userId,
+    source_name:state.sourceName||'Admin Upload Studio',
+    book_title:title,
+    credited_author_name:author,
+    chapter_count:chapters.length,
+    word_count:audit.totalWords,
+    status:'started',
+    detail:'Bắt đầu nhập và xác minh.'
+  }});
+  return rows?.[0]?.id||'';
+}
+async function finishImportLog(logId,status,bookId,detail){
+  if(!logId)return;
+  await rest('admin_import_logs?id=eq.'+encodeURIComponent(logId),{method:'PATCH',body:{
+    status,
+    book_id:bookId||null,
+    detail:String(detail||'').slice(0,2000),
+    completed_at:new Date().toISOString()
+  }}).catch(()=>{});
+  await loadRecentImportLogs();
+}
+async function findDuplicateBooks(title,author){
+  const path='books?select=id,title,credited_author_name,status,visibility&title=ilike.'+encodeURIComponent(title)+'&limit=20';
+  const rows=await rest(path);
+  const authorKey=String(author||'').trim().toLocaleLowerCase('vi');
+  return rows.filter(row=>{
+    const rowAuthor=String(row.credited_author_name||'').trim().toLocaleLowerCase('vi');
+    return !authorKey || !rowAuthor || rowAuthor===authorKey;
+  });
+}
+
 async function ensureAdmin(){
   if(!state.token||!state.userId)return false;
   try{
@@ -509,6 +556,7 @@ async function ensureAdmin(){
     state.ownerAuthorId=preferred.id;
     loginView.classList.add('hidden');studioView.classList.remove('hidden');
     checkAiStatus();
+    loadRecentImportLogs();
     return true;
   }catch(err){ logout(); showMessage(loginMessage,err.message||String(err)); return false; }
 }
@@ -536,6 +584,37 @@ $('parsePasteBtn').addEventListener('click',()=>{
   state.chapters=splitChapters(raw);state.sourceName='Nội dung dán';
   const title=$('pasteTitle').value.trim()||'Truyện nhập từ Admin';$('bookTitle').value=title;renderPreview();hideMessage(uploadMessage);
 });
+$('renumberBtn').addEventListener('click',()=>{
+  if(!state.chapters.length)return;
+  const start=Math.max(1,Number($('renumberStart').value||1));
+  state.chapters=state.chapters.map((chapter,index)=>({...chapter,chapterNumber:start+index}));
+  renderPreview();
+  showParse('Đã đánh lại số '+state.chapters.length+' chương từ '+start+'.','success');
+});
+$('normalizeTitlesBtn').addEventListener('click',()=>{
+  state.chapters=state.chapters.map(chapter=>({...chapter,title:cleanChapterTitle(chapter.title,chapter.chapterNumber)}));
+  renderPreview();
+  showParse('Đã chuẩn hóa tiêu đề chương.','success');
+});
+$('removeBadBtn').addEventListener('click',()=>{
+  const before=state.chapters.length;
+  state.chapters=state.chapters.filter(chapter=>{
+    const chars=String(chapter.content||'').trim().length;
+    const words=countWords(chapter.content);
+    return chars>=50&&words>=15;
+  });
+  renderPreview();
+  showParse('Đã loại '+(before-state.chapters.length)+' chương quá ngắn hoặc rỗng.','warn');
+});
+$('chapterList').addEventListener('click',event=>{
+  const button=event.target.closest?.('[data-remove-index]');
+  if(!button)return;
+  const index=Number(button.dataset.removeIndex);
+  if(!Number.isInteger(index)||index<0||index>=state.chapters.length)return;
+  state.chapters.splice(index,1);
+  renderPreview();
+});
+$('refreshLogsBtn').addEventListener('click',()=>void loadRecentImportLogs());
 $('bookVip').addEventListener('change',()=>{
   $('vipPriceWrap').classList.toggle('hidden',!$('bookVip').checked);
   if(!$('bookVip').checked)$('vipPrice').value='0';
