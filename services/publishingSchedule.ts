@@ -7,6 +7,25 @@ export type ChapterScheduleRow = {
   scheduledPublishAt: string;
 };
 
+export type ScheduledChapter = {
+  id: string;
+  chapterNumber: number;
+  title: string;
+  scheduledPublishAt: string;
+};
+
+export type BookChapterSchedule = {
+  bookId: string;
+  bookTitle: string;
+  bookStatus: BookStatus;
+  finalStatus: Exclude<BookStatus, 'draft'> | null;
+  totalChapters: number;
+  publishedCount: number;
+  pendingCount: number;
+  draftCount: number;
+  pending: ScheduledChapter[];
+};
+
 function scheduleError(error: unknown, fallback: string) {
   const raw = error && typeof error === 'object' && 'message' in error ? String((error as any).message) : '';
   if (/START_TIME_MUST_BE_FUTURE/i.test(raw)) return new Error('Thời gian bắt đầu phải ở tương lai.');
@@ -15,6 +34,7 @@ function scheduleError(error: unknown, fallback: string) {
   if (/DUPLICATE_CHAPTER_NUMBERS/i.test(raw)) return new Error('Danh sách chương hẹn đăng đang bị trùng số.');
   if (/FORBIDDEN/i.test(raw)) return new Error('Bạn không có quyền hẹn đăng các chương này.');
   if (/BOOK_NOT_FOUND/i.test(raw)) return new Error('Không tìm thấy truyện.');
+  if (/SCHEDULED_CHAPTER_NOT_FOUND/i.test(raw)) return new Error('Chương này không còn trong lịch đăng.');
   return toServiceError(error, fallback);
 }
 
@@ -58,6 +78,100 @@ export async function cancelBookChapterSchedule(bookId: string, chapterNumbers?:
   } catch (error) {
     throw scheduleError(error, 'Không thể hủy lịch đăng chương.');
   }
+}
+
+export async function getBookChapterSchedule(bookId: string): Promise<BookChapterSchedule> {
+  const client = requireSupabase();
+  try {
+    const [{ data: book, error: bookError }, { data: chapters, error: chapterError }] = await Promise.all([
+      client
+        .from('books')
+        .select('id,title,status,schedule_final_status')
+        .eq('id', bookId)
+        .single(),
+      client
+        .from('chapters')
+        .select('id,chapter_number,title,status,scheduled_publish_at,published_at')
+        .eq('book_id', bookId)
+        .order('chapter_number'),
+    ]);
+    if (bookError) throw bookError;
+    if (chapterError) throw chapterError;
+
+    const rows = chapters ?? [];
+    const pending = rows
+      .filter((row) => row.status === 'draft' && row.scheduled_publish_at)
+      .map((row) => ({
+        id: row.id,
+        chapterNumber: row.chapter_number,
+        title: row.title,
+        scheduledPublishAt: row.scheduled_publish_at!,
+      }))
+      .sort((a, b) => new Date(a.scheduledPublishAt).getTime() - new Date(b.scheduledPublishAt).getTime());
+
+    return {
+      bookId,
+      bookTitle: book.title,
+      bookStatus: book.status,
+      finalStatus: book.schedule_final_status === 'ongoing' || book.schedule_final_status === 'completed' || book.schedule_final_status === 'paused'
+        ? book.schedule_final_status
+        : null,
+      totalChapters: rows.length,
+      publishedCount: rows.filter((row) => row.status === 'published').length,
+      pendingCount: pending.length,
+      draftCount: rows.filter((row) => row.status === 'draft' && !row.scheduled_publish_at).length,
+      pending,
+    };
+  } catch (error) {
+    throw scheduleError(error, 'Không thể tải lịch đăng chương.');
+  }
+}
+
+export async function updateScheduledChapterTime(bookId: string, chapterNumber: number, scheduledAt: string) {
+  if (!scheduledAt || Number.isNaN(Date.parse(scheduledAt)) || new Date(scheduledAt).getTime() <= Date.now()) {
+    throw new Error('Thời gian đăng mới phải ở tương lai.');
+  }
+  try {
+    const { data, error } = await requireSupabase().rpc('update_scheduled_chapter_time', {
+      p_book_id: bookId,
+      p_chapter_number: chapterNumber,
+      p_scheduled_at: scheduledAt,
+    });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw scheduleError(error, 'Không thể đổi thời gian đăng chương.');
+  }
+}
+
+export async function publishScheduledChapterNow(bookId: string, chapterNumber: number) {
+  try {
+    const { data, error } = await requireSupabase().rpc('publish_scheduled_chapter_now', {
+      p_book_id: bookId,
+      p_chapter_number: chapterNumber,
+    });
+    if (error) throw error;
+    return Boolean(data);
+  } catch (error) {
+    throw scheduleError(error, 'Không thể đăng chương ngay lúc này.');
+  }
+}
+
+export async function reschedulePendingBookChapters(
+  bookId: string,
+  startAt: string,
+  perDay: number,
+  finalStatus?: Exclude<BookStatus, 'draft'>,
+) {
+  const current = await getBookChapterSchedule(bookId);
+  if (!current.pending.length) throw new Error('Truyện này không có chương nào đang chờ đăng.');
+  return scheduleBookChapters(
+    bookId,
+    current.pending.map((chapter) => chapter.chapterNumber),
+    startAt,
+    perDay,
+    finalStatus ?? current.finalStatus ?? 'ongoing',
+  );
 }
 
 export function buildLocalScheduleIso(date: string, time: string) {
