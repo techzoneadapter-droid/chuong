@@ -124,6 +124,25 @@
             <label class="check-row ai-row"><input id="aiTranslate" type="checkbox" /> <span><strong>AI dịch / làm mượt sang tiếng Việt</strong><small>Tự nhận diện ngôn ngữ nguồn, dịch đủ từng chương, giữ nguyên ý và không tóm tắt. Admin được phép dùng khi máy chủ AI đã cấu hình.</small></span></label>
             <div id="aiStatus" class="ai-status">Đang kiểm tra máy chủ AI…</div>
             <label class="check-row"><input id="publishNow" type="checkbox" checked /> <span><strong>Xuất bản ngay</strong><small>Để bật nếu muốn truyện xuất hiện trong app sau khi xác minh và hoàn tất AI (nếu bật).</small></span></label>
+            <div class="schedule-box">
+              <label class="check-row schedule-row"><input id="schedulePublish" type="checkbox" /> <span><strong>Hẹn lịch đăng tự động</strong><small>Tải toàn bộ thành bản nháp rồi CHƯƠNG tự đăng đều, ví dụ 1 chương/ngày hoặc 2 chương/ngày.</small></span></label>
+              <div id="scheduleWrap" class="schedule-controls hidden">
+                <label>Bắt đầu đăng
+                  <input id="scheduleStart" type="datetime-local" />
+                </label>
+                <label>Số chương mỗi ngày
+                  <input id="schedulePerDay" type="number" min="1" max="24" step="1" value="1" />
+                </label>
+                <div class="schedule-rate-row">
+                  <button class="secondary mini schedule-rate" type="button" data-rate="1">1/ngày</button>
+                  <button class="secondary mini schedule-rate" type="button" data-rate="2">2/ngày</button>
+                  <button class="secondary mini schedule-rate" type="button" data-rate="3">3/ngày</button>
+                  <button class="secondary mini schedule-rate" type="button" data-rate="4">4/ngày</button>
+                  <button class="secondary mini schedule-rate" type="button" data-rate="6">6/ngày</button>
+                </div>
+                <p class="tiny">Các chương được giãn đều trong 24 giờ. Ví dụ 2 chương/ngày = cách nhau khoảng 12 giờ. “Trạng thái truyện” phía trên sẽ được áp dụng sau chương cuối.</p>
+              </div>
+            </div>
             <label class="check-row"><input id="rightsConfirmed" type="checkbox" /> <span><strong>Xác nhận quyền nội dung</strong><small>Tôi xác nhận CHƯƠNG có quyền hợp pháp để lưu trữ và phân phối nội dung này.</small></span></label>
           </section>
         </div>
