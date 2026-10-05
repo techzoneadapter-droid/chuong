@@ -2653,6 +2653,51 @@ export type Database = {
         Returns: Json
       }
       claim_rewarded_ad_bonus: { Args: never; Returns: Json }
+      cancel_book_cover_experiment: {
+        Args: { p_experiment_id: string }
+        Returns: boolean
+      }
+      finish_book_cover_experiment: {
+        Args: { p_experiment_id: string; p_winner_variant: string }
+        Returns: boolean
+      }
+      get_active_cover_experiments: {
+        Args: { p_book_ids: string[]; p_install_id: string }
+        Returns: {
+          book_id: string
+          cover_url: string
+          experiment_id: string
+          variant: string
+        }[]
+      }
+      get_author_cover_experiments: {
+        Args: { p_author_id: string }
+        Returns: {
+          book_id: string
+          clicks_a: number
+          clicks_b: number
+          ctr_a: number
+          ctr_b: number
+          ended_at: string | null
+          experiment_id: string
+          impressions_a: number
+          impressions_b: number
+          started_at: string
+          status: string
+          title: string
+          variant_a_url: string
+          variant_b_url: string
+          winner_variant: string | null
+        }[]
+      }
+      record_cover_experiment_event: {
+        Args: { p_event_type: string; p_experiment_id: string; p_install_id: string }
+        Returns: boolean
+      }
+      start_book_cover_experiment: {
+        Args: { p_book_id: string; p_variant_b_url: string }
+        Returns: string
+      }
       get_book_gift_summary: {
         Args: { p_book_id: string }
         Returns: { total_coins: number; total_gifts: number }[]
