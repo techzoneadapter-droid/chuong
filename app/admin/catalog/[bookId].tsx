@@ -158,6 +158,7 @@ export default function AdminCatalogBookScreen() {
 
   const published = chapters.filter((chapter) => chapter.status === 'published').length;
   const drafts = chapters.length - published;
+  const scheduled = chapters.filter((chapter) => chapter.scheduledPublishAt).length;
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <XianxiaBackdrop />
@@ -215,6 +216,15 @@ export default function AdminCatalogBookScreen() {
       </View>
       {book.backendStatus !== 'draft' ? <Text style={styles.statusNote}>Truyện đang hiển thị công khai. Chỉ chương đã xuất bản mới được độc giả đọc.</Text> : <Text style={styles.statusNote}>Truyện đang ẩn khỏi kho công khai. Xuất bản ít nhất một chương trước khi chuyển sang “Đang ra”.</Text>}
 
+      <Pressable style={styles.scheduleCard} onPress={() => router.push({ pathname: '/admin/catalog/[bookId]/schedule', params: { bookId: book.id } })}>
+        <View style={styles.scheduleIcon}><Ionicons name="calendar-outline" size={20} color={xianxia.jadeDeep} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.scheduleTitle}>Quản lý lịch đăng</Text>
+          <Text style={styles.scheduleBody}>{scheduled ? `${scheduled} chương đang chờ · đổi giờ, đăng ngay hoặc hủy lịch` : 'Xem lịch hẹn đăng và điều chỉnh nhịp xuất bản.'}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={xianxia.jadeDeep} />
+      </Pressable>
+
       <View style={styles.importHeader}>
         <View style={{ flex: 1 }}><Text style={styles.sectionTitle}>Nhập chương hàng loạt</Text><Text style={styles.sectionNote}>Dán nhiều chương một lần theo đúng mẫu. Hệ thống tự tách số chương, tiêu đề và nội dung.</Text></View>
         <View style={styles.parsedPill}><Text style={styles.parsedValue}>{parsed.length}</Text><Text style={styles.parsedLabel}>chương nhận diện</Text></View>
@@ -257,7 +267,7 @@ export default function AdminCatalogBookScreen() {
       {chapters.length === 0 ? <View style={styles.emptyChapters}><Ionicons name="document-text-outline" size={28} color="#9F968B" /><Text style={styles.emptyTitle}>Chưa có chương</Text><Text style={styles.emptyText}>Dùng ô nhập phía trên để thêm nhiều chương trong một lần.</Text></View> : chapters.map((chapter) => (
         <View key={chapter.id} style={styles.chapterRow}>
           <View style={[styles.chapterNumber, chapter.status === 'published' && styles.chapterNumberLive]}><Text style={styles.chapterNumberText}>{chapter.number}</Text></View>
-          <View style={{ flex: 1 }}><Text numberOfLines={1} style={styles.chapterTitle}>{chapter.title}</Text><Text style={styles.chapterMeta}>{chapter.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'} · {(chapter.content?.length ?? 0).toLocaleString('vi-VN')} ký tự</Text></View>
+          <View style={{ flex: 1 }}><Text numberOfLines={1} style={styles.chapterTitle}>{chapter.title}</Text><Text style={styles.chapterMeta}>{chapter.scheduledPublishAt ? `Hẹn đăng · ${new Date(chapter.scheduledPublishAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}` : chapter.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'} · {(chapter.content?.length ?? 0).toLocaleString('vi-VN')} ký tự</Text></View>
           <Ionicons name={chapter.status === 'published' ? 'checkmark-circle' : 'document-outline'} size={18} color={chapter.status === 'published' ? '#5D8064' : '#A09488'} />
         </View>
       ))}
@@ -310,6 +320,10 @@ const styles = StyleSheet.create({
   statusText: { color: xianxia.inkSoft, fontSize: 9.5, fontWeight: '900' },
   statusTextActive: { color: xianxia.white },
   statusNote: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13, marginTop: 7 },
+  scheduleCard: { minHeight: 68, marginTop: 11, borderRadius: 15, padding: 12, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C5D5CA', flexDirection: 'row', alignItems: 'center', gap: 10 },
+  scheduleIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#DCE9E0', alignItems: 'center', justifyContent: 'center' },
+  scheduleTitle: { color: xianxia.ink, fontSize: 10.5, fontWeight: '900' },
+  scheduleBody: { color: xianxia.muted, fontSize: 8.3, lineHeight: 13, marginTop: 3 },
   importHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   parsedPill: { minWidth: 78, borderRadius: 12, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', padding: 8, alignItems: 'center' },
   parsedValue: { color: xianxia.jadeDeep, fontSize: 16, fontWeight: '900' },
