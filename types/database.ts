@@ -2730,6 +2730,18 @@ export type Database = {
           scheduled_publish_at: string
         }[]
       }
+      publish_scheduled_chapter_now: {
+        Args: { p_book_id: string; p_chapter_number: number }
+        Returns: boolean
+      }
+      update_scheduled_chapter_time: {
+        Args: {
+          p_book_id: string
+          p_chapter_number: number
+          p_scheduled_at: string
+        }
+        Returns: string
+      }
       get_author_book_engagement: {
         Args: { p_author_id: string; p_days?: number }
         Returns: {
