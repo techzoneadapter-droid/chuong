@@ -472,7 +472,7 @@ async function parseStoryFile(file){
   state.chapters=chapters.filter(x=>x.content.trim()).sort((a,b)=>a.chapterNumber-b.chapterNumber);
   if(!state.chapters.length)throw new Error('Không nhận diện được chương/nội dung hợp lệ từ file.');
   $('bookTitle').value=title;$('pasteTitle').value=title;
-  if(detectedAuthor&&!$('authorName').value.trim())$('authorName').value=detectedAuthor;
+  if(!$('authorName').value.trim())$('authorName').value=detectedAuthor||'Chuong';
   if(coverBlob)setCover(coverBlob,coverMime,'Bìa tự nhận từ '+file.name);
   renderPreview();
   showParse('✓ Đã nhận dạng '+file.name+' · '+state.chapters.length+' chương.','success');
