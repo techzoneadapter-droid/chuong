@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "expo start --web --port 3000 --host lan",
     "build": "expo export --platform web",
-    "test:db": "node tests/database.mjs && node tests/economy.mjs && node tests/followed-updates.mjs",
+    "test:db": "node tests/database.mjs && node tests/economy.mjs && node tests/followed-updates.mjs && node tests/release-batching.mjs",
     "test:web": "playwright test",
     "native:android": "expo run:android",
     "native:ios": "expo run:ios",

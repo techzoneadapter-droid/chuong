@@ -19,7 +19,7 @@ create function storage.foldername(name text) returns text[] language sql immuta
 const migrationDir = new URL('../supabase/migrations/', import.meta.url);
 for (const file of readdirSync(migrationDir).sort()) {
   // Apply real foundation, notification, entitlement, scheduler, and update migrations.
-  if (file.startsWith('202610020') || (file >= '202610030001' && file < '202610030021') || (file >= '202610030031' && file < '202610030033') || (file >= '202610050012' && file < '202610050017') || (file >= '202610050020' && file <= '202610050021_followed_book_updates.sql')) {
+  if (file.startsWith('202610020') || (file >= '202610030001' && file < '202610030021') || (file >= '202610030031' && file < '202610030033') || (file >= '202610050012' && file < '202610050017') || (file >= '202610050020' && file <= '202610050022_release_notification_batching.sql')) {
     await db.exec(readFileSync(new URL(file,migrationDir),'utf8').replace('create extension if not exists pgcrypto;',''));
   }
 }
@@ -131,8 +131,9 @@ assert.equal((await db.query(`select * from notifications where category='releas
 assert.equal(Number((await badge()).unread_chapters), 2, 'updates independent of notification preference');
 await identity(other);
 notifications = (await db.query(`select * from notifications where category='release'`)).rows;
-assert.equal(notifications.length, 2, 'H: manual publish notifies opted-in follower');
-assert.ok(notifications.some(n => n.action_route === `/reader/${book}?chapter=12`));
+assert.equal(notifications.length, 1, 'H: manual and scheduled releases share one batch');
+assert.equal(notifications[0].metadata.batch_count, 2);
+assert.equal(notifications[0].action_route, '/updates');
 
 await db.exec('reset role');
 await db.exec(`delete from chapters where book_id='${book}' and chapter_number=8;`);

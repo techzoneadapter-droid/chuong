@@ -692,3 +692,38 @@ test('update center requires login and never substitutes demo followed books', a
   await expect(page.getByText('Đăng nhập để xem cập nhật')).toBeVisible();
   await expect(page.getByText(book.title, { exact: true })).toHaveCount(0);
 });
+
+test('release notifications keep single chapter links and send batches to real unread updates', async ({ page }) => {
+  const writes = await mock(page, true);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const notificationRows = [
+    { id: '50000000-0000-4000-8000-000000000001', user_id: userId, category: 'release', event_type: 'chapter_published',
+      title: 'Truyện theo dõi vừa có chương mới', body: `${book.title} · Chương 1: Nội dung máy chủ 1`,
+      action_route: `/reader/${bookId}?chapter=1`, metadata: { book_id: bookId, batch_count: 1 }, read_at: null, created_at: now },
+    { id: '50000000-0000-4000-8000-000000000002', user_id: userId, category: 'release', event_type: 'chapter_published',
+      title: 'Truyện theo dõi vừa có 5 chương mới', body: `${book.title} vừa có 5 chương mới`,
+      action_route: '/updates', metadata: { book_id: bookId, batch_count: 5 }, read_at: null, created_at: now },
+  ];
+  await page.route('**/rest/v1/notifications?**', route => route.fulfill({ json: notificationRows }));
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/notifications');
+    await expect(page.getByText(notificationRows[0].body, { exact: true })).toBeVisible();
+    await expect(page.getByText(notificationRows[1].body, { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
+  await page.getByText(notificationRows[1].body, { exact: true }).click();
+  await expect(page).toHaveURL(/\/updates$/);
+  await expect(page.getByText('Bạn đang ở Chương 3 · Mới nhất Chương 8')).toBeVisible();
+  // The release batch count is five, but the Update Center owns the current
+  // unread count (two here); notifications never recalculate it.
+  await expect(page.getByText('2 chương mới', { exact: true }).first()).toBeVisible();
+  expect(writes.some(w => w.table === 'mark_notification_read' && w.data.p_notification_id === notificationRows[1].id)).toBe(true);
+  expect(writes.some(w => w.table === 'get_my_followed_book_updates')).toBe(true);
+  await page.goto('/notifications');
+  await page.getByText(notificationRows[0].body, { exact: true }).click();
+  await expect(page).toHaveURL(/\/reader\/.*chapter=1/);
+  expect(writes.some(w => /unlock|debit/.test(w.table))).toBe(false);
+  expect(errors).toEqual([]);
+});
