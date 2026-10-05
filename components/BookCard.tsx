@@ -1,11 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AssetBookCover, VipArt } from './Artwork';
 import { xianxia } from '../constants/xianxia';
 import { Book } from '../types';
-import { recordCoverExperimentEvent } from '../services/coverExperiments';
 
 interface Props {
   book: Book;
@@ -14,18 +12,12 @@ interface Props {
 
 export function BookCard({ book, compact = false }: Props) {
   const router = useRouter();
-  useEffect(() => {
-    if (book.coverExperimentId) void recordCoverExperimentEvent(book.coverExperimentId, 'impression');
-  }, [book.coverExperimentId]);
   const badge = book.status === 'Đang ra' ? 'TÂN CHƯƠNG' : book.status === 'Đã hoàn thành' ? 'HOÀN' : 'ĐỀ CỬ';
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Mở truyện ${book.title}`}
-      onPress={() => {
-        if (book.coverExperimentId) void recordCoverExperimentEvent(book.coverExperimentId, 'click');
-        router.push({ pathname: '/book/[id]', params: { id: book.id } });
-      }}
+      onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })}
       style={({ pressed }) => [styles.card, compact && styles.compact, pressed && styles.pressed]}
     >
       <View style={[styles.coverFrame, compact && styles.compactFrame]}>
