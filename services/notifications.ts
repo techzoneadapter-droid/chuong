@@ -12,6 +12,7 @@ export type NotificationPreferences = {
   payouts: boolean;
   comments: boolean;
   moderation: boolean;
+  newChapters: boolean;
   system: boolean;
   pushEnabled: boolean;
 };
@@ -23,6 +24,7 @@ export const defaultNotificationPreferences: NotificationPreferences = {
   payouts: true,
   comments: true,
   moderation: true,
+  newChapters: true,
   system: true,
   pushEnabled: false,
 };
@@ -89,6 +91,7 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
       payouts: data.payouts,
       comments: data.comments,
       moderation: data.moderation,
+      newChapters: data.new_chapters,
       system: data.system,
       pushEnabled: data.push_enabled,
     };
@@ -106,6 +109,7 @@ export async function saveNotificationPreferences(input: NotificationPreferences
       p_payouts: input.payouts,
       p_comments: input.comments,
       p_moderation: input.moderation,
+      p_new_chapters: input.newChapters,
       p_system: input.system,
       p_push_enabled: input.pushEnabled,
     });
@@ -122,5 +126,6 @@ export function notificationCategoryLabel(category: string) {
   if (category === 'payout') return 'Thanh toán tác giả';
   if (category === 'comment') return 'Bình luận';
   if (category === 'moderation') return 'Kiểm duyệt';
+  if (category === 'release') return 'Chương mới';
   return 'CHƯƠNG';
 }
