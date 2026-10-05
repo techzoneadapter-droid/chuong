@@ -543,6 +543,27 @@ async function findDuplicateBooks(title,author){
   });
 }
 
+function toLocalDateTimeInput(date){
+  const pad=(value)=>String(value).padStart(2,'0');
+  return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());
+}
+function ensureDefaultScheduleStart(){
+  const input=$('scheduleStart');
+  if(!input||input.value)return;
+  const target=new Date(Date.now()+24*60*60*1000);
+  target.setHours(20,0,0,0);
+  if(target.getTime()<=Date.now())target.setDate(target.getDate()+1);
+  input.value=toLocalDateTimeInput(target);
+}
+function scheduleStartIso(){
+  const raw=$('scheduleStart')?.value||'';
+  if(!raw)throw new Error('Hãy chọn ngày giờ bắt đầu hẹn đăng.');
+  const date=new Date(raw);
+  if(Number.isNaN(date.getTime()))throw new Error('Ngày giờ hẹn đăng không hợp lệ.');
+  if(date.getTime()<=Date.now())throw new Error('Thời gian bắt đầu hẹn đăng phải ở tương lai.');
+  return date.toISOString();
+}
+
 async function ensureAdmin(){
   if(!state.token||!state.userId)return false;
   try{
@@ -557,6 +578,7 @@ async function ensureAdmin(){
     loginView.classList.add('hidden');studioView.classList.remove('hidden');
     checkAiStatus();
     loadRecentImportLogs();
+    ensureDefaultScheduleStart();
     return true;
   }catch(err){ logout(); showMessage(loginMessage,err.message||String(err)); return false; }
 }
@@ -619,6 +641,23 @@ $('bookVip').addEventListener('change',()=>{
   $('vipPriceWrap').classList.toggle('hidden',!$('bookVip').checked);
   if(!$('bookVip').checked)$('vipPrice').value='0';
 });
+$('schedulePublish').addEventListener('change',()=>{
+  const enabled=$('schedulePublish').checked;
+  $('scheduleWrap').classList.toggle('hidden',!enabled);
+  if(enabled){
+    $('publishNow').checked=false;
+    ensureDefaultScheduleStart();
+  }
+});
+$('publishNow').addEventListener('change',()=>{
+  if($('publishNow').checked){
+    $('schedulePublish').checked=false;
+    $('scheduleWrap').classList.add('hidden');
+  }
+});
+document.querySelectorAll('.schedule-rate').forEach(button=>button.addEventListener('click',()=>{
+  $('schedulePerDay').value=button.dataset.rate||'1';
+}));
 $('chooseCoverBtn').addEventListener('click',()=> $('coverFile').click());
 $('removeCoverBtn').addEventListener('click',()=>{clearCover();hideMessage(uploadMessage);});
 $('coverFile').addEventListener('change',e=>{
@@ -651,7 +690,9 @@ async function verifyStored(bookId,expected){
 async function deleteDraftBook(bookId){ try{await rest('books?id=eq.'+bookId+'&status=eq.draft',{method:'DELETE',prefer:'return=minimal'});}catch{} }
 $('uploadBtn').addEventListener('click',async()=>{
   hideMessage(uploadMessage);
-  const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,bookStatus=$('bookStatus').value,publish=$('publishNow').checked,rights=$('rightsConfirmed').checked,useAi=$('aiTranslate').checked,isVip=$('bookVip').checked,priceCoins=isVip?Number($('vipPrice').value||0):0,chapters=state.chapters;
+  const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,bookStatus=$('bookStatus').value,publish=$('publishNow').checked,schedule=$('schedulePublish').checked,rights=$('rightsConfirmed').checked,useAi=$('aiTranslate').checked,isVip=$('bookVip').checked,priceCoins=isVip?Number($('vipPrice').value||0):0,chapters=state.chapters;
+  const perDay=schedule?Number($('schedulePerDay').value||0):0;
+  let scheduledStart='';
   if(!state.ownerAuthorId)return showMessage(uploadMessage,'Chưa xác định được tác giả nội bộ Admin.');
   if(title.length<2)return showMessage(uploadMessage,'Hãy nhập tên truyện.');
   if(!author)return showMessage(uploadMessage,'Hãy nhập tên tác giả hiển thị.');
@@ -663,7 +704,11 @@ $('uploadBtn').addEventListener('click',async()=>{
   const audit=auditChapters(chapters);
   if(audit.duplicates.length)return showMessage(uploadMessage,'Có số chương trùng, chưa thể đẩy.');
   if(audit.empty.length)return showMessage(uploadMessage,'Có chương rỗng. Hãy xóa hoặc sửa chương trước khi đẩy.');
-  if(publish&&audit.short.length)return showMessage(uploadMessage,'Có '+audit.short.length+' chương quá ngắn. Hãy tắt “Xuất bản ngay” hoặc xử lý các chương được đánh dấu.');
+  if((publish||schedule)&&audit.short.length)return showMessage(uploadMessage,'Có '+audit.short.length+' chương quá ngắn. Hãy giữ bản nháp hoặc xử lý trước khi xuất bản/hẹn đăng.');
+  if(schedule){
+    if(!Number.isInteger(perDay)||perDay<1||perDay>24)return showMessage(uploadMessage,'Số chương mỗi ngày phải từ 1 đến 24.');
+    try{scheduledStart=scheduleStartIso();}catch(err){return showMessage(uploadMessage,err.message||String(err));}
+  }
 
   const btn=$('uploadBtn');btn.disabled=true;btn.textContent='Đang kiểm tra trùng truyện…';
   let bookId='',logId='';
@@ -675,7 +720,7 @@ $('uploadBtn').addEventListener('click',async()=>{
     }
 
     logId=await createImportLog({title,author,chapters});
-    btn.textContent=useAi?'Đang nhập rồi AI xử lý…':'Đang đẩy và xác minh…';
+    btn.textContent=useAi?(schedule?'Đang AI xử lý rồi xếp lịch…':'Đang nhập rồi AI xử lý…'):(schedule?'Đang nhập và xếp lịch…':'Đang đẩy và xác minh…');
 
     const slug=(slugify(title)||'truyen')+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
     const books=await rest('books?select=id',{method:'POST',prefer:'return=representation',body:{author_id:state.ownerAuthorId,title,slug,description:'Truyện được Admin nhập bằng CHƯƠNG Upload Studio từ nguồn '+(state.sourceName||'nội dung quản trị')+'.',credited_author_name:author,language:'vi',source_type:sourceType,status:'draft',visibility:'private',tags:[],is_vip:isVip,price_coins:priceCoins}});
@@ -690,16 +735,25 @@ $('uploadBtn').addEventListener('click',async()=>{
 
     if(state.coverBlob)await uploadCover(bookId);
     if(useAi)await translateWholeBook(bookId,genre);
-    if(publish){
+    if(schedule){
+      await rest('rpc/schedule_book_chapters',{method:'POST',body:{
+        p_book_id:bookId,
+        p_chapter_numbers:chapters.map(ch=>ch.chapterNumber),
+        p_start_at:scheduledStart,
+        p_per_day:perDay,
+        p_final_status:bookStatus
+      }});
+    }else if(publish){
       const now=new Date().toISOString();
       await rest('chapters?book_id=eq.'+bookId,{method:'PATCH',body:{status:'published',published_at:now}});
       await rest('books?id=eq.'+bookId,{method:'PATCH',body:{status:bookStatus,visibility:'public',language:'vi'}});
     }
 
     const statusLabel=bookStatus==='completed'?'Hoàn thành':bookStatus==='paused'?'Tạm dừng / Drop':'Đang ra';
-    const detail='Đã xác minh '+chapters.length+'/'+chapters.length+' chương · '+audit.totalWords+' từ'+(useAi?' · AI hoàn tất':'')+'.';
+    const detail='Đã xác minh '+chapters.length+'/'+chapters.length+' chương · '+audit.totalWords+' từ'+(useAi?' · AI hoàn tất':'')+(schedule?' · hẹn '+perDay+' chương/ngày':'')+'.';
     await finishImportLog(logId,'completed',bookId,detail);
-    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.\n✓ Tổng '+audit.totalWords.toLocaleString('vi-VN')+' từ.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+'\nTrạng thái: '+(publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+(isVip?'\nVIP toàn truyện: '+priceCoins+' Linh Thạch':'\nTruyện miễn phí')+'.\nBook ID: '+bookId,'success');
+    const scheduleText=schedule?'\n✓ Hẹn đăng '+perDay+' chương/ngày từ '+new Date(scheduledStart).toLocaleString('vi-VN')+'.\n✓ Truyện sẽ tự công khai khi chương đầu đến giờ; sau chương cuối: '+statusLabel+'.':'';
+    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.\n✓ Tổng '+audit.totalWords.toLocaleString('vi-VN')+' từ.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+scheduleText+'\nTrạng thái: '+(schedule?'Đã xếp lịch':publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+(isVip?'\nVIP toàn truyện: '+priceCoins+' Linh Thạch':'\nTruyện miễn phí')+'.\nBook ID: '+bookId,'success');
     btn.textContent='Đã đẩy đủ '+chapters.length+'/'+chapters.length+' chương';
   }catch(err){
     if(bookId)await deleteDraftBook(bookId);
