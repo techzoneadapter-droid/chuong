@@ -338,7 +338,7 @@ export default function AuthorImportBookScreen() {
           <View style={styles.auditGrid}>
             <View style={styles.auditMetric}><Text style={styles.auditValue}>{selectedAudit.chapterCount}</Text><Text style={styles.auditLabel}>chương</Text></View>
             <View style={styles.auditMetric}><Text style={styles.auditValue}>{selectedAudit.totalWords.toLocaleString('vi-VN')}</Text><Text style={styles.auditLabel}>từ</Text></View>
-            <View style={styles.auditMetric}><Text style={[styles.auditValue, (selectedAudit.shortIndexes.length || selectedAudit.emptyIndexes.length) && styles.auditDanger]}>{selectedAudit.shortIndexes.length + selectedAudit.emptyIndexes.length}</Text><Text style={styles.auditLabel}>cần xem lại</Text></View>
+            <View style={styles.auditMetric}><Text style={[styles.auditValue, (selectedAudit.shortIndexes.length + selectedAudit.emptyIndexes.length > 0) && styles.auditDanger]}>{selectedAudit.shortIndexes.length + selectedAudit.emptyIndexes.length}</Text><Text style={styles.auditLabel}>cần xem lại</Text></View>
           </View>
           <View style={styles.auditActions}>
             <Pressable style={styles.auditAction} onPress={() => updateSelectedChapters((chapters) => renumberImportChapters(chapters, 1))}><Text style={styles.auditActionText}>Đánh lại số 1→N</Text></Pressable>
