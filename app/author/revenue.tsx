@@ -82,6 +82,7 @@ export default function AuthorRevenueScreen() {
         <Metric label="Đã hoàn" value={account.refunded_coins} />
         <Metric label="Doanh thu ròng" value={netGross} />
         <Metric label="Phần tác giả" value={netAuthorEarnings} />
+        <Metric label="Đã đối soát" value={account.paid_out_coins} />
         <Metric label="Còn đối soát" value={data.availablePayoutCoins} />
       </View>
 
@@ -103,7 +104,7 @@ export default function AuthorRevenueScreen() {
           <View style={[styles.rowIcon, positive ? styles.saleIcon : styles.refundIcon]}><Ionicons name={gift ? 'gift-outline' : sale ? 'trending-up' : 'return-down-back'} size={17} color={positive ? '#47704D' : '#9B2946'} /></View>
           <View style={{ flex: 1 }}>
             <Text style={styles.rowTitle}>{item.bookTitle || 'Truyện CHƯƠNG'}</Text>
-            <Text style={styles.rowSub}>{item.description || (gift ? 'Quà độc giả' : sale ? 'Mở khóa nội dung' : 'Hoàn tiền')} · {new Date(item.created_at).toLocaleString('vi-VN')}</Text>
+            <Text style={styles.rowSub}>{gift ? 'Quà độc giả' : item.description || (sale ? 'Mở khóa nội dung' : 'Hoàn tiền')} · {new Date(item.created_at).toLocaleString('vi-VN')}</Text>
             <Text style={styles.rowSub}>Phần tác giả: {item.author_share_bps == null ? 'chưa phân bổ' : `${formatRevenueCoins(item.author_earnings_coins)} Linh Thạch (${sharePercent(item.author_share_bps)}%)`}</Text>
           </View>
           <Text style={[styles.amount, positive ? styles.positive : styles.negative]}>{item.gross_coins > 0 ? '+' : ''}{formatRevenueCoins(item.gross_coins)} Linh Thạch</Text>
