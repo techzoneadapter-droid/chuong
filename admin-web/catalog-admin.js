@@ -73,6 +73,8 @@
         p_genre:$c('catalogGenreFilter').value||null,
         p_status:$c('catalogStatusFilter').value||null,
         p_sort:$c('catalogSort').value||'views_desc',
+        p_min_views:$c('catalogMinViews').value===''?null:Math.max(0,Number($c('catalogMinViews').value)||0),
+        p_max_views:$c('catalogMaxViews').value===''?null:Math.max(0,Number($c('catalogMaxViews').value)||0),
         p_limit:PAGE_SIZE,
         p_offset:(catalogState.page-1)*PAGE_SIZE
       };
@@ -389,6 +391,8 @@
   $c('catalogRefreshBtn')?.addEventListener('click',()=>loadCatalog(true));
   $c('catalogSearch')?.addEventListener('input',reloadDebounced);
   $c('catalogAuthorFilter')?.addEventListener('input',reloadDebounced);
+  $c('catalogMinViews')?.addEventListener('input',reloadDebounced);
+  $c('catalogMaxViews')?.addEventListener('input',reloadDebounced);
   ['catalogGenreFilter','catalogStatusFilter','catalogSort'].forEach(id=>$c(id)?.addEventListener('change',()=>loadCatalog(true)));
   $c('catalogPrevPage')?.addEventListener('click',()=>{if(catalogState.page>1){catalogState.page--;loadCatalog(false);}});
   $c('catalogNextPage')?.addEventListener('click',()=>{catalogState.page++;loadCatalog(false);});
