@@ -19,7 +19,6 @@ import { getBook as getDemoBook } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBookById, getBooks } from '../../services/books';
 import { BookGiftSummary, getBookGiftSummary } from '../../services/gifts';
-import { AuthorBadge, getPublicAuthorBadges } from '../../services/authorEvents';
 import { getChaptersByBook } from '../../services/chapters';
 import { getFollowState, getLibrary, getReadingProgress, removeFromLibrary, setFollowState, setLibraryStatus } from '../../services/library';
 import { downloadBookForOffline, DownloadSelection } from '../../services/downloadManager';
@@ -56,7 +55,6 @@ export default function BookDetailScreen() {
   const [downloadProgress, setDownloadProgress] = useState({ completed: 0, total: 0 });
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftSummary, setGiftSummary] = useState<BookGiftSummary>({ totalGifts: 0, totalCoins: 0 });
-  const [authorBadges, setAuthorBadges] = useState<AuthorBadge[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -69,19 +67,17 @@ export default function BookDetailScreen() {
         if (!active) return;
         const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length || result.data.totalChapters, latestChapter: chapters.data.at(-1)?.number ?? result.data.latestChapter };
         setBook(hydrated);
-        const [library, savedProgress, authorFollow, bookFollow, catalogResult, offlineRecords, gifts, badges] = await Promise.all([
+        const [library, savedProgress, authorFollow, bookFollow, catalogResult, offlineRecords, gifts] = await Promise.all([
           getLibrary(user?.id), getReadingProgress(hydrated.id, user?.id),
           hydrated.authorId || result.mode === 'demo' ? getFollowState('author', hydrated.authorId ?? hydrated.author, user?.id) : false,
           getFollowState('book', hydrated.id, user?.id), getBooks(), getOfflineBookRecords(hydrated.id),
-          isSupabaseConfigured ? getBookGiftSummary(hydrated.id).catch(() => ({ totalGifts: 0, totalCoins: 0 })) : Promise.resolve({ totalGifts: 0, totalCoins: 0 }),
-          isSupabaseConfigured && hydrated.authorId ? getPublicAuthorBadges(hydrated.authorId) : Promise.resolve([])
+          isSupabaseConfigured ? getBookGiftSummary(hydrated.id).catch(() => ({ totalGifts: 0, totalCoins: 0 })) : Promise.resolve({ totalGifts: 0, totalCoins: 0 })
         ]);
         if (!active) return;
         setInLibrary(library.some((entry) => entry.bookId === hydrated.id)); setProgress(savedProgress); setFollowing(authorFollow); setFollowingBook(bookFollow); setCatalog(catalogResult.data);
         setDownloadedChapterCount(offlineRecords.length);
         setDownloadedBytes(offlineRecords.reduce((sum, item) => sum + item.bytes, 0));
         setGiftSummary(gifts);
-        setAuthorBadges(badges);
       } catch (error) { if (active) setLoadError(error instanceof Error ? error.message : 'Không thể tải dữ liệu mới.'); }
       finally { if (active) setLoading(false); }
     };
@@ -201,12 +197,7 @@ export default function BookDetailScreen() {
           <View style={styles.authorCopy}><Text style={styles.authorKicker}>TÁC GIẢ</Text><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></View>
           <Pressable style={[styles.follow, following && styles.following]} onPress={() => toggleFollow('author')}><Text style={[styles.followText, following && styles.followingText]}>{following ? 'Đang theo dõi' : 'Theo dõi tác giả'}</Text></Pressable>
         </View>
-        {authorBadges.length ? <View style={styles.badges}>
-          {authorBadges.slice(0, 4).map((badge) => <View key={badge.badgeKey + badge.awardedAt} style={styles.badge}>
-            <Ionicons name="ribbon" size={13} color={xianxia.cinnabar} />
-            <View style={{ flex: 1 }}><Text style={styles.badgeText}>{badge.label}</Text><Text numberOfLines={1} style={styles.badgeMeta}>{badge.eventTitle}</Text></View>
-          </View>)}
-        </View> : null}
+
         <View style={styles.giftSupport}>
           <View style={styles.giftSupportIcon}><Ionicons name="gift-outline" size={19} color={xianxia.goldSoft} /></View>
           <View style={{ flex: 1 }}>
@@ -334,10 +325,6 @@ const styles = StyleSheet.create({
   actionActive: { backgroundColor: xianxia.jadeDeep, borderColor: '#496A61' },
   actionText: { color: xianxia.inkSoft, fontSize: 8, lineHeight: 11, fontWeight: '800', marginTop: 5, textAlign: 'center' },
   authorSection: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: xianxia.line, backgroundColor: 'rgba(255,253,247,.78)', padding: 13, marginTop: 23 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 8 },
-  badge: { minHeight: 40, minWidth: 150, flexGrow: 1, borderRadius: 12, paddingHorizontal: 10, backgroundColor: '#F8F0DB', borderWidth: 1, borderColor: '#DCC89C', flexDirection: 'row', alignItems: 'center', gap: 7 },
-  badgeText: { color: xianxia.ink, fontSize: 8.8, fontWeight: '900' },
-  badgeMeta: { color: xianxia.muted, fontSize: 7.2, marginTop: 1 },
   authorSeal: { width: 30, height: 30, borderRadius: 9, backgroundColor: xianxia.cinnabar, borderWidth: 1, borderColor: xianxia.gold, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   authorSealText: { color: '#F4DDA8', fontSize: 13, fontWeight: '900' },
   avatar: { width: 42, height: 42, borderRadius: 13, backgroundColor: xianxia.jadeDeep, alignItems: 'center', justifyContent: 'center' },
