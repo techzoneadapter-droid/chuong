@@ -198,6 +198,36 @@ function chapterTitleFromFilename(name, number){
   const stem=baseName(name).replace(/^(?:chuong|chương|chapter|chap)[\s._-]*\d+[\s._:-]*/i,'').replace(/^\d+[\s._:-]*/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
   return stem || ('Chương '+number);
 }
+
+function parsePrefixedStoryChapter(text) {
+  const normalized=normalizeText(text);
+  const lines=normalized.split('\n');
+  const firstIndex=lines.findIndex(line=>line.trim().length>0);
+  if(firstIndex<0)return null;
+  const first=lines[firstIndex].trim();
+  const match=first.match(/^(.*?)\s*[-–—|]\s*(?:chương|chuong|chapter|chap)\s*(\d{1,6})\s*[:.\-–—]?\s*(.*)$/i);
+  if(!match)return null;
+  const number=Number(match[2]);
+  if(!Number.isInteger(number)||number<1)return null;
+  const body=normalizeText(lines.filter((_,index)=>index!==firstIndex).join('\n'));
+  return {
+    bookTitle:cleanTitle(match[1]),
+    chapterNumber:number,
+    chapterTitle:String(match[3]||'').trim()||('Chương '+number),
+    content:body
+  };
+}
+function mostCommonText(values) {
+  const counts=new Map();
+  for(const value of values.map(v=>String(v||'').trim()).filter(Boolean)){
+    const key=value.toLocaleLowerCase('vi');
+    const current=counts.get(key)||{value,count:0};
+    current.count++;
+    counts.set(key,current);
+  }
+  return [...counts.values()].sort((a,b)=>b.count-a.count||b.value.length-a.value.length)[0]?.value||'';
+}
+
 function findEocd(bytes){
   const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
   for(let pos=bytes.length-22;pos>=Math.max(0,bytes.length-65557);pos--) if(view.getUint32(pos,true)===0x06054b50)return pos;
@@ -397,16 +427,22 @@ async function parseZipStory(buffer,fileName){
   const contentExts=new Set(['txt','md','html','htm','rtf','fb2','docx','odt','pdf']);
   const docs=entries.filter(e=>contentExts.has(extOf(e.name))).sort((a,b)=>naturalNumber(a.name)-naturalNumber(b.name)||a.name.localeCompare(b.name,'vi'));
   const images=entries.filter(e=>['jpg','jpeg','png','webp'].includes(extOf(e.name)));
-  let chapters=[],title=cleanTitle(baseName(fileName)),coverBlob=null,coverMime='';
+  let chapters=[],title=cleanTitle(baseName(fileName)),coverBlob=null,coverMime='',detectedTitles=[];
   if(docs.length){
     const top=docs[0].name.replace(/\\/g,'/').split('/').filter(Boolean);if(top.length>1)title=cleanTitle(top[0]);
     let fallback=1;
     for(const entry of docs){
       showParse('Đang đọc '+entry.name+'…','info');
-      const bytes=await extractZipEntry(buffer,entry),text=await parseBytesToText(entry.name,bytes),embedded=splitChapters(text),num=naturalNumber(entry.name);
-      if(embedded.length>1){chapters.push(...embedded);fallback=Math.max(fallback,...embedded.map(x=>x.chapterNumber))+1;}
+      const bytes=await extractZipEntry(buffer,entry),text=await parseBytesToText(entry.name,bytes),prefixed=parsePrefixedStoryChapter(text),embedded=prefixed?[]:splitChapters(text),num=naturalNumber(entry.name);
+      if(prefixed){
+        detectedTitles.push(prefixed.bookTitle);
+        const n=prefixed.chapterNumber;
+        chapters.push({chapterNumber:n,title:prefixed.chapterTitle,content:prefixed.content});
+        fallback=Math.max(fallback,n+1);
+      }else if(embedded.length>1){chapters.push(...embedded);fallback=Math.max(fallback,...embedded.map(x=>x.chapterNumber))+1;}
       else{const n=Number.isFinite(num)&&num!==Number.MAX_SAFE_INTEGER?num:fallback++;chapters.push({chapterNumber:n,title:chapterTitleFromFilename(entry.name,n),content:embedded[0]?.content||text});}
     }
+    const detectedTitle=mostCommonText(detectedTitles);if(detectedTitle)title=detectedTitle;
     const cover=images.find(e=>/(?:^|[\/_-])(cover|bia|bìa)(?:[._-]|$)/i.test(e.name))||images[0];
     if(cover){const bytes=await extractZipEntry(buffer,cover);coverMime=imageMime(cover.name);coverBlob=new Blob([bytes],{type:coverMime});}
   }else if(images.length){
