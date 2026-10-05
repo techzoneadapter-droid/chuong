@@ -2707,6 +2707,60 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_author_event_center: {
+        Args: { p_author_id: string }
+        Returns: {
+          badge_awarded: boolean
+          badge_label: string
+          chapters_published: number
+          description: string
+          ends_at: string
+          event_id: string
+          genre_filter: string | null
+          joined: boolean
+          joined_at: string | null
+          participant_count: number
+          prize_label: string
+          rank_no: number | null
+          rules: Json
+          slug: string
+          starts_at: string
+          target_chapters: number
+          target_words: number
+          title: string
+          words_written: number
+        }[]
+      }
+      get_author_event_leaderboard: {
+        Args: { p_event_id: string; p_limit?: number }
+        Returns: {
+          author_id: string
+          avatar_url: string | null
+          chapters_published: number
+          goal_reached: boolean
+          pen_name: string
+          rank_no: number
+          words_written: number
+        }[]
+      }
+      get_public_author_badges: {
+        Args: { p_author_id: string }
+        Returns: {
+          awarded_at: string
+          badge_key: string
+          description: string
+          event_title: string
+          label: string
+        }[]
+      }
+      join_author_event: {
+        Args: { p_event_id: string }
+        Returns: boolean
+      }
+      sync_author_event_badge: {
+        Args: { p_event_id: string }
+        Returns: boolean
+      }
       get_author_book_engagement: {
         Args: { p_author_id: string; p_days?: number }
         Returns: {
