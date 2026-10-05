@@ -128,6 +128,17 @@ export default function ReaderScreen() {
   }, [book.chapters, book.totalChapters, chapterNumber, chapterSearch]);
 
   useEffect(() => {
+    if (!lockedContent || lockedContent.kind !== 'chapter' || !selectedChapter?.earlyAccessUntil) return;
+    const remaining = new Date(selectedChapter.earlyAccessUntil).getTime() - Date.now();
+    if (remaining <= 0) {
+      setReload((value) => value + 1);
+      return;
+    }
+    const timer = setTimeout(() => setReload((value) => value + 1), remaining + 400);
+    return () => clearTimeout(timer);
+  }, [lockedContent, selectedChapter?.earlyAccessUntil]);
+
+  useEffect(() => {
     let active = true;
     setProgressReady(false);
     setLoading(true);
@@ -402,6 +413,11 @@ export default function ReaderScreen() {
 
   if (lockedContent) {
     const enough = walletBalance === null || walletBalance >= lockedContent.priceCoins;
+    const earlyAccessUntil = lockedContent.kind === 'chapter' ? selectedChapter?.earlyAccessUntil ?? null : null;
+    const earlyAccessActive = Boolean(earlyAccessUntil && new Date(earlyAccessUntil).getTime() > Date.now());
+    const earlyAccessLabel = earlyAccessActive && earlyAccessUntil
+      ? new Date(earlyAccessUntil).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+      : '';
     return (
       <View style={[styles.root, styles.paywallRoot, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 16 }]}>
         <XianxiaBackdrop opacity={.42} />
@@ -413,14 +429,17 @@ export default function ReaderScreen() {
         </View>
         <View style={styles.paywallCard}>
           <View style={styles.lockCircle}><Ionicons name="lock-closed" size={28} color="#8F1D3F" /></View>
-          <Text style={styles.paywallKicker}>{lockedContent.kind === 'book' ? 'TRUYỆN VIP' : 'CHƯƠNG VIP'}</Text>
+          <Text style={styles.paywallKicker}>{lockedContent.kind === 'book' ? 'TRUYỆN VIP' : earlyAccessActive ? 'TIÊN CƠ · ĐỌC SỚM' : 'CHƯƠNG VIP'}</Text>
           <Text style={styles.paywallTitle}>Chương {chapterNumber} · {selectedChapter?.title || 'Nội dung dành cho thành viên'}</Text>
           <Text style={styles.paywallBody}>
             {lockedContent.kind === 'book'
               ? 'Mở khóa truyện một lần để đọc các nội dung VIP thuộc gói truyện này.'
-              : 'Mở khóa chương này một lần. Quyền đọc được lưu vào tài khoản của bạn.'}
+              : earlyAccessActive
+                ? `Bạn có thể dùng Linh Thạch để đọc chương này ngay, hoặc chờ đến ${earlyAccessLabel} khi chương tự mở miễn phí.`
+                : 'Mở khóa chương này một lần. Quyền đọc được lưu vào tài khoản của bạn.'}
           </Text>
           <View style={styles.pricePill}><Text style={styles.priceText}>{lockedContent.priceCoins} Linh Thạch</Text></View>
+          {earlyAccessActive ? <Text style={styles.earlyAccessPaywall}>Tự mở miễn phí · {earlyAccessLabel}</Text> : null}
           {user ? <Text style={styles.balanceText}>Số dư hiện tại: {walletBalance === null ? 'Đang cập nhật…' : `${walletBalance} Linh Thạch`}</Text> : <Text style={styles.balanceText}>Đăng nhập để đồng bộ quyền đọc trên các thiết bị.</Text>}
           {unlockError ? <Text style={styles.unlockError}>{unlockError}</Text> : null}
           {!user ? (
@@ -439,7 +458,7 @@ export default function ReaderScreen() {
               <Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa · ${lockedContent.priceCoins} Linh Thạch`}</Text>
             </Pressable>
           )}
-          <Text style={styles.paywallSafety}>Mỗi lần mở khóa được xử lý nguyên tử: Linh Thạch chỉ bị trừ khi quyền đọc được cấp thành công.</Text>
+          <Text style={styles.paywallSafety}>{earlyAccessActive ? 'Nếu chọn đọc sớm, quyền đọc được lưu ngay trên tài khoản. Khi Tiên Cơ hết hạn, mọi độc giả sẽ đọc chương này miễn phí.' : 'Mỗi lần mở khóa được xử lý nguyên tử: Linh Thạch chỉ bị trừ khi quyền đọc được cấp thành công.'}</Text>
         </View>
       </View>
     );
@@ -874,6 +893,7 @@ const styles = StyleSheet.create({
   paywallBody: { color: '#756A6E', fontSize: 12, lineHeight: 19, textAlign: 'center', marginTop: 10 },
   pricePill: { marginTop: 18, backgroundColor: xianxia.jadeDeep, borderWidth: 1, borderColor: xianxia.gold, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
   priceText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  earlyAccessPaywall: { color: xianxia.jadeDeep, fontSize: 9, fontWeight: '900', marginTop: 9, textAlign: 'center' },
   balanceText: { color: '#756A6E', fontSize: 10, marginTop: 13 },
   unlockError: { color: '#A12B48', fontSize: 10, textAlign: 'center', marginTop: 10 },
   unlockButton: { width: '100%', minHeight: 52, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginTop: 18, paddingHorizontal: 18 },
