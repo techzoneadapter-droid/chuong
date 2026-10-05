@@ -115,6 +115,13 @@ const chapters = [1, 4].map((number) => ({
 
 type Write = { table: string; method: string; data: Record<string, unknown> };
 
+const followedUpdate = {
+  book_id: bookId, title: book.title, cover_url: null, author_id: authorId, author_name: author.pen_name,
+  current_chapter_number: 3, next_chapter_number: 5, latest_chapter_number: 8,
+  latest_chapter_title: 'Chương mới nhất', latest_published_at: now, last_update_at: now,
+  published_count: 5, unread_count: 2, has_updates: true,
+};
+
 async function mock(page: Page, authenticated = false) {
   const writes: Write[] = [];
   let following = false;
@@ -172,6 +179,8 @@ async function mock(page: Page, authenticated = false) {
       if (fn === 'get_author_chapter_for_editing') return route.fulfill({ json: chapters.filter((item) => item.id === data.p_chapter_id).map((item) => ({ ...item, status: 'draft', is_vip: true, price_coins: 101, scheduled_publish_at: '2027-01-01T00:00:00Z' })) });
       if (fn === 'get_book_gift_summary') return route.fulfill({ json: [{ total_gifts: 0, total_coins: 0 }] });
       if (fn === 'get_unread_notification_count') return route.fulfill({ json: 0 });
+      if (fn === 'get_my_followed_book_updates') return route.fulfill({ json: [followedUpdate] });
+      if (fn === 'get_my_followed_book_update_badge') return route.fulfill({ json: [{ updated_books: 1, unread_chapters: 2 }] });
 
       if (fn === 'get_public_reader_profile') {
         const id = String(data.p_user_id ?? userId);
@@ -605,4 +614,81 @@ test('author profile opens premium gift packages and submits a gift', async ({ p
   await expect(page.getByText(/Đã tặng Tiên Đan cho/)).toBeVisible();
   expect(giftKey).toBe('tien_dan');
   expect(errors).toEqual([]);
+});
+
+test('followed update center shows real metadata, home badge, and opens the exact next chapter', async ({ page }) => {
+  const writes = await mock(page, true);
+  await page.route('**/rest/v1/chapters?**', route => route.fulfill({ json: [1, 2, 3, 5, 8].map(n => ({
+    ...chapters[0], content: undefined, chapter_number: n, title: `Chương ${n}`,
+    id: `40000000-0000-4000-8000-${String(n).padStart(12, '0')}`,
+  })) }));
+  await page.route('**/rest/v1/rpc/get_chapter_for_reading', route => {
+    writes.push({ table: 'get_chapter_for_reading', method: 'POST', data: route.request().postDataJSON() });
+    return route.fulfill({ json: [{ ...chapters[0], chapter_number: 5, content: null, is_vip: true, lock_kind: 'chapter', lock_price_coins: 101 }] });
+  });
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let chapterQueries = 0;
+  page.on('request', request => { if (new URL(request.url()).pathname === '/rest/v1/chapters') chapterQueries++; });
+  await page.goto('/updates');
+  await expect(page.getByText('Bạn đang ở Chương 3 · Mới nhất Chương 8')).toBeVisible();
+  await expect(page.getByText('Mới nhất: Chương 8 · Chương mới nhất')).toBeVisible();
+  await expect(page.getByText('Phát hành:', { exact: false })).toBeVisible();
+  expect(chapterQueries).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: '.cache/phase4r2-updates-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Đọc tiếp', exact: true }).click();
+  await expect(page).toHaveURL(/\/reader\/.*chapter=5/);
+  await expect.poll(() => writes.some(w => w.table === 'get_chapter_for_reading' && w.data.p_chapter_number === 5)).toBe(true);
+  await expect(page.getByText('101 Hạ Phẩm · hoặc 51 Thượng Phẩm', { exact: true })).toBeVisible();
+  expect(writes.some(w => /unlock|debit/.test(w.table))).toBe(false);
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Cập nhật truyện, 2 chương mới', exact: true })).toBeVisible();
+  await expect(page.getByText('Cập nhật truyện theo dõi', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: '.cache/phase4r2-home-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Cập nhật truyện, 2 chương mới', exact: true }).click();
+  await expect(page).toHaveURL(/\/updates$/);
+  expect(errors).toEqual([]);
+});
+
+test('update center handles no progress, caught up, empty chapters, pagination and network retry', async ({ page }) => {
+  await mock(page, true);
+  let fail = true;
+  const offsets: number[] = [];
+  await page.route('**/rest/v1/rpc/get_my_followed_book_updates', route => {
+    if (fail) return route.fulfill({ status: 500, json: { message: 'network failure' } });
+    const offset = Number(route.request().postDataJSON().p_offset);
+    offsets.push(offset);
+    const rows = offset === 0 ? Array.from({ length: 20 }, (_, i) => ({ ...followedUpdate,
+      book_id: `30000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+      title: `Truyện cập nhật ${i + 1}`,
+      ...(i === 0 ? { current_chapter_number: null, next_chapter_number: 5 } : {}),
+      ...(i === 1 ? { current_chapter_number: 8, next_chapter_number: null, unread_count: 0, has_updates: false } : {}),
+      ...(i === 2 ? { published_count: 0, latest_chapter_number: null, latest_published_at: null, current_chapter_number: null, next_chapter_number: null, unread_count: 0, has_updates: false } : {}),
+    })) : [];
+    return route.fulfill({ json: rows });
+  });
+  await page.goto('/updates');
+  await expect(page.getByText('Không thể tải cập nhật truyện. Vui lòng thử lại.')).toBeVisible();
+  fail = false;
+  await page.getByText('Thử lại', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Đọc từ đầu', exact: true })).toBeVisible();
+  await expect(page.getByText('Đã đọc đến chương mới nhất', { exact: true })).toBeVisible();
+  await expect(page.getByText('Chưa có chương đã phát hành', { exact: true })).toBeVisible();
+  // React Native's virtualized list renders its footer after scrolling.
+  for (let i = 0; i < 15 && !(await page.getByText('Tải thêm', { exact: true }).isVisible()); i++) {
+    await page.mouse.wheel(0, 1800);
+    await page.waitForTimeout(100);
+  }
+  await page.getByText('Tải thêm', { exact: true }).click();
+  await expect(page.getByText('Đã hiển thị tất cả truyện đang theo dõi')).toBeVisible();
+  expect(offsets).toEqual([0, 20]);
+});
+
+test('update center requires login and never substitutes demo followed books', async ({ page }) => {
+  await mock(page);
+  await page.goto('/updates');
+  await expect(page.getByText('Đăng nhập để xem cập nhật')).toBeVisible();
+  await expect(page.getByText(book.title, { exact: true })).toHaveCount(0);
 });

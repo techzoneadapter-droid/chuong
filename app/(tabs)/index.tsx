@@ -3,6 +3,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FollowedUpdateCard } from '../../components/FollowedUpdateCard';
+import { FollowedBookUpdate, getFollowedBookUpdates, getFollowedUpdateBadge } from '../../services/followedUpdates';
 import { BookCard } from '../../components/BookCard';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
@@ -47,6 +49,21 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const [loadError, setLoadError] = useState('');
+  const [followedUpdates, setFollowedUpdates] = useState<FollowedBookUpdate[]>([]);
+  const [newChapters, setNewChapters] = useState<number | null>(null);
+  const [updatesError, setUpdatesError] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setFollowedUpdates([]); setNewChapters(null); setUpdatesError(false);
+    if (user) {
+      void Promise.all([getFollowedBookUpdates(2, 0, true), getFollowedUpdateBadge()])
+        .then(([rows, badge]) => { if (active) { setFollowedUpdates(rows); setNewChapters(badge.unread_chapters); } })
+        .catch(() => { if (active) setUpdatesError(true); });
+    }
+    return () => { active = false; };
+  }, [user?.id]));
+
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useFocusEffect(useCallback(() => {
@@ -128,6 +145,13 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {followedUpdates.length ? <View style={{ gap: 10, marginBottom: 16 }}>
+          <SectionTitle title="Cập nhật truyện theo dõi" action="Xem tất cả" onPress={() => router.push('/updates')} />
+          {followedUpdates.map((item) => <FollowedUpdateCard key={item.book_id} item={item} compact />)}
+        </View> : updatesError ? <Pressable onPress={() => router.push('/updates')} style={{ paddingVertical: 12 }}>
+          <Text style={styles.sectionSub}>Không thể tải cập nhật truyện. Nhấn để thử lại.</Text>
+        </Pressable> : null}
+
         <Pressable
           style={({ pressed }) => [styles.hero, pressed && styles.pressed]}
           onPress={() => router.push({ pathname: '/book/[id]', params: { id: currentBook.id } })}
@@ -161,11 +185,16 @@ export default function HomeScreen() {
             <Text style={styles.quickMeta}>Khám phá kho truyện</Text>
           </Pressable>
           <View style={styles.quickDivider} />
-          <Pressable style={styles.quickItem} onPress={() => router.push('/library')}>
-            <ArtIcon source={artwork.library} size={44} />
-            <Text style={styles.quickTitle}>Tủ Linh Thư</Text>
-            <Text style={styles.quickMeta}>Truyện đang theo dõi</Text>
-          </Pressable>
+          <View style={styles.quickItem}>
+            <Pressable accessibilityRole="button" style={{ alignItems: 'center' }} onPress={() => router.push('/library')}>
+              <ArtIcon source={artwork.library} size={44} />
+              <Text style={styles.quickTitle}>Tủ Linh Thư</Text>
+            </Pressable>
+            {user ? <Pressable accessibilityRole="button" accessibilityLabel={`Cập nhật truyện${newChapters ? `, ${newChapters} chương mới` : ''}`}
+              style={newChapters ? styles.quickUpdateBadge : undefined} onPress={() => router.push('/updates')}>
+              <Text style={styles.quickMeta}>{newChapters ? `${newChapters} chương mới` : 'Cập nhật truyện'}</Text>
+            </Pressable> : <Text style={styles.quickMeta}>Truyện đang theo dõi</Text>}
+          </View>
           <View style={styles.quickDivider} />
           <Pressable style={styles.quickItem} onPress={() => router.push('/recommendations')}>
             <ArtIcon source={artwork.lotus} size={44} />
@@ -287,6 +316,7 @@ const styles = StyleSheet.create({
   brandSeal: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, borderColor: xianxia.gold, backgroundColor: xianxia.cinnabar, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-3deg' }] },
   brandSealText: { color: '#F7E6BA', fontSize: 17, fontWeight: '900' },
   brand: { color: xianxia.ink, fontSize: 23, fontWeight: '900', letterSpacing: 2.1 },
+  quickUpdateBadge: { borderRadius: 10, backgroundColor: xianxia.jadeMist, paddingHorizontal: 8, paddingVertical: 3 },
   headerActions: { flexDirection: 'row', gap: 8 },
   iconButton: { width: 40, height: 40, borderRadius: 13, backgroundColor: 'rgba(255,253,247,.82)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: xianxia.line, position: 'relative' },
   headerBadge: { position: 'absolute', right: -4, top: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: xianxia.cinnabar, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: xianxia.paper },

@@ -80,6 +80,12 @@ export default function LibraryScreen() {
         <View style={styles.headerSeal}><Ionicons name="library-outline" size={19} color={xianxia.goldSoft} /></View>
       </View>
 
+      <Pressable style={styles.syncCard} accessibilityRole="button" onPress={() => router.push('/updates')}>
+        <View style={styles.syncIcon}><Ionicons name="book-outline" size={20} color={xianxia.jadeDeep} /></View>
+        <View style={{ flex: 1 }}><Text style={styles.syncTitle}>Cập nhật truyện theo dõi</Text><Text style={styles.syncBody}>Xem chương mới và tiếp tục đọc.</Text></View>
+        <Ionicons name="chevron-forward" size={18} color={xianxia.jadeDeep} />
+      </Pressable>
+
       {!user ? <Pressable style={styles.syncCard} onPress={() => router.push('/auth/login')}>
         <View style={styles.syncIcon}><Ionicons name="cloud-outline" size={20} color={xianxia.jadeDeep} /></View>
         <View style={{ flex: 1 }}><Text style={styles.syncTitle}>Đăng nhập để đồng bộ</Text><Text style={styles.syncBody}>Mang tủ sách và tiến độ đọc sang thiết bị khác.</Text></View>

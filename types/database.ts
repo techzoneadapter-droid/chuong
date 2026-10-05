@@ -2439,6 +2439,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_followed_book_updates: {
+        Args: { p_limit?: number; p_offset?: number; p_updates_only?: boolean }
+        Returns: {
+          book_id: string; title: string; cover_url: string | null; author_id: string; author_name: string;
+          current_chapter_number: number | null; next_chapter_number: number | null;
+          latest_chapter_number: number | null; latest_chapter_title: string | null;
+          latest_published_at: string | null; last_update_at: string | null;
+          published_count: number; unread_count: number; has_updates: boolean;
+        }[]
+      }
+      get_my_followed_book_update_badge: {
+        Args: Record<PropertyKey, never>
+        Returns: { updated_books: number; unread_chapters: number }[]
+      }
       get_author_vnd_dashboard: { Args: { p_author_id: string }; Returns: Json }
       author_request_payout_vnd: { Args: { p_requested_vnd: number; p_note: string; p_idempotency_key: string }; Returns: Database['public']['Tables']['author_payouts']['Row'] }
       admin_set_author_payout_policy: { Args: { p_high_stone_value_vnd: number | null; p_chapter_bps: number; p_book_bps: number; p_gift_bps: number; p_low_pool_bps: number; p_minimum_vnd: number; p_fee_vnd: number }; Returns: VndPolicy }
