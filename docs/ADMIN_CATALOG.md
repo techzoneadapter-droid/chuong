@@ -62,3 +62,23 @@ If a story has no uploaded cover, the app shows a neutral **Chưa có bìa** sta
 Phase 4M adds `books.credited_author_name`, admin INSERT policies for books/chapters, admin draft-delete policies, admin genre management, admin catalog cover uploads, and credited-author search indexing through `books.search_text`.
 
 RLS remains enabled; ordinary readers/authors do not inherit admin catalog permissions.
+
+
+## Web Admin — Quản trị kho truyện
+
+Trang GitHub Pages Admin Upload Studio có thêm tab **Quản trị kho truyện** dành riêng cho Admin:
+
+- tìm theo tên truyện và tác giả hiển thị
+- lọc theo thể loại và trạng thái
+- sắp xếp theo top lượt xem, lượt theo dõi, số chương hoặc thời gian cập nhật
+- sửa tên truyện, tác giả hiển thị, thể loại, trạng thái và mô tả
+- mở từng chương để sửa tiêu đề, trạng thái và toàn bộ nội dung
+- thêm/thay bìa thủ công
+- tạo bìa AI 2:3 (1024 × 1536) từ tên truyện + thể loại
+- chọn nhiều truyện để chỉnh tác giả/thể loại/trạng thái hàng loạt
+- tạo bìa AI hàng loạt, mặc định bỏ qua truyện đã có bìa
+- xóa hàng loạt với xác nhận rõ ràng
+
+AI cover API key chỉ được giữ trong `sessionStorage` của phiên trình duyệt và được gửi tới Edge Function đã xác thực Admin cho từng lần tạo ảnh; key không được ghi vào Git hoặc database.
+
+Xóa vĩnh viễn được chặn đối với truyện đã có lịch sử giao dịch, entitlement, doanh thu hoặc quà tặng để tránh phá dữ liệu tài chính. Các truyện như vậy nên được chuyển về **Riêng tư** thay vì hard-delete.
