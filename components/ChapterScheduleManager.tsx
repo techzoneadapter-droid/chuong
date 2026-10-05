@@ -246,7 +246,7 @@ export function ChapterScheduleManager({ bookId, contextLabel = 'Lịch đăng c
             <View style={styles.fields}>
               <Field label="Ngày bắt đầu" value={startDate} onChange={setStartDate} placeholder="YYYY-MM-DD" />
               <Field label="Giờ bắt đầu" value={startTime} onChange={setStartTime} placeholder="20:00" />
-              <Field label="Chương / ngày" value={String(perDay)} onChange={(value) => setPerDay(Math.max(1, Math.min(24, Number(value.replace(/\D/g, '')) || 1)))} numeric />
+              <Field label="Chương / ngày" value={String(perDay)} onChange={(value) => setPerDay(Math.max(1, Math.min(24, Number(value.replace(/\D/g, '')) || 1)))} placeholder="1" numeric />
             </View>
             <View style={styles.chips}>
               {[1,2,3,4,6].map((value) => <Pressable key={value} onPress={() => setPerDay(value)} style={[styles.chip, perDay === value && styles.chipActive]}><Text style={[styles.chipText, perDay === value && styles.chipTextActive]}>{value}/ngày</Text></Pressable>)}
