@@ -270,8 +270,9 @@ as $$
         and a.moderation_state = 'approved'
     ) as ok
   ) eligible
-  left join public.author_gifts g on g.book_id = p_book_id;
-$$;
+  left join public.author_gifts g on g.book_id = p_book_id
+  group by eligible.ok;
+$;
 
 revoke execute on function public.get_book_gift_summary(uuid) from public;
 grant execute on function public.get_book_gift_summary(uuid) to anon, authenticated;
