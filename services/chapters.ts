@@ -17,6 +17,7 @@ type ChapterRow = Database['public']['Tables']['chapters']['Row'];
 type ChapterShape = Pick<ChapterRow, 'id' | 'book_id' | 'chapter_number' | 'title' | 'status' | 'is_vip' | 'price_coins' | 'published_at' | 'updated_at'> & {
   content?: string | null;
   early_access_until?: string | null;
+  scheduled_publish_at?: string | null;
 };
 
 export class ContentLockedError extends Error {
@@ -54,6 +55,7 @@ export const mapChapter = (row: ChapterShape): Chapter => {
     earlyAccessUntil,
     status: row.status,
     publishedAt: row.published_at,
+    scheduledPublishAt: row.scheduled_publish_at ?? null,
     updatedAt: row.updated_at,
     isRead: false,
     isDownloaded: false
@@ -82,7 +84,7 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await supabase
         .from('chapters')
-        .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,published_at,updated_at')
+        .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
         .eq('book_id', bookId)
         .eq('status', 'published')
         .order('chapter_number')
@@ -186,7 +188,7 @@ async function setChapterStatus(id: string, status: 'draft' | 'published') {
     .from('chapters')
     .update({ status })
     .eq('id', id)
-    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,published_at,updated_at')
+    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
     .single();
   if (error) throw toServiceError(error, 'Không thể thay đổi trạng thái chương. Kiểm tra tiêu đề và nội dung.');
   return mapChapter(data);
