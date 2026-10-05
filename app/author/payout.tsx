@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState, RetryState } from '../../components/States';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAuthorForUser } from '../../services/authors';
-import { formatRevenueCoins } from '../../services/revenue';
+import { formatVnd } from '../../services/vndRevenue';
 import {
   AuthorPayoutWorkspace,
   cancelAuthorPayout,
@@ -34,6 +34,7 @@ export default function AuthorPayoutScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const requestKey = useRef<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     if (authLoading) return;
@@ -65,8 +66,8 @@ export default function AuthorPayoutScreen() {
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-  const amountNumber = useMemo(() => Number(amount.replace(/[^d]/g, '')) || 0, [amount]);
-  const canRequest = Boolean(data && amountNumber > 0 && amountNumber <= data.requestableCoins && destination.trim().length >= 3);
+  const amountNumber = useMemo(() => Number(amount.replace(/\D/g, '')) || 0, [amount]);
+  const canRequest = Boolean(data && data.revenue.policy.high_stone_value_vnd != null && Number.isSafeInteger(amountNumber) && amountNumber >= data.revenue.policy.minimum_withdrawal_vnd && amountNumber > data.revenue.policy.withdrawal_fee_vnd && amountNumber <= data.requestableVnd && destination.trim().length >= 3 && destination.trim() === data.profile?.destination_label && method.trim() === data.profile?.payout_method);
 
   const saveProfile = async () => {
     setSavingProfile(true);
@@ -84,16 +85,18 @@ export default function AuthorPayoutScreen() {
   };
 
   const submit = async () => {
-    if (!authorId || !canRequest) return;
+    if (!authorId || !canRequest || submitting) return;
+    requestKey.current ??= createPayoutIdempotencyKey(authorId);
     setSubmitting(true);
     setError('');
     setSuccess('');
     try {
       await requestAuthorPayout({
-        amountCoins: amountNumber,
+        requestedVnd: amountNumber,
         note,
-        idempotencyKey: createPayoutIdempotencyKey(authorId),
+        idempotencyKey: requestKey.current,
       });
+      requestKey.current = null;
       setAmount('');
       setNote('');
       setSuccess('Đã gửi yêu cầu rút. Quản trị sẽ kiểm tra KYC, thuế và phương thức thanh toán trước khi duyệt.');
@@ -133,13 +136,14 @@ export default function AuthorPayoutScreen() {
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
     >
+      {!data.revenue.policy.high_stone_value_vnd ? <Text style={styles.error}>Chưa cấu hình tỷ giá thanh toán</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {success ? <Text style={styles.success}>{success}</Text> : null}
 
       <View style={styles.hero}>
-        <Text style={styles.heroKicker}>CÓ THỂ YÊU CẦU</Text>
-        <Text style={styles.heroValue}>{formatRevenueCoins(data.requestableCoins)} đơn vị đối soát</Text>
-        <Text style={styles.heroBody}>Đã giữ chỗ cho yêu cầu đang chờ/đã duyệt: {formatRevenueCoins(data.reservedCoins)} đơn vị đối soát.</Text>
+        <Text style={styles.heroKicker}>CÓ THỂ RÚT</Text>
+        <Text style={styles.heroValue}>{formatVnd(data.requestableVnd)}</Text>
+        <Text style={styles.heroBody}>Đã giữ chỗ cho yêu cầu đang chờ/đã duyệt: {formatVnd(data.reservedVnd)}.</Text>
       </View>
 
       <Text style={styles.sectionTitle}>Hồ sơ thanh toán</Text>
@@ -150,25 +154,28 @@ export default function AuthorPayoutScreen() {
 
       <Text style={styles.label}>Phương thức nhận</Text>
       <TextInput value={method} onChangeText={setMethod} style={styles.input} placeholder="Ví dụ: manual_bank" placeholderTextColor="#A2959A" />
-      <Text style={styles.help}>Giai đoạn hiện tại chỉ lưu nhãn phương thức. Không nhập số tài khoản đầy đủ, CCCD hoặc dữ liệu nhạy cảm vào đây.</Text>
+      <Text style={styles.help}>Nhập phương thức và thông tin tài khoản nhận tiền. Chỉ bạn và quản trị được xem hồ sơ thanh toán.</Text>
 
-      <Text style={styles.label}>Nhãn nhận tiền</Text>
-      <TextInput value={destination} onChangeText={setDestination} style={styles.input} placeholder="Ví dụ: MB Bank •••• 1234" placeholderTextColor="#A2959A" maxLength={160} />
+      <Text style={styles.label}>Thông tin nhận tiền</Text>
+      <TextInput value={destination} onChangeText={setDestination} style={styles.input} placeholder="Ngân hàng · Số tài khoản · Tên người nhận" placeholderTextColor="#A2959A" maxLength={160} />
       <Pressable disabled={savingProfile} onPress={saveProfile} style={[styles.secondaryButton, savingProfile && styles.disabled]}>
         <Ionicons name="save-outline" size={18} color="#8F1D3F" />
         <Text style={styles.secondaryButtonText}>{savingProfile ? 'Đang lưu…' : 'Lưu phương thức nhận'}</Text>
       </Pressable>
 
       <Text style={styles.sectionTitle}>Tạo yêu cầu rút</Text>
-      <Text style={styles.label}>Số đơn vị đối soát</Text>
+      <Text style={styles.label}>Số</Text>
       <TextInput
         value={amount}
-        onChangeText={setAmount}
+        onChangeText={(value) => { requestKey.current = null; setAmount(value); }}
         keyboardType="number-pad"
         style={styles.input}
-        placeholder={`Tối đa ${formatRevenueCoins(data.requestableCoins)}`}
+        placeholder={`Tối đa ${formatVnd(data.requestableVnd)}`}
         placeholderTextColor="#A2959A"
       />
+      <Text style={styles.label}>Phí rút: {formatVnd(data.revenue.policy.withdrawal_fee_vnd)}</Text>
+      <Text style={styles.label}>THỰC NHẬN: {formatVnd(Math.max(0, amountNumber - data.revenue.policy.withdrawal_fee_vnd))}</Text>
+      <Text style={styles.help}>Tối thiểu: {formatVnd(data.revenue.policy.minimum_withdrawal_vnd)}</Text>
       <Text style={styles.label}>Ghi chú cho quản trị</Text>
       <TextInput value={note} onChangeText={setNote} style={[styles.input, styles.textarea]} multiline placeholder="Không bắt buộc" placeholderTextColor="#A2959A" maxLength={500} />
 
@@ -188,7 +195,7 @@ export default function AuthorPayoutScreen() {
           <Ionicons name={item.status === 'paid' ? 'checkmark' : item.status === 'cancelled' ? 'close' : 'time-outline'} size={17} color={item.status === 'paid' ? '#47704D' : item.status === 'cancelled' ? '#A12B48' : '#9B6A22'} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>{formatRevenueCoins(item.amount_coins)} đơn vị đối soát · {payoutStatusLabel(item.status)}</Text>
+          <Text style={styles.rowTitle}>{item.requested_vnd == null ? 'Chờ đối soát dữ liệu cũ' : formatVnd(item.requested_vnd)} · {payoutStatusLabel(item.status)}</Text>
           <Text style={styles.rowSub}>{new Date(item.requested_at).toLocaleString('vi-VN')}</Text>
           {item.external_reference ? <Text style={styles.rowSub}>Mã thanh toán: {item.external_reference}</Text> : null}
           {item.review_note ? <Text style={styles.rowSub}>Quản trị: {item.review_note}</Text> : null}

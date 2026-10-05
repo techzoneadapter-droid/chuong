@@ -51,6 +51,36 @@ await identity(reader,'service_role');
 await db.exec(`select public.credit_verified_store_purchase('${reader}','google_play','chuong.linhthach.100','legacy-store-1','0123456789abcdef');`);
 await db.exec('reset role');
 await db.exec(readFileSync(new URL('202610050017_two_tier_spirit_stones.sql',migrationDir),'utf8'));
+await db.exec(readFileSync(new URL('202610030018_phase4e_payout_workflow.sql',migrationDir),'utf8'));
+// A real old entitlement/refund with no VND snapshot remains unpriced on migration.
+const legacyEnt = await row(`with tx as (
+ insert into wallet_transactions(user_id,currency_type,type,amount_coins,balance_after,idempotency_key,reference_type,reference_id)
+ values('${reader}','high','unlock_debit',-1,0,'legacy-vnd-fixture','book','${book}') returning id
+), ent as (
+ insert into book_entitlements(user_id,book_id,source,price_paid_coins,wallet_transaction_id)
+ select '${reader}','${book}','coin_unlock',1,id from tx returning *
+), sale as (
+ insert into author_revenue_ledger(author_id,type,gross_coins,book_id,book_entitlement_id,wallet_transaction_id)
+ select '${author}','sale',1,'${book}',id,wallet_transaction_id from ent returning id
+) select id from ent`);
+await identity(admin);
+await db.exec(`select admin_refund_entitlement('book','${legacyEnt.id}','Old refund fixture','old-vnd-refund-fixture')`);
+await db.exec('reset role');
+await db.exec(`update wallet_accounts set high_spirit_stones=0 where user_id='${reader}'`);
+await db.exec(readFileSync(new URL('202610050018_author_vnd_settlement.sql',migrationDir),'utf8'));
+await db.exec(readFileSync(new URL('202610050019_author_gift_vnd_policy.sql',migrationDir),'utf8'));
+const legacyVnd = await row(`select * from author_vnd_ledger where source_reference_id='${legacyEnt.id}' and entry_type='sale'`);
+assert.equal(legacyVnd.settlement_status,'legacy_pending_settlement');
+assert.equal(legacyVnd.author_earnings_vnd,null);
+assert.equal(Number((await row(`select count(*) as n from author_vnd_ledger where original_id='${legacyVnd.id}' and entry_type='reversal'`)).n),1);
+await identity(writer);
+assert.deepEqual((await row('select get_my_author_gifts() as data')).data, { totalHigh: 0, totalLow: 0, count: 0, recent: [] });
+await db.exec(`select author_update_payout_profile('manual_bank','Test bank destination')`);
+await assert.rejects(db.exec(`select author_request_payout_vnd(1,'','missing-rate-test')`),/VND_RATE_NOT_CONFIGURED/);
+await identity(admin);
+// Fixture-only rate, explicitly configured by admin, never a production default.
+await db.exec('select admin_set_author_payout_policy(123,6000,6000,8000,6000,1,0)');
+await db.exec('reset role');
 assert.equal(Number((await row(`select low_spirit_stones from wallet_accounts where user_id='${reader}'`)).low_spirit_stones),1100);
 assert.equal(Number((await row(`select high_spirit_stones from wallet_accounts where user_id='${reader}'`)).high_spirit_stones),0);
 assert.equal(Number((await row(`select price_coins from chapters where id='${chapter}'`)).price_coins),101);
@@ -82,9 +112,13 @@ assert.equal(Number(wallet.low_spirit_stones),1100,'premium refund never mints l
 await identity(reader);
 const lowUnlock = await row(`select * from unlock_chapter_currency('${chapter}','unlock-low-test','low')`);
 assert.equal(Number(lowUnlock.price_paid_coins),101);
+await db.exec('reset role');
+await db.exec('update revenue_share_policies set active=false');
+await identity(reader);
 const gift = await row(`select * from send_author_gift('${book}','tien_dan','gift-premium-test')`);
 await db.exec(`select * from send_author_gift('${book}','tien_dan','gift-premium-test');`);
 assert.equal(Number(gift.balance_coins),50);
+assert.equal(Number(gift.author_earnings_coins),40,'gift compatibility share follows new gift policy');
 assert.equal((await row(`select currency_type from author_gifts where id='${gift.gift_id}'`)).currency_type,'high');
 await identity(writer);
 await assert.rejects(db.exec(`select * from send_author_gift('${book}','linh_hoa','gift-self-test')`),/SELF_GIFT_NOT_ALLOWED/);
@@ -146,5 +180,89 @@ await assert.rejects(db.exec(`select * from admin_adjust_wallet_currency('${read
 await identity(reader);
 assert.equal((await db.query(`update wallet_accounts set high_spirit_stones=999999 where user_id='${reader}' returning user_id`)).rows.length,0,'reader cannot edit wallet');
 await assert.rejects(db.exec(`select credit_verified_store_purchase('${reader}','google_play','chuong.linhthach.100','forged-store','0123456789abcdef')`));
+await identity(writer);
+let vnd = (await row(`select get_author_vnd_dashboard('${author}') as data`)).data;
+const chapterVnd = vnd.ledger.find(l => l.source_reference_id === unlocked.entitlement_id && l.entry_type === 'sale');
+assert.equal(Number(chapterVnd.gross_value_vnd),51*123);
+assert.equal(Number(chapterVnd.author_earnings_vnd),Math.floor(51*123*.6));
+assert.equal(chapterVnd.author_share_bps_snapshot,6000);
+assert.equal(vnd.ledger.find(l => l.source_reference_id === lowUnlock.entitlement_id).settlement_status,'pending_settlement');
+assert.equal(Number(vnd.ledger.find(l => l.source_reference_id === bookUnlock.entitlement_id && l.entry_type === 'sale').author_earnings_vnd),Math.floor(53*123*.6));
+assert.equal(Number(vnd.ledger.find(l => l.source_reference_id === gift.gift_id).author_earnings_vnd),4920);
+assert.equal(Number(vnd.available_payout_vnd),4920,'refunded high sales and pending low sales cannot be withdrawn');
+await assert.rejects(db.exec(`select author_request_payout_vnd(-1,'','negative-payout-test')`),/INVALID_PAYOUT_AMOUNT/);
+await assert.rejects(db.exec(`select author_request_payout_vnd(5000,'','excess-payout-test')`),/INSUFFICIENT_REQUESTABLE_EARNINGS/);
+const payout = await row(`select * from author_request_payout_vnd(4920,'','vnd-payout-one')`);
+assert.equal(Number(payout.requested_vnd),4920);
+assert.equal(Number(payout.net_vnd),4920);
+assert.equal(payout.request_snapshot.destination_label,'Test bank destination');
+assert.equal((await row(`select * from author_request_payout_vnd(4920,'','vnd-payout-one')`)).id,payout.id);
+await assert.rejects(db.exec(`select author_request_payout_vnd(1,'','vnd-payout-two')`),/INSUFFICIENT_REQUESTABLE_EARNINGS/);
+await db.exec(`select author_cancel_payout_request('${payout.id}')`);
+assert.equal(Number((await row(`select get_author_vnd_dashboard('${author}') as data`)).data.available_payout_vnd),4920);
+const concurrent = await Promise.allSettled([
+ db.query(`select * from author_request_payout_vnd(4920,'','race-payout-one')`),
+ db.query(`select * from author_request_payout_vnd(4920,'','race-payout-two')`),
+]);
+assert.equal(concurrent.filter(r => r.status === 'fulfilled').length,1,'overlapping withdrawal calls reserve only one available balance');
+const racePayout = concurrent.find(r => r.status === 'fulfilled').value.rows[0];
+await db.exec(`select author_cancel_payout_request('${racePayout.id}')`);
+const paidRequest = await row(`select * from author_request_payout_vnd(4920,'','vnd-payout-paid')`);
+await identity(admin);
+await db.exec(`select admin_set_author_payout_compliance('${author}','verified','not_required','Test verified');
+select admin_review_payout_request('${paidRequest.id}','approve','Test');
+select admin_mark_payout_paid('${paidRequest.id}','test-transfer-reference','Test');
+select admin_mark_payout_paid('${paidRequest.id}','test-transfer-reference','Test');`);
+assert.equal(Number((await row(`select get_author_vnd_dashboard('${author}') as data`)).data.paid_vnd),4920);
+await db.exec('select admin_set_author_payout_policy(456,5000,5500,7500,2000,1,12)');
+assert.equal(Number((await row(`select * from author_vnd_ledger where id='${chapterVnd.id}'`)).author_earnings_vnd),Math.floor(51*123*.6),'policy never reprices history');
+assert.equal(Number((await row(`select * from author_payouts where id='${paidRequest.id}'`)).fee_vnd),0,'payout fee snapshot never changes');
+await db.exec(`select admin_settle_author_period('2020-01-01','2030-01-01',100000)`);
+vnd = (await row(`select get_author_vnd_dashboard('${author}') as data`)).data;
+assert.equal(Number(vnd.available_payout_vnd),60000,'actual low creator pool is now withdrawable');
+await assert.rejects(db.exec(`select admin_settle_author_period('2020-01-01','2030-01-01',100000)`),/NO_PENDING_LOW_REVENUE/);
+await db.exec(`select admin_refund_entitlement('chapter','${lowUnlock.entitlement_id}','Settled low refund','settled-low-refund');
+select admin_refund_entitlement('chapter','${lowUnlock.entitlement_id}','Settled low refund','settled-low-refund-again');`);
+assert.equal(Number((await row(`select get_author_vnd_dashboard('${author}') as data`)).data.available_payout_vnd),0,'settled low refund reverses exactly once');
+// A refund after actual payment creates a debt adjustment; it never rewrites paid totals.
+await db.exec(`update books set price_coins=105,is_vip=true where id='${book}'`);
+await identity(reader);
+const debtUnlock = await row(`select * from unlock_book_currency('${book}','paid-refund-book','high')`);
+await identity(writer);
+const debtRequest = await row(`select * from author_request_payout_vnd(13292,'','paid-refund-request')`);
+assert.equal(Number(debtRequest.fee_vnd),12); assert.equal(Number(debtRequest.net_vnd),13280);
+await identity(admin);
+await db.exec(`select admin_review_payout_request('${debtRequest.id}','approve','Test');
+select admin_mark_payout_paid('${debtRequest.id}','debt-test-transfer','Test');
+select admin_refund_entitlement('book','${debtUnlock.entitlement_id}','After payout refund','after-payout-refund');
+select admin_refund_entitlement('book','${debtUnlock.entitlement_id}','After payout refund','after-payout-refund-again');`);
+vnd = (await row(`select get_author_vnd_dashboard('${author}') as data`)).data;
+assert.equal(Number(vnd.debt_vnd),13292); assert.equal(Number(vnd.available_payout_vnd),0);
+assert.equal(Number(vnd.paid_vnd),18212,'already paid history stays intact');
+// Unconfigured high rates still allow entitlement, but cannot fabricate author VND.
+await db.exec('select admin_set_author_payout_policy(null,6000,6000,8000,6000,1,0)');
+await identity(reader);
+const noRate = await row(`select * from unlock_book_currency('${book}','no-rate-book-unlock','high')`);
+await identity(admin);
+await db.exec(`update books set price_coins=8000 where id='${book}'`);
+await identity(reader);
+const repriced = await row(`select * from unlock_book_currency('${book}','existing-book-new-price','high')`);
+assert.equal(repriced.entitlement_id,noRate.entitlement_id);
+assert.equal(Number(repriced.price_paid_coins),53,'future price changes preserve purchased entitlement and original paid price');
+await identity(writer);
+vnd = (await row(`select get_author_vnd_dashboard('${author}') as data`)).data;
+assert.equal(vnd.ledger.find(l => l.source_reference_id === noRate.entitlement_id).author_earnings_vnd,null);
+await assert.rejects(db.exec(`select author_request_payout_vnd(1,'','disabled-rate-payout')`),/VND_RATE_NOT_CONFIGURED/);
+await identity(admin);
+await db.exec('select admin_set_author_payout_policy(789,6000,6000,8000,6000,1,0)');
+assert.equal((await row(`select author_earnings_vnd from author_vnd_ledger where source_reference_id='${noRate.entitlement_id}'`)).author_earnings_vnd,null,'new rate never backfills missing historical VND');
+await assert.rejects(db.exec(`update author_vnd_ledger set author_earnings_vnd=999 where id='${chapterVnd.id}'`));
+await identity(reader);
+await assert.rejects(db.exec(`select get_author_vnd_dashboard('${author}')`),/AUTHOR_ACCESS_REQUIRED/);
+await assert.rejects(db.exec('select admin_set_author_payout_policy(1,6000,6000,8000,6000,1,0)'),/ADMIN_REQUIRED/);
+await db.exec('reset role');
+// No app subscription source is representable in the VND ledger, even with privileged writes.
+await assert.rejects(db.exec(`insert into author_vnd_ledger(author_id,source_type,source_reference_id,currency_type,stones_spent,settlement_status) values('${author}','app_vip',gen_random_uuid(),'high',1,'pending_settlement')`));
+assert.equal((await row('select count(*) as n from author_vnd_ledger where source_type not in (\'chapter_unlock\',\'book_unlock\',\'author_gift\')')).n,0);
 await db.close();
-console.log('PASS: legacy migration, both unlock currencies, rounding, idempotency, premium-only gifts, privacy, refunds, store reversals, rewards and wallet security');
+console.log('PASS: VND snapshots, no-rate gating, low settlement, payout reservations/cancellation/payment, immutable policies, reversal/debt, VIP exclusion; legacy migration, both unlock currencies, rounding, idempotency, premium-only gifts, privacy, refunds, store reversals, rewards and wallet security');

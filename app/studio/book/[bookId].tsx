@@ -1,3 +1,4 @@
+import { WholeBookPricing } from '../../../components/WholeBookPricing';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -310,6 +311,7 @@ export default function StudioBookManager() {
           <Pressable disabled={busy} style={[styles.save, busy && styles.disabled]} onPress={saveMetadata}><Ionicons name="save-outline" size={16} color="#FFF8EA" /><Text style={styles.saveText}>{busy ? 'Đang lưu…' : 'Lưu thông tin truyện'}</Text></Pressable>
         </Panel>
 
+        <WholeBookPricing book={book} onSaved={load} />
         <Panel title="Nhập thêm chương" subtitle="Dán nhiều chương một lần; Studio tự tách tiêu đề và nội dung.">
           <TextInput
             multiline

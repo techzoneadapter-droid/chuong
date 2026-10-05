@@ -5,7 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, Vie
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState, RetryState } from '../../components/States';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatRevenueCoins } from '../../services/revenue';
+import { formatVnd, payoutSnapshot } from '../../services/vndRevenue';
 import {
   AdminPayoutQueueItem,
   adminMarkPayoutPaid,
@@ -114,7 +114,7 @@ export default function AdminPayoutsScreen() {
       {!items.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>Chưa có yêu cầu rút</Text><Text style={styles.emptyText}>Yêu cầu mới từ tác giả sẽ xuất hiện tại đây.</Text></View> : items.map((item) => {
         const payoutProfile = item.payoutProfile;
         const busy = busyId === item.id;
-        const canApprove = item.status === 'pending'
+        const canApprove = item.requested_vnd != null && item.status === 'pending'
           && payoutProfile?.kyc_status === 'verified'
           && (payoutProfile.tax_status === 'verified' || payoutProfile.tax_status === 'not_required')
           && Boolean(payoutProfile.destination_label);
@@ -125,13 +125,19 @@ export default function AdminPayoutsScreen() {
             <View style={styles.avatar}><Text style={styles.avatarText}>{item.penName.slice(0, 1).toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.author}>{item.penName}</Text>
-              <Text style={styles.amount}>{formatRevenueCoins(item.amount_coins)} đơn vị đối soát</Text>
+              <Text style={styles.amount}>{item.requested_vnd == null ? 'Dữ liệu cũ chờ đối soát' : formatVnd(item.requested_vnd)}</Text>
               <Text style={styles.rowSub}>{new Date(item.requested_at).toLocaleString('vi-VN')}</Text>
             </View>
             <StatusPill status={item.status} />
           </View>
 
           <View style={styles.infoBox}>
+            <InfoLine label="Phí rút" value={item.fee_vnd == null ? 'Chưa chốt' : formatVnd(item.fee_vnd)} />
+            <InfoLine label="Thực nhận" value={item.net_vnd == null ? 'Chưa chốt' : formatVnd(item.net_vnd)} />
+            <InfoLine label="Nơi nhận đã chốt" value={payoutSnapshot(item.request_snapshot).destination_label || 'Chưa thiết lập'} />
+            <InfoLine label="Phương thức đã chốt" value={payoutSnapshot(item.request_snapshot).payout_method || 'Chưa thiết lập'} />
+            <InfoLine label="KYC khi yêu cầu" value={complianceStatusLabel(payoutSnapshot(item.request_snapshot).kyc_status)} />
+            <InfoLine label="Thuế khi yêu cầu" value={complianceStatusLabel(payoutSnapshot(item.request_snapshot).tax_status)} />
             <InfoLine label="Phương thức" value={payoutProfile?.payout_method || 'Chưa thiết lập'} />
             <InfoLine label="Nơi nhận" value={payoutProfile?.destination_label || 'Chưa thiết lập'} />
             <InfoLine label="KYC" value={complianceStatusLabel(payoutProfile?.kyc_status)} />
@@ -190,7 +196,7 @@ export default function AdminPayoutsScreen() {
                 onPress={() => run(item.id, () => adminReviewPayout({ payoutId: item.id, action: 'cancel', note: 'Quản trị từ chối/hủy yêu cầu' }), 'Đã hủy yêu cầu rút.')}
                 style={[styles.cancelButton, busy && styles.disabled]}
               >
-                <Text style={styles.cancelText}>Hủy</Text>
+                <Text style={styles.cancelText}>Từ chối</Text>
               </Pressable>
             </View>
             {!canApprove ? <Text style={styles.help}>Để duyệt: cần KYC đạt, thuế đạt/không yêu cầu và tác giả đã lưu nơi nhận.</Text> : null}

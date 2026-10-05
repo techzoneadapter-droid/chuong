@@ -1,3 +1,4 @@
+import { WholeBookPricing } from '../../../components/WholeBookPricing';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -199,6 +200,7 @@ export default function AdminCatalogBookScreen() {
       </View>
       <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Khuyến nghị bìa đẹp nhất</Text><Text style={styles.coverGuideText}>Tỷ lệ 2:3 · 1200 × 1800 px là đẹp nhất · tối thiểu 800 × 1200 px · dung lượng lý tưởng 300 KB – 1.5 MB · tối đa 5 MB. Ưu tiên WebP hoặc JPG chất lượng cao.</Text></View>
 
+      <WholeBookPricing book={book} onSaved={load} />
       <Text style={styles.sectionTitle}>Trạng thái truyện</Text>
       <View style={styles.statusCard}>
         {([

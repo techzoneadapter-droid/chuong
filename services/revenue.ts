@@ -71,7 +71,7 @@ export async function getAuthorRevenueDashboard(authorId: string): Promise<Reven
     const titleMap = new Map((books ?? []).map((book) => [book.id, book.title]));
     const reservedPayoutCoins = (payouts ?? [])
       .filter((item) => item.status === 'pending' || item.status === 'approved')
-      .reduce((sum, item) => sum + item.amount_coins, 0);
+      .reduce((sum, item) => sum + (item.amount_coins ?? 0), 0);
     const availablePayoutCoins = Math.max(
       0,
       account.author_earnings_coins

@@ -8,12 +8,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState, RetryState } from '../../components/States';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAuthorForUser } from '../../services/authors';
-import { formatRevenueCoins, getAuthorRevenueDashboard, RevenueDashboard, sharePercent } from '../../services/revenue';
+import { formatVnd, getVndDashboard, VndDashboard } from '../../services/vndRevenue';
 
 export default function AuthorRevenueScreen() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [data, setData] = useState<RevenueDashboard | null>(null);
+  const [data, setData] = useState<VndDashboard | null>(null);
   const [penName, setPenName] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,7 +34,7 @@ export default function AuthorRevenueScreen() {
         return;
       }
       setPenName(author.penName);
-      setData(await getAuthorRevenueDashboard(author.id));
+      setData(await getVndDashboard(author.id));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể tải doanh thu.');
     } finally {
@@ -48,11 +48,6 @@ export default function AuthorRevenueScreen() {
   if (loading && !data) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải doanh thu tác giả…" /></SafeAreaView>;
   if (error && !data) return <SafeAreaView style={styles.safe}><RetryState detail={error} onRetry={() => load()} /></SafeAreaView>;
   if (!data) return null;
-
-  const account = data.account;
-  const policyPercent = sharePercent(data.policy?.author_share_bps);
-  const netGross = Math.max(0, account.gross_sales_coins + account.gross_gifts_coins - account.refunded_coins);
-  const netAuthorEarnings = Math.max(0, account.author_earnings_coins - account.refunded_earnings_coins);
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.topbar}>
@@ -68,10 +63,11 @@ export default function AuthorRevenueScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <AuthorGiftDashboard />
+      {!data.policy.high_stone_value_vnd ? <Text style={styles.error}>Chưa cấu hình tỷ giá thanh toán</Text> : null}
       <View style={styles.hero}>
-        <Text style={styles.heroKicker}>CÓ THỂ ĐỐI SOÁT</Text>
-        <Text style={styles.heroValue}>{formatRevenueCoins(data.availablePayoutCoins)} đơn vị đối soát</Text>
-        <Text style={styles.heroBody}>Số này là phần còn có thể tạo yêu cầu rút sau hoàn tiền, khoản đã thanh toán và {formatRevenueCoins(data.reservedPayoutCoins)} đơn vị đối soát đang được giữ cho yêu cầu chờ xử lý. Đây chưa phải số tiền VND thực nhận.</Text>
+        <Text style={styles.heroKicker}>TỔNG DOANH THU</Text>
+        <Text style={styles.heroValue}>{formatVnd(data.total_vnd)}</Text>
+        <Text style={styles.heroBody}>Doanh thu đã chốt bằng VND. App VIP không tạo doanh thu tác giả.</Text>
       </View>
       <Pressable style={styles.payoutCta} onPress={() => router.push('/author/payout')}>
         <View style={styles.payoutCtaIcon}><Ionicons name="cash-outline" size={20} color="#8F1D3F" /></View>
@@ -80,53 +76,33 @@ export default function AuthorRevenueScreen() {
       </Pressable>
 
       <View style={styles.grid}>
-        <Metric label="Mở khóa" value={account.gross_sales_coins} />
-        <Metric label="Quà độc giả" value={account.gross_gifts_coins} />
-        <Metric label="Đã hoàn" value={account.refunded_coins} />
-        <Metric label="Doanh thu ròng" value={netGross} />
-        <Metric label="Phần tác giả" value={netAuthorEarnings} />
-        <Metric label="Đã đối soát" value={account.paid_out_coins} />
-        <Metric label="Còn đối soát" value={data.availablePayoutCoins} />
+        <Metric label="Có thể rút" value={data.available_payout_vnd} />
+        <Metric label="Đã thanh toán" value={data.paid_vnd} />
+        <Metric label="Đang giữ cho yêu cầu rút" value={data.reserved_vnd} />
+        <Metric label="Mở khóa chương" value={data.breakdown.chapter_unlock ?? 0} />
+        <Metric label="Mở khóa cả truyện" value={data.breakdown.book_unlock ?? 0} />
+        <Metric label="Quà độc giả" value={data.breakdown.author_gift ?? 0} />
       </View>
-
-      <View style={[styles.policy, data.policy ? styles.policyActive : styles.policyInactive]}>
-        <Ionicons name={data.policy ? 'pie-chart-outline' : 'alert-circle-outline'} size={20} color="#8F1D3F" />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.policyTitle}>{data.policy ? `Tỷ lệ tác giả đang áp dụng: ${policyPercent}%` : 'Chưa kích hoạt tỷ lệ chia doanh thu'}</Text>
-          <Text style={styles.policyBody}>{data.policy ? 'Mỗi giao dịch mới chụp lại tỷ lệ tại thời điểm mua để lịch sử không bị thay đổi khi chính sách đổi.' : 'Giao dịch vẫn có thể ghi nhận doanh thu gộp, nhưng phần tác giả chưa được phân bổ cho đến khi quản trị kích hoạt chính sách.'}</Text>
-          {data.unallocatedGrossCoins !== 0 ? <Text style={styles.unallocated}>Chưa phân bổ theo chính sách: {formatRevenueCoins(data.unallocatedGrossCoins)} đơn vị đối soát</Text> : null}
-        </View>
-      </View>
-
+      <View style={[styles.policy, styles.policyActive]}><View style={{ flex: 1 }}>
+        <Text style={styles.policyTitle}>Đang đối soát · {data.pending_count} giao dịch</Text>
+        <Text style={styles.policyBody}>Hạ Phẩm chờ đối soát: {Number(data.pending_low_stones).toLocaleString('vi-VN')}. Giá trị VND chưa chốt; chưa tính vào Có thể rút.</Text>
+        {data.debt_vnd > 0 ? <Text style={styles.unallocated}>Điều chỉnh sau hoàn tiền: {formatVnd(data.debt_vnd)}</Text> : null}
+      </View></View>
       <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Giao dịch gần đây</Text><Text style={styles.sectionMeta}>{data.ledger.length} mục</Text></View>
-      {!data.ledger.length ? <EmptyCopy text="Chưa có giao dịch mở khóa, quà tặng hoặc hoàn tiền." /> : data.ledger.map((item) => {
-        const sale = item.type === 'sale';
-        const gift = item.type === 'gift';
-        const positive = sale || gift;
-        return <View key={item.id} style={styles.row}>
-          <View style={[styles.rowIcon, positive ? styles.saleIcon : styles.refundIcon]}><Ionicons name={gift ? 'gift-outline' : sale ? 'trending-up' : 'return-down-back'} size={17} color={positive ? '#47704D' : '#9B2946'} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{item.bookTitle || 'Truyện CHƯƠNG'}</Text>
-            <Text style={styles.rowSub}>{gift ? 'Quà độc giả' : item.description || (sale ? 'Mở khóa nội dung' : 'Hoàn tiền')} · {new Date(item.created_at).toLocaleString('vi-VN')}</Text>
-            <Text style={styles.rowSub}>Phần tác giả: {item.author_share_bps == null ? 'chưa phân bổ' : `${formatRevenueCoins(item.author_earnings_coins)} ${spiritCurrencyLabel(item.currency_type)} (${sharePercent(item.author_share_bps)}%)`}</Text>
-          </View>
-          <Text style={[styles.amount, positive ? styles.positive : styles.negative]}>{item.gross_coins > 0 ? '+' : ''}{formatRevenueCoins(item.gross_coins)} {spiritCurrencyLabel(item.currency_type)}</Text>
-        </View>;
-      })}
-
-      <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Lịch sử đối soát</Text><Text style={styles.sectionMeta}>{data.payouts.length} mục</Text></View>
-      {!data.payouts.length ? <EmptyCopy text="Chưa có khoản thanh toán tác giả nào được ghi nhận." /> : data.payouts.map((item) => <View key={item.id} style={styles.row}>
-        <View style={[styles.rowIcon, styles.saleIcon]}><Ionicons name="cash-outline" size={17} color="#47704D" /></View>
-        <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{formatRevenueCoins(item.amount_coins)} đơn vị đối soát</Text><Text style={styles.rowSub}>{item.status === 'paid' ? 'Đã ghi nhận thanh toán' : item.status} · {new Date(item.created_at).toLocaleString('vi-VN')}</Text>{item.external_reference ? <Text style={styles.rowSub}>Mã đối soát: {item.external_reference}</Text> : null}</View>
+      {!data.ledger.length ? <EmptyCopy text="Chưa có giao dịch mở khóa, quà tặng hoặc hoàn tiền." /> : data.ledger.map((item) => <View key={item.id} style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowTitle}>{item.author_earnings_vnd == null ? 'Đang đối soát' : `${item.author_earnings_vnd >= 0 ? '+' : ''}${formatVnd(item.author_earnings_vnd)}`}</Text>
+          <Text style={styles.rowSub}>{item.description || (item.source_type === 'author_gift' ? 'Quà độc giả' : item.source_type === 'book_unlock' ? 'Mở khóa cả truyện' : 'Mở khóa chương')}</Text>
+          <Text style={styles.rowSub}>{spiritCurrencyLabel(item.currency_type)} · {new Date(item.created_at).toLocaleString('vi-VN')}{item.settlement_status === 'legacy_pending_settlement' ? ' · Dữ liệu cũ chờ đối soát' : ''}</Text>
+        </View>
       </View>)}
 
-      <View style={styles.notice}><Ionicons name="information-circle-outline" size={19} color="#8F1D3F" /><Text style={styles.noticeText}>CHƯƠNG hiện chỉ xây sổ doanh thu và đối soát. Chức năng rút tiền thật chưa được bật cho tới khi hoàn thiện chính sách thanh toán, thuế, KYC và phương thức payout.</Text></View>
     </ScrollView>
   </SafeAreaView>;
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
-  return <View style={styles.metric}><Text style={styles.metricValue}>{formatRevenueCoins(value)} đơn vị đối soát</Text><Text style={styles.metricLabel}>{label}</Text></View>;
+  return <View style={styles.metric}><Text style={styles.metricValue}>{formatVnd(value)}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
 }
 
 function EmptyCopy({ text }: { text: string }) {

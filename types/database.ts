@@ -1,3 +1,16 @@
+export type VndPolicy = {
+ id: string; high_stone_value_vnd: number | null; chapter_author_bps: number; book_author_bps: number;
+ gift_author_bps: number; low_creator_pool_bps: number; app_vip_author_bps: number;
+ minimum_withdrawal_vnd: number; withdrawal_fee_vnd: number; created_by: string | null; created_at: string;
+};
+export type VndLedger = {
+ id: string; author_id: string; user_id: string | null; source_type: 'chapter_unlock' | 'book_unlock' | 'author_gift';
+ source_reference_id: string; currency_type: 'low' | 'high'; stones_spent: number;
+ settlement_period_id: string | null; entry_type: 'sale' | 'settlement' | 'reversal'; original_id: string | null; payout_policy_id: string | null;
+ stone_value_vnd_snapshot: number | null; gross_value_vnd: number | null; author_share_bps_snapshot: number | null;
+ author_earnings_vnd: number | null; platform_earnings_vnd: number | null;
+ settlement_status: 'settled' | 'pending_settlement' | 'legacy_pending_settlement'; description: string | null; created_at: string;
+};
 export type Json =
   | string
   | number
@@ -14,6 +27,8 @@ export type Database = {
   }
   public: {
     Tables: {
+      author_payout_policies: { Row: VndPolicy; Insert: Partial<VndPolicy>; Update: Partial<VndPolicy>; Relationships: [] }
+      author_vnd_ledger: { Row: VndLedger; Insert: Partial<VndLedger>; Update: Partial<VndLedger>; Relationships: [] }
       author_follows: {
         Row: {
           author_id: string
@@ -103,7 +118,11 @@ export type Database = {
       }
       author_payouts: {
         Row: {
-          amount_coins: number
+          requested_vnd: number | null
+          fee_vnd: number | null
+          net_vnd: number | null
+          payout_policy_id: string | null
+          amount_coins: number | null
           author_id: string
           created_at: string
           external_reference: string | null
@@ -121,7 +140,11 @@ export type Database = {
           status: Database["public"]["Enums"]["author_payout_status"]
         }
         Insert: {
-          amount_coins: number
+          requested_vnd?: number | null
+          fee_vnd?: number | null
+          net_vnd?: number | null
+          payout_policy_id?: string | null
+          amount_coins: number | null
           author_id: string
           created_at?: string
           external_reference?: string | null
@@ -139,7 +162,11 @@ export type Database = {
           status?: Database["public"]["Enums"]["author_payout_status"]
         }
         Update: {
-          amount_coins?: number
+          requested_vnd?: number | null
+          fee_vnd?: number | null
+          net_vnd?: number | null
+          payout_policy_id?: string | null
+          amount_coins?: number | null
           author_id?: string
           created_at?: string
           external_reference?: string | null
@@ -2409,6 +2436,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_author_vnd_dashboard: { Args: { p_author_id: string }; Returns: Json }
+      author_request_payout_vnd: { Args: { p_requested_vnd: number; p_note: string; p_idempotency_key: string }; Returns: Database['public']['Tables']['author_payouts']['Row'] }
+      admin_set_author_payout_policy: { Args: { p_high_stone_value_vnd: number | null; p_chapter_bps: number; p_book_bps: number; p_gift_bps: number; p_low_pool_bps: number; p_minimum_vnd: number; p_fee_vnd: number }; Returns: VndPolicy }
+      admin_settle_author_period: { Args: { p_start: string; p_end: string; p_actual_pool_vnd: number }; Returns: string }
       admin_adjust_wallet_currency: {
         Args: { p_user_id: string; p_amount: number; p_reason: string; p_idempotency_key: string | null; p_currency_type: "low" | "high" }
         Returns: { balance_coins: number; transaction_id: string }[]

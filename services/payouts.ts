@@ -1,3 +1,4 @@
+import { getVndDashboard, VndDashboard } from './vndRevenue';
 import { requireSupabase } from '../lib/supabase';
 import { Tables } from '../types/database';
 import { toServiceError } from './errors';
@@ -9,9 +10,9 @@ export type AuthorRevenueAccount = Tables<'author_revenue_accounts'>;
 export type AuthorPayoutWorkspace = {
   profile: AuthorPayoutProfile | null;
   payouts: AuthorPayout[];
-  account: AuthorRevenueAccount;
-  reservedCoins: number;
-  requestableCoins: number;
+  revenue: VndDashboard;
+  reservedVnd: number;
+  requestableVnd: number;
 };
 
 export type AdminPayoutQueueItem = AuthorPayout & {
@@ -25,37 +26,17 @@ export async function getAuthorPayoutWorkspace(authorId: string): Promise<Author
     const [
       { data: profile, error: profileError },
       { data: payouts, error: payoutsError },
-      { data: account, error: accountError },
     ] = await Promise.all([
       client.from('author_payout_profiles').select('*').eq('author_id', authorId).maybeSingle(),
       client.from('author_payouts').select('*').eq('author_id', authorId).order('requested_at', { ascending: false }).limit(100),
-      client.from('author_revenue_accounts').select('*').eq('author_id', authorId).single(),
     ]);
 
     if (profileError) throw profileError;
     if (payoutsError) throw payoutsError;
-    if (accountError) throw accountError;
 
     const rows = payouts ?? [];
-    const reservedCoins = rows
-      .filter((item) => item.status === 'pending' || item.status === 'approved')
-      .reduce((sum, item) => sum + item.amount_coins, 0);
-
-    const requestableCoins = Math.max(
-      0,
-      account.author_earnings_coins
-        - account.refunded_earnings_coins
-        - account.paid_out_coins
-        - reservedCoins
-    );
-
-    return {
-      profile,
-      payouts: rows,
-      account,
-      reservedCoins,
-      requestableCoins,
-    };
+    const revenue = await getVndDashboard(authorId);
+    return { profile, payouts: rows, revenue, reservedVnd: revenue.reserved_vnd, requestableVnd: revenue.available_payout_vnd };
   } catch (error) {
     throw toServiceError(error, 'Không thể tải yêu cầu rút doanh thu.');
   }
@@ -74,12 +55,13 @@ export async function updateAuthorPayoutProfile(input: {
 }
 
 export async function requestAuthorPayout(input: {
-  amountCoins: number;
+  requestedVnd: number;
   note?: string;
   idempotencyKey: string;
 }) {
-  const { data, error } = await requireSupabase().rpc('author_request_payout', {
-    p_amount_coins: Math.trunc(input.amountCoins),
+  if (!Number.isSafeInteger(input.requestedVnd) || input.requestedVnd <= 0) throw new Error('Số tiền rút không hợp lệ.');
+  const { data, error } = await requireSupabase().rpc('author_request_payout_vnd', {
+    p_requested_vnd: input.requestedVnd,
     p_note: input.note?.trim() || '',
     p_idempotency_key: input.idempotencyKey,
   });

@@ -91,7 +91,8 @@ export type AuthorGiftDashboard = {
 export async function getMyAuthorGifts(): Promise<AuthorGiftDashboard> {
   const { data, error } = await requireSupabase().rpc('get_my_author_gifts');
   if (error) throw toServiceError(error, 'Không thể tải quà tác giả.');
-  return data as unknown as AuthorGiftDashboard;
+  const result = data as unknown as AuthorGiftDashboard | null;
+  return { totalHigh: Number(result?.totalHigh ?? 0), totalLow: Number(result?.totalLow ?? 0), count: Number(result?.count ?? 0), recent: result?.recent ?? [] };
 }
 
 export async function getAuthorGiftTarget(userId: string) {
