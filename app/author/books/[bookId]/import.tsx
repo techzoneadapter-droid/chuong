@@ -13,6 +13,7 @@ import { importAuthorParsedBook } from '../../../../services/authorImport';
 import { getAuthorForUser, getMyBooks } from '../../../../services/authors';
 import { messageForError } from '../../../../services/errors';
 import { getPremiumAiStatus, PremiumStatus, runWholeBookTranslation } from '../../../../services/premiumAi';
+import { buildLocalScheduleIso, defaultScheduleFields, scheduleBookChapters } from '../../../../services/publishingSchedule';
 import { removeBookCover, replaceBookCover } from '../../../../services/storage';
 import { setAuthorBookStatus, updateBook } from '../../../../services/books';
 import { Book, BookStatus } from '../../../../types';
@@ -29,6 +30,10 @@ export default function AuthorImportBookScreen() {
   const [paste, setPaste] = useState('');
   const [publish, setPublish] = useState(false);
   const [publishStatus, setPublishStatus] = useState<Exclude<BookStatus, 'draft'>>('ongoing');
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [schedulePerDay, setSchedulePerDay] = useState(1);
+  const [scheduleDate, setScheduleDate] = useState(() => defaultScheduleFields().date);
+  const [scheduleTime, setScheduleTime] = useState(() => defaultScheduleFields().time);
   const [isVip, setIsVip] = useState(false);
   const [priceCoins, setPriceCoins] = useState(0);
   const [useAi, setUseAi] = useState(false);
@@ -176,9 +181,22 @@ export default function AuthorImportBookScreen() {
       setError(`Có ${audit.emptyIndexes.length} chương rỗng. Hãy loại bỏ hoặc sửa trước khi nhập.`);
       return;
     }
-    if (publish && audit.shortIndexes.length) {
-      setError(`Có ${audit.shortIndexes.length} chương quá ngắn. Hãy tắt “Xuất bản ngay” hoặc xử lý trước khi nhập.`);
+    if ((publish || scheduleEnabled) && audit.shortIndexes.length) {
+      setError(`Có ${audit.shortIndexes.length} chương quá ngắn. Hãy giữ bản nháp hoặc xử lý trước khi xuất bản/hẹn đăng.`);
       return;
+    }
+    let scheduleStartIso = '';
+    if (scheduleEnabled) {
+      try {
+        scheduleStartIso = buildLocalScheduleIso(scheduleDate.trim(), scheduleTime.trim());
+      } catch (cause) {
+        setError(messageForError(cause, 'Thời gian hẹn đăng không hợp lệ.'));
+        return;
+      }
+      if (!Number.isInteger(schedulePerDay) || schedulePerDay < 1 || schedulePerDay > 24) {
+        setError('Số chương mỗi ngày phải từ 1 đến 24.');
+        return;
+      }
     }
     if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) {
       setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
@@ -200,21 +218,38 @@ export default function AuthorImportBookScreen() {
       setProgress(`Đang nhập ${selected.chapters.length} chương vào “${book.title}”…`);
       await updateBook(book.id, { is_vip: isVip, price_coins: isVip ? priceCoins : 0 });
       setBook((current) => current ? { ...current, isVip, price: isVip ? priceCoins : 0 } : current);
-      const imported = await importAuthorParsedBook(book.id, selected, { publish: useAi ? false : publish });
+      const imported = await importAuthorParsedBook(book.id, selected, { publish: useAi || scheduleEnabled ? false : publish });
 
-      if (!useAi && publish) {
+      if (!useAi && publish && !scheduleEnabled) {
         await setAuthorBookStatus(book.id, publishStatus);
         setBook((current) => current ? { ...current, backendStatus: publishStatus, visibility: 'public', status: publishStatus === 'ongoing' ? 'Đang ra' : publishStatus === 'completed' ? 'Đã hoàn thành' : 'Tạm dừng / Drop' } : current);
       }
 
+      let aiCompleted = 0;
       if (useAi) {
         setProgress(`Đã nhập ${imported.imported} chương. Đang AI biên dịch theo văn phong ${book.genre || 'tiểu thuyết'}…`);
         const job = await runWholeBookTranslation(book.id, book.genre || 'Tiểu thuyết', (current) => {
           setProgress(`AI đang xử lý ${current.completedChapters}/${current.totalChapters} chương · ${book.genre || 'Tiểu thuyết'}`);
         });
-        setSuccess(`Hoàn tất AI dịch toàn truyện: ${job.completedChapters}/${job.totalChapters} chương. Các chương vẫn giữ trạng thái nháp để bạn kiểm tra trước khi xuất bản.`);
+        aiCompleted = job.completedChapters;
+      }
+
+      const statusLabel = publishStatus === 'completed' ? 'Hoàn thành' : publishStatus === 'paused' ? 'Tạm dừng / Drop' : 'Đang ra';
+      if (scheduleEnabled) {
+        setProgress(`Đang hẹn lịch ${imported.imported} chương · ${schedulePerDay} chương/ngày…`);
+        const schedule = await scheduleBookChapters(book.id, imported.chapterNumbers, scheduleStartIso, schedulePerDay, publishStatus);
+        const first = schedule[0]?.scheduledPublishAt;
+        const last = schedule[schedule.length - 1]?.scheduledPublishAt;
+        setSuccess(
+          `Đã hẹn đăng ${schedule.length} chương · ${schedulePerDay} chương/ngày.`
+          + (first ? `\nChương đầu: ${new Date(first).toLocaleString('vi-VN')}` : '')
+          + (last ? `\nChương cuối: ${new Date(last).toLocaleString('vi-VN')}` : '')
+          + `\nSau chương cuối, trạng thái truyện: ${statusLabel}.`
+          + (useAi ? `\nAI đã xử lý xong ${aiCompleted} chương trước khi xếp lịch.` : '')
+        );
+      } else if (useAi) {
+        setSuccess(`Hoàn tất AI dịch toàn truyện: ${aiCompleted}/${imported.imported} chương. Các chương vẫn giữ trạng thái nháp để bạn kiểm tra trước khi xuất bản.`);
       } else {
-        const statusLabel = publishStatus === 'completed' ? 'Hoàn thành' : publishStatus === 'paused' ? 'Tạm dừng / Drop' : 'Đang ra';
         setSuccess(`Đã nhập thành công ${imported.imported} chương ${publish ? `và công khai truyện ở trạng thái “${statusLabel}”.` : 'dưới dạng bản nháp.'}`);
       }
       setProgress('');
@@ -352,7 +387,7 @@ export default function AuthorImportBookScreen() {
         {!useAi ? <>
           <View style={styles.publishRow}>
             <View style={{ flex: 1 }}><Text style={styles.optionTitle}>Xuất bản ngay sau khi nhập</Text><Text style={styles.optionBody}>Tắt: giữ chương ở bản nháp. Bật: xuất bản chương và công khai truyện theo trạng thái bạn chọn.</Text></View>
-            <Switch value={publish} onValueChange={setPublish} trackColor={{ false: '#D7CFC1', true: '#77988A' }} thumbColor={publish ? xianxia.jadeDeep : '#FFF8EA'} />
+            <Switch value={publish} onValueChange={(value) => { setPublish(value); if (value) setScheduleEnabled(false); }} trackColor={{ false: '#D7CFC1', true: '#77988A' }} thumbColor={publish ? xianxia.jadeDeep : '#FFF8EA'} />
           </View>
           {publish ? <View style={styles.publishStatusBox}>
             <Text style={styles.publishStatusTitle}>Trạng thái truyện sau khi đăng</Text>
@@ -371,13 +406,48 @@ export default function AuthorImportBookScreen() {
             </View>
             <Text style={styles.publishStatusHint}>Bạn có thể đổi lại trạng thái này bất cứ lúc nào trong màn Quản lý chương.</Text>
           </View> : null}
-        </> : <Text style={styles.aiDraftNote}>Khi dùng AI, tất cả chương được giữ ở bản nháp sau khi dịch để tác giả kiểm tra rồi mới xuất bản.</Text>}
+        </> : <Text style={styles.aiDraftNote}>{scheduleEnabled ? 'AI sẽ xử lý xong toàn bộ chương trước, sau đó hệ thống mới xếp lịch đăng.' : 'Khi dùng AI, tất cả chương được giữ ở bản nháp sau khi dịch để tác giả kiểm tra rồi mới xuất bản.'}</Text>}
+
+        <View style={styles.scheduleCard}>
+          <View style={styles.scheduleHead}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.scheduleTitle}>Hẹn lịch đăng tự động</Text>
+              <Text style={styles.scheduleBody}>Tải hàng loạt một lần rồi để CHƯƠNG tự đăng theo nhịp bạn chọn. Ví dụ 1 chương/ngày hoặc 2 chương/ngày.</Text>
+            </View>
+            <Switch value={scheduleEnabled} onValueChange={(value) => { setScheduleEnabled(value); if (value) setPublish(false); }} trackColor={{ false: '#D7CFC1', true: '#77988A' }} thumbColor={scheduleEnabled ? xianxia.jadeDeep : '#FFF8EA'} />
+          </View>
+          {scheduleEnabled ? <>
+            <View style={styles.scheduleFields}>
+              <View style={styles.scheduleField}><Text style={styles.scheduleLabel}>Ngày bắt đầu</Text><TextInput value={scheduleDate} onChangeText={setScheduleDate} placeholder="YYYY-MM-DD" placeholderTextColor="#9B9185" style={styles.scheduleInput} /></View>
+              <View style={styles.scheduleField}><Text style={styles.scheduleLabel}>Giờ bắt đầu</Text><TextInput value={scheduleTime} onChangeText={setScheduleTime} placeholder="20:00" placeholderTextColor="#9B9185" style={styles.scheduleInput} /></View>
+              <View style={styles.scheduleField}><Text style={styles.scheduleLabel}>Chương / ngày</Text><TextInput value={String(schedulePerDay)} onChangeText={(value) => setSchedulePerDay(Math.max(1, Math.min(24, Number(value.replace(/\D/g, '')) || 1)))} keyboardType="number-pad" style={styles.scheduleInput} /></View>
+            </View>
+            <View style={styles.rateChips}>
+              {[1, 2, 3, 4, 6].map((value) => <Pressable key={value} onPress={() => setSchedulePerDay(value)} style={[styles.rateChip, schedulePerDay === value && styles.rateChipActive]}><Text style={[styles.rateChipText, schedulePerDay === value && styles.rateChipTextActive]}>{value}/ngày</Text></Pressable>)}
+            </View>
+            <Text style={styles.scheduleHint}>Các chương được giãn đều trong 24 giờ. Ví dụ 2 chương/ngày = cách nhau khoảng 12 giờ. Truyện nháp sẽ chỉ công khai khi chương đầu tiên đến giờ đăng.</Text>
+            <Text style={styles.publishStatusTitle}>Trạng thái truyện sau chương cuối</Text>
+            <View style={styles.publishStatusRow}>
+              {([
+                ['ongoing', 'Đang ra', 'radio-outline'],
+                ['completed', 'Hoàn thành', 'checkmark-done-outline'],
+                ['paused', 'Tạm dừng / Drop', 'pause-circle-outline'],
+              ] as const).map(([value, label, icon]) => {
+                const active = publishStatus === value;
+                return <Pressable key={value} onPress={() => setPublishStatus(value)} style={[styles.publishStatusChip, active && styles.publishStatusChipActive]}>
+                  <Ionicons name={icon} size={15} color={active ? xianxia.goldSoft : xianxia.jadeDeep} />
+                  <Text style={[styles.publishStatusText, active && styles.publishStatusTextActive]}>{label}</Text>
+                </Pressable>;
+              })}
+            </View>
+          </> : null}
+        </View>
       </View>
 
       <Pressable disabled={!selected || busy} style={[styles.primary, (!selected || busy) && styles.disabled]} onPress={startImport}>
         <ButtonArt />
         <Ionicons name={useAi ? 'sparkles' : 'cloud-upload-outline'} size={18} color={xianxia.goldSoft} />
-        <Text style={styles.primaryText}>{busy ? 'Đang xử lý…' : useAi ? 'Tải lên + AI dịch toàn truyện' : 'Nhập truyện'}</Text>
+        <Text style={styles.primaryText}>{busy ? 'Đang xử lý…' : scheduleEnabled ? (useAi ? 'Tải lên + AI + hẹn lịch' : 'Tải lên + hẹn lịch đăng') : useAi ? 'Tải lên + AI dịch toàn truyện' : 'Nhập truyện'}</Text>
       </Pressable>
 
       <View style={styles.safety}>
@@ -466,6 +536,20 @@ const styles = StyleSheet.create({
   vipPriceInput: { width: 84, height: 36, borderRadius: 9, borderWidth: 1, borderColor: '#D8C6A0', backgroundColor: '#FFFDF7', textAlign: 'center', color: '#5D431D', fontWeight: '900' },
   vipUnit: { color: '#7E6C51', fontSize: 8, fontWeight: '800' },
   vipHint: { color: '#8A795F', fontSize: 7.8, lineHeight: 12, marginTop: 7 },
+  scheduleCard: { marginTop: 14, paddingTop: 13, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: xianxia.line },
+  scheduleHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  scheduleTitle: { color: xianxia.ink, fontSize: 11, fontWeight: '900' },
+  scheduleBody: { color: xianxia.muted, fontSize: 8.5, lineHeight: 13, marginTop: 4 },
+  scheduleFields: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 11 },
+  scheduleField: { flexGrow: 1, minWidth: 118 },
+  scheduleLabel: { color: xianxia.inkSoft, fontSize: 7.8, fontWeight: '900', marginBottom: 5 },
+  scheduleInput: { height: 38, borderRadius: 10, borderWidth: 1, borderColor: '#BFD0C4', backgroundColor: '#FFFDF7', paddingHorizontal: 9, color: xianxia.ink, fontSize: 9.5, fontWeight: '800' },
+  rateChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9 },
+  rateChip: { minHeight: 32, borderRadius: 9, borderWidth: 1, borderColor: '#BED0C3', backgroundColor: xianxia.jadeMist, paddingHorizontal: 9, alignItems: 'center', justifyContent: 'center' },
+  rateChipActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.gold },
+  rateChipText: { color: xianxia.jadeDeep, fontSize: 7.8, fontWeight: '900' },
+  rateChipTextActive: { color: '#FFF8EA' },
+  scheduleHint: { color: xianxia.muted, fontSize: 8, lineHeight: 12, marginTop: 8, marginBottom: 10 },
   publishStatusBox: { marginTop: 10, borderRadius: 13, padding: 11, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
   publishStatusTitle: { color: xianxia.ink, fontSize: 9.5, fontWeight: '900', marginBottom: 8 },
   publishStatusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
