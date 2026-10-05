@@ -15,7 +15,9 @@ export interface Chapter {
   date: string;
   relativeDate: string;
   access: ChapterAccess;
+  configuredVip?: boolean;
   priceCoins?: number;
+  earlyAccessUntil?: string | null;
   status?: ChapterStatus;
   publishedAt?: string | null;
   updatedAt?: string | null;
@@ -135,6 +137,7 @@ export interface ChapterInput {
   status: ChapterStatus;
   isVip: boolean;
   priceCoins: number;
+  earlyAccessUntil?: string | null;
 }
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
