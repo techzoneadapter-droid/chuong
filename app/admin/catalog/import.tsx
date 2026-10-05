@@ -19,6 +19,7 @@ import {
 } from '../../../services/adminCatalog';
 import { parseAdminImportFile, parseAdminImportPaste, ParsedImportBook } from '../../../services/adminImport';
 import { messageForError } from '../../../services/errors';
+import { buildLocalScheduleIso, defaultScheduleFields, scheduleBookChapters } from '../../../services/publishingSchedule';
 import { replaceBookCover } from '../../../services/storage';
 import { BookStatus, SourceType } from '../../../types';
 
@@ -42,6 +43,10 @@ export default function AdminBulkImportScreen() {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [publish, setPublish] = useState(false);
   const [publishStatus, setPublishStatus] = useState<Exclude<BookStatus, 'draft'>>('ongoing');
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [schedulePerDay, setSchedulePerDay] = useState(1);
+  const [scheduleDate, setScheduleDate] = useState(() => defaultScheduleFields().date);
+  const [scheduleTime, setScheduleTime] = useState(() => defaultScheduleFields().time);
   const [isVip, setIsVip] = useState(false);
   const [priceCoins, setPriceCoins] = useState(0);
   const [pasteTitle, setPasteTitle] = useState('');
@@ -153,6 +158,22 @@ export default function AdminBulkImportScreen() {
     const invalid = selected.find((item) => item.title.trim().length < 2 || !item.chapters.length);
     if (invalid) return setError(`“${invalid.title || invalid.sourceName}” chưa đủ tên truyện hoặc chương.`);
 
+    if ((publish || scheduleEnabled) && selected.some((item) => item.chapters.some((chapter) => chapter.content.trim().length < 50))) {
+      return setError('Có chương dưới 50 ký tự. Hãy giữ bản nháp hoặc xử lý trước khi xuất bản/hẹn đăng.');
+    }
+
+    let scheduleStartIso = '';
+    if (scheduleEnabled) {
+      try {
+        scheduleStartIso = buildLocalScheduleIso(scheduleDate.trim(), scheduleTime.trim());
+      } catch (cause) {
+        return setError(messageForError(cause, 'Thời gian hẹn đăng không hợp lệ.'));
+      }
+      if (!Number.isInteger(schedulePerDay) || schedulePerDay < 1 || schedulePerDay > 24) {
+        return setError('Số chương mỗi ngày phải từ 1 đến 24.');
+      }
+    }
+
     setImporting(true);
     setError('');
     setResult('');
@@ -174,12 +195,22 @@ export default function AdminBulkImportScreen() {
           isVip,
           priceCoins: isVip ? priceCoins : 0,
         });
-        await importAdminCatalogChapters(bookId, item.chapters, publish);
+        await importAdminCatalogChapters(bookId, item.chapters, publish && !scheduleEnabled);
         if (item.coverDataUri && item.coverMimeType) {
           await replaceBookCover(user.id, bookId, item.coverDataUri, item.coverMimeType);
         }
-        if (publish) await setAdminCatalogBookStatus(bookId, publishStatus);
-        imported.push(`${item.title} (${item.chapters.length} chương)`);
+        if (scheduleEnabled) {
+          await scheduleBookChapters(
+            bookId,
+            item.chapters.map((chapter) => chapter.chapterNumber),
+            scheduleStartIso,
+            schedulePerDay,
+            publishStatus,
+          );
+        } else if (publish) {
+          await setAdminCatalogBookStatus(bookId, publishStatus);
+        }
+        imported.push(`${item.title} (${item.chapters.length} chương${scheduleEnabled ? ` · hẹn ${schedulePerDay}/ngày` : ''})`);
       } catch (cause) {
         if (bookId) await deleteAdminDraftBook(bookId).catch(() => undefined);
         failed.push(`${item.title}: ${messageForError(cause, 'Nhập thất bại')}`);
@@ -187,7 +218,11 @@ export default function AdminBulkImportScreen() {
     }
 
     if (failed.length) setError(failed.join('\n'));
-    if (imported.length) setResult(`Đã nhập ${imported.length} truyện / ${imported.reduce((sum, line) => sum + Number(line.match(/\((\d+) chương\)/)?.[1] || 0), 0)} chương.\n${imported.join('\n')}`);
+    if (imported.length) setResult(
+      `Đã nhập ${imported.length} truyện / ${selected.filter((item) => imported.some((line) => line.startsWith(item.title + ' ('))).reduce((sum, item) => sum + item.chapters.length, 0)} chương.`
+      + (scheduleEnabled ? `\nLịch: ${schedulePerDay} chương/ngày · bắt đầu ${new Date(scheduleStartIso).toLocaleString('vi-VN')}.` : '')
+      + `\n${imported.join('\n')}`
+    );
     setImporting(false);
     if (imported.length && !failed.length) setCandidates([]);
   };
@@ -260,7 +295,7 @@ export default function AdminBulkImportScreen() {
         </View>
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Tắt: nhập thành bản nháp để kiểm tra. Bật: chương được xuất bản và áp dụng trạng thái bên dưới.</Text></View>
-          <Switch value={publish} onValueChange={setPublish} trackColor={{ false: '#D8CEC1', true: '#79988B' }} thumbColor={publish ? xianxia.jadeDeep : '#FFF8EA'} />
+          <Switch value={publish} onValueChange={(value) => { setPublish(value); if (value) setScheduleEnabled(false); }} trackColor={{ false: '#D8CEC1', true: '#79988B' }} thumbColor={publish ? xianxia.jadeDeep : '#FFF8EA'} />
         </View>
         {publish ? <View style={styles.publishStatusBox}>
           <Text style={styles.fieldLabel}>Trạng thái truyện sau khi xuất bản</Text>
@@ -272,6 +307,30 @@ export default function AdminBulkImportScreen() {
             ] as const).map(([value, label]) => <Pressable key={value} onPress={() => setPublishStatus(value)} style={[styles.sourceChip, publishStatus === value && styles.sourceChipActive]}><Text style={[styles.sourceText, publishStatus === value && styles.sourceTextActive]}>{label}</Text></Pressable>)}
           </View>
         </View> : null}
+
+        <View style={styles.scheduleBox}>
+          <View style={styles.switchRowPlain}>
+            <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Hẹn lịch đăng tự động</Text><Text style={styles.switchBody}>Nhập toàn bộ dưới dạng nháp, sau đó tự đăng đều 1, 2, 3… chương mỗi ngày.</Text></View>
+            <Switch value={scheduleEnabled} onValueChange={(value) => { setScheduleEnabled(value); if (value) setPublish(false); }} trackColor={{ false: '#D8CEC1', true: '#79988B' }} thumbColor={scheduleEnabled ? xianxia.jadeDeep : '#FFF8EA'} />
+          </View>
+          {scheduleEnabled ? <>
+            <View style={styles.scheduleFields}>
+              <View style={styles.scheduleField}><Text style={styles.scheduleLabel}>Ngày bắt đầu</Text><TextInput value={scheduleDate} onChangeText={setScheduleDate} placeholder="YYYY-MM-DD" placeholderTextColor="#9B9185" style={styles.scheduleInput} /></View>
+              <View style={styles.scheduleField}><Text style={styles.scheduleLabel}>Giờ</Text><TextInput value={scheduleTime} onChangeText={setScheduleTime} placeholder="20:00" placeholderTextColor="#9B9185" style={styles.scheduleInput} /></View>
+              <View style={styles.scheduleField}><Text style={styles.scheduleLabel}>Chương/ngày</Text><TextInput value={String(schedulePerDay)} onChangeText={(value) => setSchedulePerDay(Math.max(1, Math.min(24, Number(value.replace(/\D/g, '')) || 1)))} keyboardType="number-pad" style={styles.scheduleInput} /></View>
+            </View>
+            <View style={styles.rateRow}>{[1,2,3,4,6].map((value) => <Pressable key={value} onPress={() => setSchedulePerDay(value)} style={[styles.rateChip, schedulePerDay === value && styles.rateChipActive]}><Text style={[styles.rateText, schedulePerDay === value && styles.rateTextActive]}>{value}/ngày</Text></Pressable>)}</View>
+            <Text style={styles.scheduleHint}>Các chương được giãn đều trong 24 giờ. Truyện mới vẫn riêng tư cho tới thời điểm chương đầu được đăng.</Text>
+            <Text style={styles.fieldLabel}>Trạng thái truyện sau chương cuối</Text>
+            <View style={styles.sourceRow}>
+              {([
+                ['ongoing', 'Đang ra'],
+                ['completed', 'Hoàn thành'],
+                ['paused', 'Tạm dừng / Drop'],
+              ] as const).map(([value, label]) => <Pressable key={value} onPress={() => setPublishStatus(value)} style={[styles.sourceChip, publishStatus === value && styles.sourceChipActive]}><Text style={[styles.sourceText, publishStatus === value && styles.sourceTextActive]}>{label}</Text></Pressable>)}
+            </View>
+          </> : null}
+        </View>
       </View>
 
       <Text style={styles.sectionTitle}>3. Kiểm tra trước khi nhập</Text>
@@ -363,6 +422,18 @@ const styles = StyleSheet.create({
   switchRow: { marginTop: 16, minHeight: 66, borderRadius: 13, padding: 11, backgroundColor: xianxia.jadeMist, borderWidth: 1, borderColor: '#B8CBBF', flexDirection: 'row', alignItems: 'center', gap: 10 },
   switchTitle: { color: xianxia.ink, fontSize: 10.5, fontWeight: '900' },
   switchBody: { color: xianxia.muted, fontSize: 8, lineHeight: 12, marginTop: 3 },
+  scheduleBox: { marginTop: 10, padding: 11, borderRadius: 13, backgroundColor: '#EDF3EF', borderWidth: 1, borderColor: '#C6D7CC' },
+  switchRowPlain: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  scheduleFields: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 },
+  scheduleField: { flexGrow: 1, minWidth: 112 },
+  scheduleLabel: { color: xianxia.inkSoft, fontSize: 7.8, fontWeight: '900', marginBottom: 4 },
+  scheduleInput: { height: 37, borderRadius: 9, borderWidth: 1, borderColor: '#BFD0C4', backgroundColor: '#FFFDF7', paddingHorizontal: 8, color: xianxia.ink, fontSize: 9, fontWeight: '800' },
+  rateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  rateChip: { minHeight: 31, borderRadius: 9, borderWidth: 1, borderColor: '#BED0C3', backgroundColor: '#FFFDF7', paddingHorizontal: 9, alignItems: 'center', justifyContent: 'center' },
+  rateChipActive: { backgroundColor: xianxia.jadeDeep, borderColor: xianxia.gold },
+  rateText: { color: xianxia.jadeDeep, fontSize: 7.8, fontWeight: '900' },
+  rateTextActive: { color: '#FFF8EA' },
+  scheduleHint: { color: xianxia.muted, fontSize: 8, lineHeight: 12, marginTop: 8 },
   empty: { minHeight: 170, borderRadius: 17, backgroundColor: 'rgba(255,248,234,.82)', borderWidth: 1, borderColor: xianxia.line, alignItems: 'center', justifyContent: 'center', padding: 20 },
   emptyTitle: { color: xianxia.ink, fontSize: 12, fontWeight: '900', marginTop: 9 },
   emptyBody: { color: xianxia.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 5 },
