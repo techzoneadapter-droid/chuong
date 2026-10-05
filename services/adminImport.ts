@@ -14,6 +14,83 @@ export type ParsedImportBook = {
   coverMimeType?: string;
 };
 
+export type ParsedImportAudit = {
+  chapterCount: number;
+  totalWords: number;
+  emptyIndexes: number[];
+  shortIndexes: number[];
+  duplicateNumbers: number[];
+  missingNumbers: number[];
+  firstNumber: number;
+  lastNumber: number;
+};
+
+export function countImportWords(value: string) {
+  const text = value.trim();
+  return text ? text.split(/\s+/).filter(Boolean).length : 0;
+}
+
+export function auditParsedImportChapters(chapters: ParsedImportChapter[]): ParsedImportAudit {
+  const numbers = chapters.map((item) => item.chapterNumber);
+  const seen = new Set<number>();
+  const duplicateNumbers: number[] = [];
+  numbers.forEach((number) => {
+    if (seen.has(number)) duplicateNumbers.push(number);
+    seen.add(number);
+  });
+  const firstNumber = numbers.length ? Math.min(...numbers) : 0;
+  const lastNumber = numbers.length ? Math.max(...numbers) : 0;
+  const missingNumbers: number[] = [];
+  if (numbers.length) {
+    for (let number = firstNumber; number <= lastNumber; number += 1) {
+      if (!seen.has(number)) missingNumbers.push(number);
+    }
+  }
+  const emptyIndexes: number[] = [];
+  const shortIndexes: number[] = [];
+  let totalWords = 0;
+  chapters.forEach((chapter, index) => {
+    const content = chapter.content.trim();
+    const words = countImportWords(content);
+    totalWords += words;
+    if (!content) emptyIndexes.push(index);
+    else if (content.length < 50 || words < 15) shortIndexes.push(index);
+  });
+  return {
+    chapterCount: chapters.length,
+    totalWords,
+    emptyIndexes,
+    shortIndexes,
+    duplicateNumbers: [...new Set(duplicateNumbers)],
+    missingNumbers,
+    firstNumber,
+    lastNumber,
+  };
+}
+
+export function renumberImportChapters(chapters: ParsedImportChapter[], startAt = 1) {
+  const start = Math.max(1, Math.floor(startAt || 1));
+  return chapters.map((chapter, index) => ({ ...chapter, chapterNumber: start + index }));
+}
+
+export function normalizeImportChapterTitles(chapters: ParsedImportChapter[]) {
+  return chapters.map((chapter) => {
+    const cleaned = chapter.title
+      .replace(/^(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?(?:\d+|[ivxlcdm]+)\s*[:.\-–—]?\s*/i, '')
+      .replace(/^\d+\s*[:.\-–—]?\s*/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return { ...chapter, title: cleaned || `Chương ${chapter.chapterNumber}` };
+  });
+}
+
+export function removeShortImportChapters(chapters: ParsedImportChapter[]) {
+  return chapters.filter((chapter) => {
+    const content = chapter.content.trim();
+    return content.length >= 50 && countImportWords(content) >= 15;
+  });
+}
+
 type BrowserFileLike = {
   name: string;
   arrayBuffer: () => Promise<ArrayBuffer>;
