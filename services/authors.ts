@@ -41,7 +41,7 @@ export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
   const client = requireSupabase();
   const { data, error } = await client
     .from('chapters')
-    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at,updated_at')
+    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,published_at,updated_at')
     .eq('book_id', bookId)
     .order('chapter_number');
   if (error) throw toServiceError(error, 'Không thể tải bản thảo.');
@@ -53,7 +53,9 @@ export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
     date: row.published_at ?? row.updated_at,
     relativeDate: row.status === 'published' ? 'Đã xuất bản' : 'Bản nháp',
     access: row.is_vip ? 'vip' : 'free',
+    configuredVip: row.is_vip,
     priceCoins: row.price_coins,
+    earlyAccessUntil: row.early_access_until,
     status: row.status,
     publishedAt: row.published_at,
     isRead: false,
@@ -64,11 +66,20 @@ export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
 export async function getAuthorChapter(bookId: string, chapterId: string): Promise<Chapter | null> {
   if (chapterId === 'new') return null;
   const client = requireSupabase();
-  const { data, error } = await client.rpc('get_author_chapter_for_editing', {
-    p_book_id: bookId,
-    p_chapter_id: chapterId,
-  });
+  const [{ data, error }, { data: accessMeta, error: accessError }] = await Promise.all([
+    client.rpc('get_author_chapter_for_editing', {
+      p_book_id: bookId,
+      p_chapter_id: chapterId,
+    }),
+    client
+      .from('chapters')
+      .select('is_vip,price_coins,early_access_until')
+      .eq('book_id', bookId)
+      .eq('id', chapterId)
+      .maybeSingle(),
+  ]);
   if (error) throw toServiceError(error, 'Không thể tải nội dung bản thảo.');
+  if (accessError) throw toServiceError(accessError, 'Không thể tải cấu hình quyền đọc.');
   const row = data?.[0];
   if (!row) return null;
   return {
@@ -79,8 +90,10 @@ export async function getAuthorChapter(bookId: string, chapterId: string): Promi
     content: row.content,
     date: row.published_at ?? row.updated_at,
     relativeDate: row.status === 'published' ? 'Đã xuất bản' : 'Bản nháp',
-    access: row.is_vip ? 'vip' : 'free',
-    priceCoins: row.price_coins,
+    access: (accessMeta?.is_vip ?? row.is_vip) ? 'vip' : 'free',
+    configuredVip: accessMeta?.is_vip ?? row.is_vip,
+    priceCoins: accessMeta?.price_coins ?? row.price_coins,
+    earlyAccessUntil: accessMeta?.early_access_until ?? null,
     status: row.status,
     publishedAt: row.published_at,
     isRead: false,
@@ -91,7 +104,20 @@ export async function getAuthorChapter(bookId: string, chapterId: string): Promi
 export async function saveChapter(input: ChapterInput): Promise<string> {
   const client = requireSupabase();
   if (input.status === 'published' && (input.title.trim().length < 2 || input.content.trim().length < 50)) throw new Error('Chương cần có tiêu đề và ít nhất 50 ký tự trước khi xuất bản.');
-  const payload = { book_id: input.bookId, chapter_number: input.chapterNumber, title: input.title.trim(), content: input.content, status: input.status, is_vip: input.isVip, price_coins: input.priceCoins, updated_at: new Date().toISOString() };
+  if (input.isVip && (!Number.isInteger(input.priceCoins) || input.priceCoins <= 0)) throw new Error('Chương VIP/Tiên Cơ cần giá Linh Thạch lớn hơn 0.');
+  if (input.earlyAccessUntil && !input.isVip) throw new Error('Tiên Cơ chỉ dùng cho chương có mở khóa bằng Linh Thạch.');
+  if (input.earlyAccessUntil && Number.isNaN(Date.parse(input.earlyAccessUntil))) throw new Error('Thời điểm kết thúc Tiên Cơ không hợp lệ.');
+  const payload = {
+    book_id: input.bookId,
+    chapter_number: input.chapterNumber,
+    title: input.title.trim(),
+    content: input.content,
+    status: input.status,
+    is_vip: input.isVip,
+    price_coins: input.isVip ? input.priceCoins : 0,
+    early_access_until: input.isVip ? input.earlyAccessUntil ?? null : null,
+    updated_at: new Date().toISOString(),
+  };
   try {
     if (input.id) {
       const { data, error } = await client.from('chapters').update(payload).eq('id', input.id).select('id').single();
