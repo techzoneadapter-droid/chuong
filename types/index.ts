@@ -38,8 +38,6 @@ export interface Book {
   authorAvatarUrl?: string | null;
   cover: string;
   coverUrl?: string | null;
-  coverExperimentId?: string;
-  coverExperimentVariant?: 'A' | 'B';
   genre: string;
   rating: number;
   ratingCount?: number;
