@@ -108,7 +108,6 @@ export default function WriteScreen() {
       <View style={styles.quickGrid}>
         {[
           ['wallet-outline', 'Doanh thu tác giả', 'Linh Thạch · hoàn tiền · đối soát', '/author/revenue'],
-          ['trophy-outline', 'Đại Hội Văn Đạo', 'Sự kiện · mục tiêu viết · bảng xếp hạng', '/author/events'],
           ['star-outline', 'Đánh giá độc giả', 'Điểm sao · cảm nhận · phản hồi', '/author/reviews'],
           ['analytics-outline', 'Phân tích độc giả', 'Phiên đọc · hoàn thành · quay lại', '/author/analytics'],
         ].map(([icon, title, body, href]) => <Pressable key={href} style={styles.quickCard} onPress={() => router.push(href as never)}>
