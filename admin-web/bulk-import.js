@@ -166,7 +166,7 @@
     el('bulkPrevPage').disabled=bulkState.page<=1;
     el('bulkNextPage').disabled=bulkState.page>=pages;
     if(!pageRows.length){
-      el('bulkRows').innerHTML='<tr><td colspan="8" class="bulk-empty">Không có mục phù hợp.</td></tr>';
+      el('bulkRows').innerHTML='<tr><td colspan="9" class="bulk-empty">Không có mục phù hợp.</td></tr>';
       updateSummary();
       return;
     }
@@ -179,6 +179,7 @@
         '<td class="zip-name"><strong>'+escapeAttr(relativeName(row.file))+'</strong><div class="tiny">'+(row.file.size/1024).toFixed(0)+' KB</div></td>'+
         '<td><input type="text" data-bulk-title="'+row.id+'" value="'+escapeAttr(row.title||cleanTitle(row.file.name))+'" /></td>'+
         '<td><input type="text" data-bulk-author="'+row.id+'" value="'+escapeAttr(row.author||el('bulkDefaultAuthor').value||'Chuong')+'" /></td>'+
+        '<td><select data-bulk-genre="'+row.id+'">'+['Tiên hiệp','Huyền huyễn','Đô thị','Kiếm hiệp','Ngôn tình','Kinh dị','Fantasy','Khoa huyễn','Hệ thống','Trinh thám','Văn học','Khác'].map(v=>'<option '+((row.genre||el('bulkDefaultGenre').value)===v?'selected':'')+'>'+v+'</option>').join('')+'</select><div class="tiny">'+(row.genreSource==='title'?'Tự nhận theo tên truyện':row.genreSource==='metadata'?'Theo metadata':'Mặc định')+'</div></td>'+
         '<td>'+(row.hasCover===true?'Có bìa':row.hasCover===false?'Không có':'—')+'</td>'+
         '<td><select data-bulk-status="'+row.id+'">'+['completed','ongoing','paused'].map(v=>'<option value="'+v+'" '+((row.status||el('bulkDefaultStatus').value)===v?'selected':'')+'>'+statusLabel(v)+'</option>').join('')+'</select></td>'+
         '<td>'+(row.chapterCount||'—')+'</td>'+
@@ -425,13 +426,14 @@
   }));
   el('bulkRows')?.addEventListener('change',event=>{
     const target=event.target;
-    const rowId=target.dataset.bulkSelect||target.dataset.bulkTitle||target.dataset.bulkAuthor||target.dataset.bulkStatus;
+    const rowId=target.dataset.bulkSelect||target.dataset.bulkTitle||target.dataset.bulkAuthor||target.dataset.bulkGenre||target.dataset.bulkStatus;
     if(!rowId)return;
     const row=bulkState.rows.find(item=>item.id===rowId);
     if(!row)return;
     if(target.dataset.bulkSelect)row.selected=target.checked;
     if(target.dataset.bulkTitle)row.title=target.value.trim();
     if(target.dataset.bulkAuthor)row.author=target.value.trim()||'Chuong';
+    if(target.dataset.bulkGenre){row.genre=target.value;row.genreSource='manual';}
     if(target.dataset.bulkStatus)row.status=target.value;
     updateSummary();
   });
