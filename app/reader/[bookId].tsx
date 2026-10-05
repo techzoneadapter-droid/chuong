@@ -484,7 +484,6 @@ export default function ReaderScreen() {
                 event.stopPropagation?.();
                 openQuoteShare(paragraph);
               }}
-              delayLongPress={360}
               suppressHighlighting
             >
               {paragraph}
