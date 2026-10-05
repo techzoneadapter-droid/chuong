@@ -90,7 +90,10 @@ export default function AuthorChapterListScreen() {
           : chapter.access === 'vip'
             ? `VIP · ${chapter.priceCoins ?? 0} Linh Thạch`
             : 'Miễn phí';
-        return <Pressable key={chapter.id} style={styles.row} onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId, chapterId: chapter.id! } })}><View style={[styles.number, chapter.status === 'published' && styles.numberPublished]}><Text style={styles.numberText}>{chapter.number}</Text></View><View style={styles.copy}><Text numberOfLines={1} style={styles.chapterTitle}>{chapter.title}</Text><Text style={styles.meta}>{chapter.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'} · {accessLabel}</Text></View><Ionicons name="chevron-forward" size={17} color="#A79B9F" /></Pressable>;
+        const publishLabel = chapter.scheduledPublishAt
+          ? `Hẹn đăng · ${new Date(chapter.scheduledPublishAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}`
+          : chapter.status === 'published' ? 'Đã xuất bản' : 'Bản nháp';
+        return <Pressable key={chapter.id} style={styles.row} onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId, chapterId: chapter.id! } })}><View style={[styles.number, chapter.status === 'published' && styles.numberPublished]}><Text style={styles.numberText}>{chapter.number}</Text></View><View style={styles.copy}><Text numberOfLines={1} style={styles.chapterTitle}>{chapter.title}</Text><Text style={styles.meta}>{publishLabel} · {accessLabel}</Text></View><Ionicons name="chevron-forward" size={17} color="#A79B9F" /></Pressable>;
       })}</ScrollView>
   </SafeAreaView>;
 }
