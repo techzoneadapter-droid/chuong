@@ -5,6 +5,7 @@ import { Database } from '../types/database';
 import { deleteOwnBookCover } from './storage';
 import { toServiceError } from './errors';
 import { getOfflineBookSnapshot, listOfflineBooks } from './offlineDownloads';
+import { getAssignedCoverExperiments } from './coverExperiments';
 
 type BookRow = Database['public']['Tables']['books']['Row'];
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
@@ -55,17 +56,27 @@ async function hydrateBooks(rows: BookRow[]): Promise<Book[]> {
   if (!supabase || rows.length === 0) return [];
   const authorIds = [...new Set(rows.map((row) => row.author_id))];
   const bookIds = rows.map((row) => row.id);
-  const [{ data: authors, error: authorError }, { data: genres, error: genreError }] = await Promise.all([
+  const [{ data: authors, error: authorError }, { data: genres, error: genreError }, assignments] = await Promise.all([
     supabase.from('authors').select('*').in('id', authorIds),
-    supabase.from('book_genres').select('*').in('book_id', bookIds)
+    supabase.from('book_genres').select('*').in('book_id', bookIds),
+    getAssignedCoverExperiments(bookIds).catch(() => new Map()),
   ]);
   if (authorError) throw authorError;
   if (genreError) throw genreError;
-  return rows.map((row) => mapBook(
-    row,
-    authors?.find((author) => author.id === row.author_id),
-    genres?.filter((genre) => genre.book_id === row.id).map((genre) => genre.genre) ?? []
-  ));
+  return rows.map((row) => {
+    const book = mapBook(
+      row,
+      authors?.find((author) => author.id === row.author_id),
+      genres?.filter((genre) => genre.book_id === row.id).map((genre) => genre.genre) ?? []
+    );
+    const assignment = assignments.get(row.id);
+    return assignment ? {
+      ...book,
+      coverUrl: assignment.coverUrl,
+      coverExperimentId: assignment.experimentId,
+      coverExperimentVariant: assignment.variant,
+    } : book;
+  });
 }
 
 export async function getBooks(): Promise<ServiceResult<Book[]>> {
