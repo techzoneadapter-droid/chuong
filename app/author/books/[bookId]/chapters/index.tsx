@@ -54,7 +54,6 @@ export default function AuthorChapterListScreen() {
         {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={{ width: 80, height: 120, borderRadius: 10, marginTop: 12 }} /> : null}
         <View style={styles.coverActions}>
           <Pressable disabled={busy} style={styles.coverSelect} onPress={changeCover}><Ionicons name="images-outline" size={15} color="#8F1D3F" /><Text style={styles.coverSelectText}>{busy ? 'Đang lưu…' : book.coverUrl ? 'Chọn lại ảnh' : 'Chọn ảnh bìa'}</Text></Pressable>
-          {book.coverUrl ? <Pressable disabled={busy} style={styles.coverSelect} onPress={() => router.push({ pathname: '/author/books/[bookId]/cover-test', params: { bookId } })}><Ionicons name="git-compare-outline" size={15} color="#315247" /><Text style={[styles.coverSelectText, { color: '#315247' }]}>A/B test bìa</Text></Pressable> : null}
           {book.coverUrl ? <Pressable disabled={busy} style={styles.coverDelete} onPress={clearCover}><Ionicons name="trash-outline" size={15} color="#9E3444" /><Text style={styles.coverDeleteText}>Xóa ảnh</Text></Pressable> : null}
         </View>
         <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Bìa đẹp nhất</Text><Text style={styles.coverGuideText}>Tỷ lệ 2:3 · 1200 × 1800 px · tối thiểu 800 × 1200 px · 300 KB – 1.5 MB là lý tưởng · tối đa 5 MB · ưu tiên WebP/JPG.</Text></View>
