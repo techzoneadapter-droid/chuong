@@ -13,3 +13,11 @@
 .import-logs{display:grid;gap:6px;margin-top:8px;max-height:170px;overflow:auto}
 .import-log{border-radius:9px;padding:8px;background:#faf7f1;border:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:4px 8px}
 .import-log strong{font-size:9px;color:#433b35}.import-log span{font-size:8px;color:var(--muted)}.import-log .ok{color:var(--ok);font-weight:800}.import-log .fail{color:var(--danger);font-weight:800}.import-log .run{color:#596b7a;font-weight:800}
+
+.schedule-box{margin-top:10px;border-radius:12px;border:1px solid #c6d7cc;background:#edf3ef;padding:9px}
+.schedule-row{margin:0;background:transparent;border:0;padding:5px}
+.schedule-controls{margin-top:8px;padding:10px;border-top:1px solid #c6d7cc;display:grid;grid-template-columns:1fr 160px;gap:9px}
+.schedule-controls label{margin:0}
+.schedule-controls input{margin-top:6px}
+.schedule-rate-row{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+.schedule-controls .tiny{grid-column:1/-1;margin:0}
