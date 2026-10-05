@@ -46,6 +46,7 @@
       <div class="mode-switch" role="tablist" aria-label="Chế độ nhập truyện">
         <button id="singleModeBtn" class="mode-button active" type="button">Nhập 1 truyện</button>
         <button id="bulkModeBtn" class="mode-button" type="button">Nhập hàng loạt ZIP</button>
+        <button id="manageModeBtn" class="mode-button" type="button">Quản trị kho truyện</button>
       </div>
 
       <section id="bulkImportMode" class="bulk-shell hidden">
@@ -135,6 +136,172 @@
           </div>
         </div>
       </section>
+
+      
+      <section id="catalogManageMode" class="catalog-shell hidden">
+        <div class="card catalog-toolbar">
+          <div>
+            <p class="eyebrow">TÀNG KINH CÁC · QUẢN TRỊ</p>
+            <h2>Quản lý toàn bộ kho truyện</h2>
+            <p class="muted">Tìm, lọc, sửa thông tin/nội dung, thêm bìa, tạo bìa AI và xử lý hàng loạt.</p>
+          </div>
+          <button id="catalogRefreshBtn" class="secondary" type="button">Làm mới</button>
+        </div>
+
+        <div class="card catalog-filters">
+          <label>Tìm tên truyện<input id="catalogSearch" type="search" placeholder="Nhập tên truyện..." /></label>
+          <label>Tác giả<input id="catalogAuthorFilter" type="search" placeholder="Tên tác giả..." /></label>
+          <label>Thể loại
+            <select id="catalogGenreFilter">
+              <option value="">Tất cả</option>
+              <option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option>
+              <option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option>
+              <option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option><option>Khác</option>
+            </select>
+          </label>
+          <label>Trạng thái
+            <select id="catalogStatusFilter">
+              <option value="">Tất cả</option>
+              <option value="draft">Riêng tư</option>
+              <option value="ongoing">Đang ra</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="paused">Tạm dừng / Drop</option>
+            </select>
+          </label>
+          <label>Sắp xếp
+            <select id="catalogSort">
+              <option value="views_desc">Top xem nhiều nhất</option>
+              <option value="views_asc">Lượt xem thấp nhất</option>
+              <option value="followers_desc">Theo dõi nhiều nhất</option>
+              <option value="chapters_desc">Nhiều chương nhất</option>
+              <option value="updated_desc">Mới cập nhật</option>
+              <option value="updated_asc">Cũ cập nhật</option>
+              <option value="title_asc">Tên A → Z</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="card ai-cover-config">
+          <div class="section-head"><span>AI</span><div><h2>Tạo bìa tự động</h2><p>API key chỉ giữ trong phiên trình duyệt, không lưu vào database hay Git.</p></div></div>
+          <div class="ai-cover-grid">
+            <label>API key<input id="coverAiKey" type="password" autocomplete="off" placeholder="sk-..." /></label>
+            <label>API Base URL<input id="coverAiBaseUrl" type="text" value="https://api.openai.com/v1" /></label>
+            <label>Model<input id="coverAiModel" type="text" value="gpt-image-1" /></label>
+            <label>Gợi ý phong cách thêm<input id="coverAiExtraPrompt" type="text" placeholder="Ví dụ: cổ phong, điện ảnh, tông huyền bí..." /></label>
+          </div>
+          <label class="check-row"><input id="coverAiOverwrite" type="checkbox" /> <span><strong>Cho phép ghi đè bìa đang có</strong><small>Mặc định chỉ tạo bìa cho truyện chưa có bìa.</small></span></label>
+        </div>
+
+        <div class="card catalog-bulkbar">
+          <div class="catalog-selection"><strong id="catalogSelectedCount">0</strong> truyện đang chọn · <span id="catalogTotalCount">0</span> kết quả</div>
+          <div class="catalog-bulk-actions">
+            <button id="catalogSelectPageBtn" class="ghost" type="button">Chọn trang này</button>
+            <button id="catalogClearSelectionBtn" class="ghost" type="button">Bỏ chọn</button>
+            <button id="catalogBulkEditBtn" class="secondary" type="button" disabled>Chỉnh sửa hàng loạt</button>
+            <button id="catalogBulkCoverBtn" class="secondary" type="button" disabled>Tạo bìa AI hàng loạt</button>
+            <button id="catalogBulkDeleteBtn" class="danger-soft" type="button" disabled>Xóa hàng loạt</button>
+          </div>
+          <div class="bulk-progress"><div id="catalogProgressBar"></div></div>
+          <p id="catalogProgressText" class="tiny">Sẵn sàng.</p>
+          <div id="catalogMessage" class="message hidden"></div>
+        </div>
+
+        <div class="card catalog-table-card">
+          <div class="catalog-table-wrap">
+            <table class="catalog-table">
+              <thead>
+                <tr>
+                  <th>Chọn</th><th>Bìa</th><th>Truyện</th><th>Tác giả</th><th>Thể loại</th>
+                  <th>Trạng thái</th><th>Lượt xem</th><th>Chương</th><th>Cập nhật</th><th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="catalogRows"><tr><td colspan="10" class="bulk-empty">Đang chờ tải kho truyện.</td></tr></tbody>
+            </table>
+          </div>
+          <div class="bulk-pagination">
+            <button id="catalogPrevPage" class="ghost mini" type="button">Trang trước</button>
+            <span id="catalogPageLabel">1 / 1</span>
+            <button id="catalogNextPage" class="ghost mini" type="button">Trang sau</button>
+          </div>
+        </div>
+      </section>
+
+      <div id="catalogEditModal" class="admin-modal hidden">
+        <div class="admin-modal-backdrop" data-close-catalog-modal></div>
+        <div class="admin-modal-panel catalog-editor-panel">
+          <div class="admin-modal-head">
+            <div><p class="eyebrow">CHỈNH SỬA TRUYỆN</p><h2 id="catalogEditHeading">Hồ sơ truyện</h2></div>
+            <button class="ghost" type="button" data-close-catalog-modal>Đóng</button>
+          </div>
+          <div id="catalogEditMessage" class="message hidden"></div>
+          <div class="catalog-editor-grid">
+            <div class="catalog-editor-main">
+              <div class="grid-2">
+                <label>Tên truyện<input id="catalogEditTitle" type="text" /></label>
+                <label>Tác giả hiển thị<input id="catalogEditAuthor" type="text" /></label>
+                <label>Thể loại
+                  <select id="catalogEditGenre">
+                    <option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option>
+                    <option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option>
+                    <option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option><option>Khác</option>
+                  </select>
+                </label>
+                <label>Trạng thái
+                  <select id="catalogEditStatus">
+                    <option value="draft">Riêng tư</option><option value="ongoing">Đang ra</option>
+                    <option value="completed">Hoàn thành</option><option value="paused">Tạm dừng / Drop</option>
+                  </select>
+                </label>
+              </div>
+              <label>Mô tả<textarea id="catalogEditDescription" rows="5"></textarea></label>
+              <div class="catalog-cover-actions">
+                <label class="secondary file-button">Thêm / thay bìa<input id="catalogManualCover" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+                <button id="catalogAiCoverBtn" class="secondary" type="button">Tạo bìa bằng AI</button>
+                <button id="catalogSaveBookBtn" class="primary inline-primary" type="button">Lưu thông tin</button>
+                <button id="catalogDeleteBookBtn" class="danger-soft" type="button">Xóa truyện</button>
+              </div>
+              <div id="catalogEditCoverPreview" class="catalog-edit-cover-preview"></div>
+            </div>
+            <div class="catalog-chapters-panel">
+              <div class="catalog-chapter-head">
+                <div><strong>Nội dung chương</strong><span id="catalogChapterCount" class="tiny">0 chương</span></div>
+                <div>
+                  <button id="catalogChapterPrev" class="ghost mini" type="button">←</button>
+                  <span id="catalogChapterPage" class="tiny">1/1</span>
+                  <button id="catalogChapterNext" class="ghost mini" type="button">→</button>
+                </div>
+              </div>
+              <div id="catalogChapterList" class="catalog-chapter-list"></div>
+              <div id="catalogChapterEditor" class="catalog-chapter-editor hidden">
+                <div class="grid-2">
+                  <label>Số chương<input id="catalogChapterNumber" type="number" readonly /></label>
+                  <label>Trạng thái
+                    <select id="catalogChapterStatus"><option value="draft">Bản nháp</option><option value="published">Đã xuất bản</option></select>
+                  </label>
+                </div>
+                <label>Tiêu đề chương<input id="catalogChapterTitle" type="text" /></label>
+                <label>Nội dung<textarea id="catalogChapterContent" rows="14"></textarea></label>
+                <button id="catalogSaveChapterBtn" class="primary inline-primary" type="button">Lưu chương</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="catalogBulkEditModal" class="admin-modal hidden">
+        <div class="admin-modal-backdrop" data-close-bulk-edit></div>
+        <div class="admin-modal-panel bulk-edit-panel">
+          <div class="admin-modal-head"><div><p class="eyebrow">CHỈNH SỬA HÀNG LOẠT</p><h2>Áp dụng cho truyện đã chọn</h2></div><button class="ghost" type="button" data-close-bulk-edit>Đóng</button></div>
+          <label class="check-row"><input id="bulkEditSetAuthor" type="checkbox" /> <span><strong>Đổi tác giả hiển thị</strong></span></label>
+          <input id="bulkEditAuthor" type="text" value="Chuong" />
+          <label class="check-row"><input id="bulkEditSetGenre" type="checkbox" /> <span><strong>Đổi thể loại</strong></span></label>
+          <select id="bulkEditGenre"><option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option><option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option><option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option><option>Khác</option></select>
+          <label class="check-row"><input id="bulkEditSetStatus" type="checkbox" /> <span><strong>Đổi trạng thái</strong></span></label>
+          <select id="bulkEditStatus"><option value="draft">Riêng tư</option><option value="ongoing">Đang ra</option><option value="completed">Hoàn thành</option><option value="paused">Tạm dừng / Drop</option></select>
+          <button id="catalogApplyBulkEditBtn" class="primary" type="button">Áp dụng thay đổi</button>
+          <div id="catalogBulkEditMessage" class="message hidden"></div>
+        </div>
+      </div>
 
       <div id="singleImportMode" class="layout">
         <div class="left-col">
@@ -275,5 +442,6 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="./app.js"></script>
   <script src="./bulk-import.js"></script>
+  <script src="./catalog-admin.js"></script>
 </body>
 </html>
