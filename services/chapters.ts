@@ -16,6 +16,7 @@ import {
 type ChapterRow = Database['public']['Tables']['chapters']['Row'];
 type ChapterShape = Pick<ChapterRow, 'id' | 'book_id' | 'chapter_number' | 'title' | 'status' | 'is_vip' | 'price_coins' | 'published_at' | 'updated_at'> & {
   content?: string | null;
+  early_access_until?: string | null;
 };
 
 export class ContentLockedError extends Error {
@@ -31,22 +32,33 @@ export class ContentLockedError extends Error {
   }
 }
 
-export const mapChapter = (row: ChapterShape): Chapter => ({
-  id: row.id,
-  bookId: row.book_id,
-  number: row.chapter_number,
-  title: row.title,
-  content: row.content ?? undefined,
-  date: row.published_at ? new Date(row.published_at).toLocaleDateString('vi-VN') : 'Bản nháp',
-  relativeDate: row.published_at ? new Date(row.published_at).toLocaleDateString('vi-VN') : 'Chưa xuất bản',
-  access: row.is_vip ? 'vip' : 'free',
-  priceCoins: row.price_coins,
-  status: row.status,
-  publishedAt: row.published_at,
-  updatedAt: row.updated_at,
-  isRead: false,
-  isDownloaded: false
-});
+export const mapChapter = (row: ChapterShape): Chapter => {
+  const earlyAccessUntil = row.early_access_until ?? null;
+  const earlyAccessActive = Boolean(
+    earlyAccessUntil && new Date(earlyAccessUntil).getTime() > Date.now()
+  );
+  const effectiveVip = Boolean(
+    row.is_vip && row.price_coins > 0 && (!earlyAccessUntil || earlyAccessActive)
+  );
+  return {
+    id: row.id,
+    bookId: row.book_id,
+    number: row.chapter_number,
+    title: row.title,
+    content: row.content ?? undefined,
+    date: row.published_at ? new Date(row.published_at).toLocaleDateString('vi-VN') : 'Bản nháp',
+    relativeDate: row.published_at ? new Date(row.published_at).toLocaleDateString('vi-VN') : 'Chưa xuất bản',
+    access: effectiveVip ? 'vip' : 'free',
+    configuredVip: row.is_vip,
+    priceCoins: row.price_coins,
+    earlyAccessUntil,
+    status: row.status,
+    publishedAt: row.published_at,
+    updatedAt: row.updated_at,
+    isRead: false,
+    isDownloaded: false
+  };
+};
 
 function demoChapter(bookId: string, chapterNumber: number): Chapter | null {
   const chapter = getDemoBook(bookId).chapters[chapterNumber - 1];
@@ -70,7 +82,7 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await supabase
         .from('chapters')
-        .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at,updated_at')
+        .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,published_at,updated_at')
         .eq('book_id', bookId)
         .eq('status', 'published')
         .order('chapter_number')
@@ -174,7 +186,7 @@ async function setChapterStatus(id: string, status: 'draft' | 'published') {
     .from('chapters')
     .update({ status })
     .eq('id', id)
-    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,published_at,updated_at')
+    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,published_at,updated_at')
     .single();
   if (error) throw toServiceError(error, 'Không thể thay đổi trạng thái chương. Kiểm tra tiêu đề và nội dung.');
   return mapChapter(data);
