@@ -1,9 +1,13 @@
+import { SpiritPricePreview } from '../../../../../components/SpiritPricePreview';
+import { isUuid, routeParam } from '../../../../../lib/routeParams';
+import { LoadingState, RetryState } from '../../../../../components/States';
+export { AuthorRouteError as ErrorBoundary } from '../../../../../components/AuthorRouteError';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getAuthorChapter, getAuthorChapters, getAuthorForUser, getMyBooks, saveChapter } from '../../../../../services/authors';
+import { getAuthorChapter, getAuthorChapters, getOwnedAuthorBook, saveChapter } from '../../../../../services/authors';
 import { messageForError } from '../../../../../services/errors';
 import { deleteDraftChapter } from '../../../../../services/chapters';
 import { isSupabaseConfigured } from '../../../../../lib/supabase';
@@ -12,8 +16,20 @@ import { ChapterInput, ChapterStatus, SaveState } from '../../../../../types';
 
 const labels: Record<SaveState, string> = { idle: '', saving: 'Đang lưu…', saved: 'Đã lưu', error: 'Lỗi lưu' };
 
-export default function ChapterEditorScreen() {
-  const router = useRouter(); const { bookId, chapterId } = useLocalSearchParams<{ bookId: string; chapterId: string }>();
+export default function ChapterEditorRoute() {
+  const params = useLocalSearchParams<{ bookId?: string | string[]; chapterId?: string | string[] }>();
+  const router = useRouter();
+  const bookId = routeParam(params.bookId);
+  const chapterId = routeParam(params.chapterId);
+  const valid = (isUuid(bookId) || (!isSupabaseConfigured && bookId === 'demo')) && (chapterId === 'new' || isUuid(chapterId));
+  useEffect(() => { if (!valid) router.replace('/write'); }, [valid, router]);
+  if (!valid) return <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F2E9' }}><LoadingState label="Đang quay lại truyện của tôi…" /></SafeAreaView>;
+  // Each route owns its autosave queue and draft state. Never reuse another chapter's refs.
+  return <ChapterEditorScreen key={`${bookId}:${chapterId}`} bookId={bookId} chapterId={chapterId} />;
+}
+
+function ChapterEditorScreen({ bookId, chapterId }: { bookId: string; chapterId: string }) {
+  const router = useRouter();
   const [id, setId] = useState(chapterId === 'new' ? undefined : chapterId); const [number, setNumber] = useState(1); const [title, setTitle] = useState(''); const [content, setContent] = useState(''); const [status, setStatus] = useState<ChapterStatus>('draft'); const [isVip, setIsVip] = useState(false); const [priceCoins, setPriceCoins] = useState(0); const [earlyAccessUntil, setEarlyAccessUntil] = useState<string | null>(null); const [saveState, setSaveState] = useState<SaveState>('idle'); const [error, setError] = useState(''); const ready = useRef(false);
   const { user, loading: authLoading } = useAuth();
   const savedId = useRef(id);
@@ -24,20 +40,21 @@ export default function ChapterEditorScreen() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [reload, setReload] = useState(0);
+  const [scheduledAt, setScheduledAt] = useState<string | null>(null);
   const snapshot = useRef<ChapterInput>({ bookId, chapterNumber: number, title, content, status, isVip, priceCoins, earlyAccessUntil });
   snapshot.current = { bookId, chapterNumber: number, title: title.trim() || `Chương ${number}`, content, status, isVip, priceCoins, earlyAccessUntil: isVip ? earlyAccessUntil : null };
   useEffect(() => {
     if (!isSupabaseConfigured || authLoading) return;
     if (!user) { router.replace('/auth/login'); return; }
     let active = true; ready.current = false; setLoading(true); setError('');
-    getAuthorForUser(user.id).then(async (author) => {
-      if (!author || !(await getMyBooks(author.id)).some((book) => book.id === bookId)) throw new Error('Bạn không có quyền chỉnh sửa truyện này.');
+    getOwnedAuthorBook(user.id, bookId).then(async (book) => {
+      if (!book) throw new Error('Bạn không có quyền chỉnh sửa truyện này.');
       return Promise.all([getAuthorChapter(bookId, chapterId), getAuthorChapters(bookId)]);
     }).then(([chapter, chapters]) => {
       if (!active) return;
       if (chapterId !== 'new' && !chapter) throw new Error('Không tìm thấy chương hoặc bạn không có quyền chỉnh sửa.');
       if (chapter) {
-        savedId.current = chapter.id; setId(chapter.id); setNumber(chapter.number); setTitle(chapter.title); setContent(chapter.content ?? ''); setStatus(chapter.status ?? 'draft'); setIsVip(chapter.configuredVip ?? chapter.access === 'vip'); setPriceCoins(chapter.priceCoins ?? 0); setEarlyAccessUntil(chapter.earlyAccessUntil ?? null);
+        setScheduledAt(chapter.scheduledPublishAt ?? null); savedId.current = chapter.id; setId(chapter.id); setNumber(chapter.number); setTitle(chapter.title); setContent(chapter.content ?? ''); setStatus(chapter.status ?? 'draft'); setIsVip(chapter.configuredVip ?? chapter.access === 'vip'); setPriceCoins(chapter.priceCoins ?? 0); setEarlyAccessUntil(chapter.earlyAccessUntil ?? null);
         lastSaved.current = JSON.stringify({ bookId, chapterNumber: chapter.number, title: chapter.title, content: chapter.content ?? '', status: chapter.status ?? 'draft', isVip: chapter.configuredVip ?? chapter.access === 'vip', priceCoins: chapter.priceCoins ?? 0, earlyAccessUntil: chapter.earlyAccessUntil ?? null });
       } else setNumber(Math.max(0, ...chapters.map((item) => item.number)) + 1);
       ready.current = true;
@@ -90,23 +107,26 @@ export default function ChapterEditorScreen() {
     catch (cause) { deleted.current = false; setError(messageForError(cause)); setBusy(false); }
   };
   return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <View style={styles.header}><Pressable style={styles.icon} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable><View style={styles.headCopy}><Text style={styles.title}>Trình soạn thảo chương</Text><Text style={[styles.save, saveState === 'error' && styles.errorText]}>{labels[saveState] || (status === 'published' ? 'Đã xuất bản' : 'Bản nháp')}</Text></View><Pressable style={styles.saveButton} disabled={busy || loading || !ready.current} onPress={save}><Text style={styles.saveButtonText}>Lưu</Text></Pressable></View>
+    <View style={styles.header}><Pressable style={styles.icon} accessibilityLabel="Quay lại" onPress={() => router.canGoBack() ? router.back() : router.replace('/write')}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable><View style={styles.headCopy}><Text style={styles.title}>Trình soạn thảo chương</Text><Text style={[styles.save, saveState === 'error' && styles.errorText]}>{labels[saveState] || (status === 'published' ? 'Đã xuất bản' : 'Bản nháp')}</Text></View><Pressable style={styles.saveButton} disabled={busy || loading || !ready.current} onPress={save}><Text style={styles.saveButtonText}>Lưu</Text></Pressable></View>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
       {!isSupabaseConfigured ? <Text style={styles.error}>Demo · Bạn có thể xem trình soạn thảo. Đăng nhập với Supabase để lưu chương.</Text> : null}
-      {loading ? <Text style={styles.count}>Đang tải bản thảo…</Text> : null}
-      {error ? <Pressable onPress={() => setReload((value) => value + 1)}><Text style={styles.error}>{error} · Chạm để tải lại</Text></Pressable> : null}
+      {loading ? <LoadingState label="Đang tải bản thảo…" /> : null}
+      {error ? <RetryState detail={error} onRetry={() => ready.current ? void persist() : setReload((value) => value + 1)} /> : null}
+      {scheduledAt ? <Text style={styles.count}>Hẹn đăng · {new Date(scheduledAt).toLocaleString('vi-VN')}</Text> : null}
+      {!loading && (!isSupabaseConfigured || ready.current) ? <>
       <View style={styles.numberRow}><Text style={styles.label}>Số chương</Text><TextInput value={String(number)} onChangeText={(value) => setNumber(Math.max(1, Number(value.replace(/\D/g, '')) || 1))} keyboardType="number-pad" style={styles.numberInput} /></View>
       <Text style={styles.label}>Tiêu đề chương</Text><TextInput value={title} onChangeText={setTitle} placeholder="Tên chương" placeholderTextColor="#9A8E93" style={styles.titleInput} maxLength={180} />
       <Text style={styles.label}>Nội dung</Text><TextInput value={content} onChangeText={setContent} placeholder="Bắt đầu câu chuyện…" placeholderTextColor="#9A8E93" style={styles.editor} multiline textAlignVertical="top" />
       <Text style={styles.count}>{content.length.toLocaleString('vi-VN')} ký tự</Text>
-      <View style={styles.optionRow}><View style={{ flex: 1 }}><Text style={styles.optionTitle}>Chương VIP</Text><Text style={styles.optionDetail}>Bật để chương yêu cầu Linh Thạch. Có thể để VIP vĩnh viễn hoặc dùng Tiên Cơ để tự mở miễn phí sau một thời gian.</Text></View><Switch value={isVip} onValueChange={(value) => { setIsVip(value); if (!value) setEarlyAccessUntil(null); }} trackColor={{ true: '#B85A78' }} /></View>
+      <View style={styles.optionRow}><View style={{ flex: 1 }}><Text style={styles.optionTitle}>Chương VIP</Text><Text style={styles.optionDetail}>Bật để chương yêu cầu Hạ Phẩm Linh Thạch. Có thể để VIP vĩnh viễn hoặc dùng Tiên Cơ để tự mở miễn phí sau một thời gian.</Text></View><Switch value={isVip} onValueChange={(value) => { setIsVip(value); if (!value) setEarlyAccessUntil(null); }} trackColor={{ true: '#B85A78' }} /></View>
       {isVip ? <>
-        <View style={styles.numberRow}><Text style={styles.label}>Giá Linh Thạch</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.numberInput} /></View>
+        <View style={styles.numberRow}><Text style={styles.label}>Giá Hạ Phẩm Linh Thạch</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.numberInput} /></View>
+        <SpiritPricePreview lowPrice={priceCoins} />
         <View style={styles.earlyCard}>
           <View style={styles.earlyHead}>
             <View style={{ flex: 1 }}>
               <Text style={styles.earlyTitle}>Tiên Cơ · đọc sớm</Text>
-              <Text style={styles.earlyBody}>Trong thời gian Tiên Cơ, độc giả có thể dùng Linh Thạch để đọc trước. Hết hạn, chương tự mở miễn phí mà không cần bạn thao tác lại.</Text>
+              <Text style={styles.earlyBody}>Trong thời gian Tiên Cơ, độc giả có thể dùng Hạ Phẩm Linh Thạch để đọc trước. Hết hạn, chương tự mở miễn phí mà không cần bạn thao tác lại.</Text>
             </View>
             <Switch value={earlyConfigured} onValueChange={(value) => value ? setEarlyDays(3) : setEarlyAccessUntil(null)} trackColor={{ true: '#567B70' }} />
           </View>
@@ -121,6 +141,7 @@ export default function ChapterEditorScreen() {
       </> : null}
       {id && status === 'draft' ? <Pressable disabled={busy} onPress={remove}><Text style={styles.error}>Xóa bản nháp</Text></Pressable> : null}
       <View style={styles.actions}>{status === 'published' ? <Pressable style={styles.secondary} disabled={busy || loading || !ready.current} onPress={() => changeStatus('draft')}><Text style={styles.secondaryText}>Gỡ xuất bản</Text></Pressable> : <Pressable style={styles.publish} disabled={busy || loading || !ready.current} onPress={() => changeStatus('published')}><Ionicons name="paper-plane-outline" size={17} color="#FFFFFF" /><Text style={styles.publishText}>Xuất bản</Text></Pressable>}</View>
+      </> : null}
     </ScrollView>
   </KeyboardAvoidingView></SafeAreaView>;
 }

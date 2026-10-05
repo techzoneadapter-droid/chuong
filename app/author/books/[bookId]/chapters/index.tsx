@@ -1,6 +1,8 @@
+import { isUuid, routeParam } from '../../../../../lib/routeParams';
+export { AuthorRouteError as ErrorBoundary } from '../../../../../components/AuthorRouteError';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../../../../components/States';
@@ -9,15 +11,32 @@ import { useAuth } from '../../../../../contexts/AuthContext';
 import { deleteDraftBook, setAuthorBookStatus } from '../../../../../services/books';
 import { removeBookCover, replaceBookCover } from '../../../../../services/storage';
 import { messageForError } from '../../../../../services/errors';
-import { getAuthorChapters, getAuthorForUser, getMyBooks } from '../../../../../services/authors';
+import { getAuthorChapters, getOwnedAuthorBook } from '../../../../../services/authors';
 import { Book, BookStatus, Chapter } from '../../../../../types';
 
 export default function AuthorChapterListScreen() {
-  const router = useRouter(); const { bookId } = useLocalSearchParams<{ bookId: string }>(); const [chapters, setChapters] = useState<Chapter[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
+  const router = useRouter(); const params = useLocalSearchParams<{ bookId?: string | string[] }>(); const bookId = routeParam(params.bookId); const [chapters, setChapters] = useState<Chapter[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
   const { user, loading: authLoading } = useAuth();
   const [book, setBook] = useState<Book | null>(null); const [busy, setBusy] = useState(false);
-  const load = useCallback(async () => { setLoading(true); setError(''); try { if (!user) { if (!authLoading) router.replace('/auth/login'); return; } const author = await getAuthorForUser(user.id); const owned = author ? (await getMyBooks(author.id)).find((item) => item.id === bookId) : null; if (!owned) throw new Error('Không tìm thấy truyện hoặc bạn không có quyền chỉnh sửa.'); setBook(owned); setChapters(await getAuthorChapters(bookId)); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể tải bản thảo.'); } finally { setLoading(false); } }, [bookId, user?.id, authLoading]);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const loadGeneration = useRef(0);
+  const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    setLoading(true); setError(''); setBook(null); setChapters([]);
+    try {
+      if (!isUuid(bookId)) { router.replace('/write'); return; }
+      if (!user) { if (!authLoading) router.replace('/auth/login'); return; }
+      const owned = await getOwnedAuthorBook(user.id, bookId);
+      if (!owned) throw new Error('Không tìm thấy truyện hoặc bạn không có quyền chỉnh sửa.');
+      const nextChapters = await getAuthorChapters(bookId);
+      if (generation !== loadGeneration.current) return;
+      setBook(owned); setChapters(nextChapters);
+    } catch (cause) {
+      if (generation === loadGeneration.current) setError(messageForError(cause, 'Không thể tải bản thảo.'));
+    } finally {
+      if (generation === loadGeneration.current) setLoading(false);
+    }
+  }, [bookId, user?.id, authLoading, router]);
+  useFocusEffect(useCallback(() => { void load(); return () => { loadGeneration.current++; }; }, [load]));
   const changeBookStatus = async (status: BookStatus) => {
     if (!book || busy) return;
     if (status !== 'draft' && !chapters.some((chapter) => chapter.status === 'published')) return setError('Hãy xuất bản ít nhất một chương trước khi công khai truyện.');
@@ -49,7 +68,7 @@ export default function AuthorChapterListScreen() {
   };
   const drafts = chapters.filter((chapter) => chapter.status === 'draft').length;
   const scheduled = chapters.filter((chapter) => chapter.scheduledPublishAt).length;
-  return <SafeAreaView style={styles.safe}><View style={styles.header}><Pressable style={styles.back} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable><View style={styles.headCopy}><Text style={styles.title}>Quản lý chương</Text><Text style={styles.subtitle}>{drafts} bản nháp · {chapters.length - drafts} đã xuất bản</Text></View><Pressable style={styles.add} onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId, chapterId: 'new' } })}><Ionicons name="add" size={20} color="#FFFFFF" /></Pressable></View>
+  return <SafeAreaView style={styles.safe}><View style={styles.header}><Pressable style={styles.back} accessibilityLabel="Quay lại" onPress={() => router.canGoBack() ? router.back() : router.replace('/write')}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable><View style={styles.headCopy}><Text style={styles.title}>Quản lý chương</Text><Text style={styles.subtitle}>{drafts} bản nháp · {chapters.length - drafts} đã xuất bản</Text></View><Pressable accessibilityLabel="Tạo chương" disabled={!book || loading || busy} style={styles.add} onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId, chapterId: 'new' } })}><Ionicons name="add" size={20} color="#FFFFFF" /></Pressable></View>
     <ScrollView contentContainerStyle={styles.page}>
       {book ? <View style={{ paddingVertical: 16 }}><Text style={styles.title}>{book.title}</Text><Text style={styles.meta}>{book.status} · {book.visibility === 'public' ? 'Công khai' : 'Riêng tư'}</Text>
         {book.coverUrl ? <Image source={{ uri: book.coverUrl }} style={{ width: 80, height: 120, borderRadius: 10, marginTop: 12 }} /> : null}
@@ -94,7 +113,7 @@ export default function AuthorChapterListScreen() {
             ? `Tiên Cơ đến ${new Date(chapter.earlyAccessUntil).toLocaleDateString('vi-VN')}`
             : 'Tiên Cơ đã mở miễn phí'
           : chapter.access === 'vip'
-            ? `VIP · ${chapter.priceCoins ?? 0} Linh Thạch`
+            ? `VIP · ${chapter.priceCoins ?? 0} Hạ Phẩm Linh Thạch`
             : 'Miễn phí';
         const publishLabel = chapter.scheduledPublishAt
           ? `Hẹn đăng · ${new Date(chapter.scheduledPublishAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}`

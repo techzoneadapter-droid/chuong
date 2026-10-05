@@ -59,11 +59,11 @@ export default function AdminStoreScreen() {
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>CHƯƠNG ADMIN</Text>
-          <Text style={styles.title}>Linh Thạch & cửa hàng</Text>
+          <Text style={styles.title}>Thượng Phẩm Linh Thạch & cửa hàng</Text>
         </View>
         <Ionicons name="card-outline" size={31} color="#8F1D3F" />
       </View>
-      <Text style={styles.subtitle}>Theo dõi Google Play, App Store, giao dịch Linh Thạch và webhook hoàn tiền/thu hồi sau mua.</Text>
+      <Text style={styles.subtitle}>Theo dõi Google Play, App Store, giao dịch Thượng Phẩm Linh Thạch và webhook hoàn tiền/thu hồi sau mua.</Text>
 
       <Text style={styles.sectionTitle}>Trạng thái kết nối</Text>
       <View style={styles.grid}>
@@ -75,24 +75,24 @@ export default function AdminStoreScreen() {
 
       <View style={styles.notice}>
         <Ionicons name="shield-checkmark-outline" size={20} color="#8F1D3F" />
-        <Text style={styles.noticeText}>Khi một cổng chưa sẵn sàng, app sẽ khóa luồng mua tương ứng thay vì nhận tiền nhưng không cộng Linh Thạch.</Text>
+        <Text style={styles.noticeText}>Khi một cổng chưa sẵn sàng, app sẽ khóa luồng mua tương ứng thay vì nhận tiền nhưng không cộng Thượng Phẩm Linh Thạch.</Text>
       </View>
 
       <Text style={styles.sectionTitle}>Tổng quan</Text>
       <View style={styles.grid}>
         <Metric value={data?.counts.purchases ?? 0} label="Tổng giao dịch" />
-        <Metric value={data?.counts.credited ?? 0} label="Đã cộng Linh Thạch" />
+        <Metric value={data?.counts.credited ?? 0} label="Đã cộng Thượng Phẩm Linh Thạch" />
         <Metric value={data?.counts.revoked ?? 0} label="Đã thu hồi" />
         <Metric value={data?.counts.webhookFailed ?? 0} label="Webhook lỗi" warning={(data?.counts.webhookFailed ?? 0) > 0} />
       </View>
       <Text style={styles.smallHint}>Webhook đã xử lý thành công: {data?.counts.webhookProcessed ?? 0}</Text>
 
-      <Text style={styles.sectionTitle}>Gói Linh Thạch</Text>
+      <Text style={styles.sectionTitle}>Gói Thượng Phẩm Linh Thạch</Text>
       <View style={styles.listCard}>
         {(data?.products ?? []).map((item, index) => <View key={item.id} style={[styles.row, index > 0 && styles.rowBorder]}>
           <View style={styles.rowIcon}><Ionicons name="diamond-outline" size={18} color="#8F1D3F" /></View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{new Intl.NumberFormat('vi-VN').format(item.coins)} Linh Thạch</Text>
+            <Text style={styles.rowTitle}>{new Intl.NumberFormat('vi-VN').format(item.coins)} Thượng Phẩm Linh Thạch</Text>
             <Text style={styles.rowSub}>Google: {item.google_product_id || 'chưa cấu hình'}</Text>
             <Text style={styles.rowSub}>Apple: {item.apple_product_id || 'chưa cấu hình'}</Text>
           </View>
@@ -120,7 +120,7 @@ export default function AdminStoreScreen() {
         {data.purchases.map((item, index) => <View key={item.id} style={[styles.row, index > 0 && styles.rowBorder]}>
           <View style={styles.rowIcon}><Ionicons name="receipt-outline" size={18} color="#8F1D3F" /></View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{new Intl.NumberFormat('vi-VN').format(item.coins_granted)} Linh Thạch · {providerLabel(item.provider)}</Text>
+            <Text style={styles.rowTitle}>{new Intl.NumberFormat('vi-VN').format(item.coins_granted)} {item.currency_type === 'high' ? 'Thượng Phẩm' : 'Hạ Phẩm'} · {providerLabel(item.provider)}</Text>
             <Text style={styles.rowSub}>{item.external_transaction_id}</Text>
             <Text style={styles.rowSub}>{new Date(item.created_at).toLocaleString('vi-VN')}</Text>
           </View>

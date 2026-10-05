@@ -62,12 +62,12 @@ export default function AdminHomeScreen() {
       </Pressable>
       <Pressable style={styles.secondaryCard} onPress={() => router.push('/admin/monetization')}>
         <Ionicons name="pie-chart-outline" size={21} color="#8F1D3F" />
-        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Chính sách doanh thu</Text><Text style={styles.secondaryBody}>Cấu hình tỷ lệ chia Linh Thạch theo phiên bản, không sửa ngược giao dịch cũ.</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Chính sách doanh thu</Text><Text style={styles.secondaryBody}>Cấu hình tỷ lệ chia doanh thu theo phiên bản, không sửa ngược giao dịch cũ.</Text></View>
         <Ionicons name="chevron-forward" size={20} color="#8F1D3F" />
       </Pressable>
       <Pressable style={styles.secondaryCard} onPress={() => router.push('/admin/store')}>
         <Ionicons name="card-outline" size={21} color="#8F1D3F" />
-        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Thanh toán & đối soát</Text><Text style={styles.secondaryBody}>Google Play, App Store, Linh Thạch, webhook hoàn tiền và trạng thái xác minh.</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Thanh toán & đối soát</Text><Text style={styles.secondaryBody}>Google Play, App Store, Thượng Phẩm, webhook hoàn tiền và trạng thái xác minh.</Text></View>
         <Ionicons name="chevron-forward" size={20} color="#8F1D3F" />
       </Pressable>
       <Pressable style={styles.secondaryCard} onPress={() => router.push('/admin/payouts')}>

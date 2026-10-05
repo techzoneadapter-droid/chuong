@@ -409,7 +409,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: wallet } = await admin
       .from("wallet_accounts")
-      .select("balance_coins,debt_coins")
+      .select("balance_coins,low_spirit_stones,high_spirit_stones,debt_coins")
       .eq("user_id", user.id)
       .single();
 
@@ -418,6 +418,8 @@ Deno.serve(async (req: Request) => {
       credited: true,
       purchase: credited,
       balanceCoins: wallet?.balance_coins ?? null,
+      lowSpiritStones: wallet?.low_spirit_stones ?? null,
+      highSpiritStones: wallet?.high_spirit_stones ?? null,
       debtCoins: wallet?.debt_coins ?? null,
     });
   } catch (error) {

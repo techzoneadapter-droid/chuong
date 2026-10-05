@@ -145,7 +145,7 @@ export default function NotificationSettingsScreen() {
 
       <Text style={styles.sectionTitle}>Loại thông báo</Text>
       <View style={styles.card}>
-        <PreferenceRow icon="diamond-outline" title="Linh Thạch & giao dịch" body="Nạp, hoàn, thu hồi và khôi phục giao dịch." value={prefs.purchases} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('purchases', value); }} />
+        <PreferenceRow icon="diamond-outline" title="Hạ Phẩm · Thượng Phẩm & giao dịch" body="Nạp, hoàn, thu hồi và khôi phục giao dịch." value={prefs.purchases} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('purchases', value); }} />
         <PreferenceRow icon="stats-chart-outline" title="Doanh thu tác giả" body="Doanh thu mới và điều chỉnh hoàn tiền." value={prefs.authorEarnings} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('authorEarnings', value); }} />
         <PreferenceRow icon="cash-outline" title="Thanh toán tác giả" body="Yêu cầu rút được duyệt, hủy hoặc đã thanh toán." value={prefs.payouts} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('payouts', value); }} />
         <PreferenceRow icon="chatbubble-ellipses-outline" title="Bình luận" body="Trả lời bình luận và bình luận mới trên truyện của bạn." value={prefs.comments} disabled={!prefs.inAppEnabled || Boolean(savingKey)} onChange={(value) => { void update('comments', value); }} />

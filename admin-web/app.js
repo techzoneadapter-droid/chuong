@@ -640,6 +640,7 @@ $('refreshLogsBtn').addEventListener('click',()=>void loadRecentImportLogs());
 $('bookVip').addEventListener('change',()=>{
   $('vipPriceWrap').classList.toggle('hidden',!$('bookVip').checked);
   if(!$('bookVip').checked)$('vipPrice').value='0';
+  renderPremiumPricePreview();
 });
 $('schedulePublish').addEventListener('change',()=>{
   const enabled=$('schedulePublish').checked;
@@ -697,7 +698,7 @@ $('uploadBtn').addEventListener('click',async()=>{
   if(title.length<2)return showMessage(uploadMessage,'Hãy nhập tên truyện.');
   if(!author)return showMessage(uploadMessage,'Hãy nhập tên tác giả hiển thị.');
   if(!rights)return showMessage(uploadMessage,'Cần xác nhận quyền nội dung trước khi đẩy.');
-  if(isVip&&(!Number.isInteger(priceCoins)||priceCoins<=0))return showMessage(uploadMessage,'Truyện VIP cần giá Linh Thạch lớn hơn 0.');
+  if(isVip&&(!Number.isInteger(priceCoins)||priceCoins<=0))return showMessage(uploadMessage,'Truyện VIP cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
   if(!chapters.length)return showMessage(uploadMessage,'Chưa có chương để đẩy.');
   if(useAi&&!state.aiReady)return showMessage(uploadMessage,'AI chưa sẵn sàng trên máy chủ. Hãy tắt AI hoặc cấu hình nhà cung cấp AI.');
 
@@ -753,7 +754,7 @@ $('uploadBtn').addEventListener('click',async()=>{
     const detail='Đã xác minh '+chapters.length+'/'+chapters.length+' chương · '+audit.totalWords+' từ'+(useAi?' · AI hoàn tất':'')+(schedule?' · hẹn '+perDay+' chương/ngày':'')+'.';
     await finishImportLog(logId,'completed',bookId,detail);
     const scheduleText=schedule?'\n✓ Hẹn đăng '+perDay+' chương/ngày từ '+new Date(scheduledStart).toLocaleString('vi-VN')+'.\n✓ Truyện sẽ tự công khai khi chương đầu đến giờ; sau chương cuối: '+statusLabel+'.':'';
-    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.\n✓ Tổng '+audit.totalWords.toLocaleString('vi-VN')+' từ.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+scheduleText+'\nTrạng thái: '+(schedule?'Đã xếp lịch':publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+(isVip?'\nVIP toàn truyện: '+priceCoins+' Linh Thạch':'\nTruyện miễn phí')+'.\nBook ID: '+bookId,'success');
+    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.\n✓ Tổng '+audit.totalWords.toLocaleString('vi-VN')+' từ.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+scheduleText+'\nTrạng thái: '+(schedule?'Đã xếp lịch':publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+(isVip?'\nVIP toàn truyện: '+priceCoins+' Hạ Phẩm Linh Thạch':'\nTruyện miễn phí')+'.\nBook ID: '+bookId,'success');
     btn.textContent='Đã đẩy đủ '+chapters.length+'/'+chapters.length+' chương';
   }catch(err){
     if(bookId)await deleteDraftBook(bookId);
@@ -763,3 +764,8 @@ $('uploadBtn').addEventListener('click',async()=>{
   }
 });
 ensureAdmin();
+
+function renderPremiumPricePreview(){
+  $('premiumPricePreview').textContent='Giá Thượng Phẩm: '+Math.ceil(Math.max(0,Number($('vipPrice').value)||0)/2)+' · 50% Hạ Phẩm (làm tròn lên)';
+}
+$('vipPrice').addEventListener('input',renderPremiumPricePreview);

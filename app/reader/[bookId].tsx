@@ -1,3 +1,4 @@
+import { premiumPrice, SpiritCurrency } from '../../services/spiritStones';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -61,6 +62,7 @@ export default function ReaderScreen() {
   const [loadError, setLoadError] = useState('');
   const [lockedContent, setLockedContent] = useState<ContentLockedError | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [premiumBalance, setPremiumBalance] = useState<number | null>(null);
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState('');
   const [offlineReading, setOfflineReading] = useState(false);
@@ -185,12 +187,12 @@ export default function ReaderScreen() {
             if (user) {
               try {
                 const wallet = await getWallet(user.id);
-                if (active) setWalletBalance(wallet.balance_coins);
+                if (active) { setWalletBalance(wallet.low_spirit_stones); setPremiumBalance(wallet.high_spirit_stones); }
               } catch {
-                if (active) setWalletBalance(null);
+                if (active) { setWalletBalance(null); setPremiumBalance(null); }
               }
             } else {
-              setWalletBalance(null);
+              setWalletBalance(null); setPremiumBalance(null);
             }
             return;
           }
@@ -383,7 +385,8 @@ export default function ReaderScreen() {
     setControlsVisible(true);
   };
 
-  const unlockCurrent = async () => {
+  const unlockCurrent = async (currency: SpiritCurrency = 'low') => {
+    if (unlocking) return;
     if (!lockedContent) return;
     if (!user) {
       router.push('/auth/login');
@@ -393,13 +396,13 @@ export default function ReaderScreen() {
     setUnlockError('');
     try {
       const result = lockedContent.kind === 'book'
-        ? await unlockBook(book.id)
-        : await unlockChapter(lockedContent.chapterId);
-      setWalletBalance(result.balanceCoins);
+        ? await unlockBook(book.id, currency)
+        : await unlockChapter(lockedContent.chapterId, currency);
+      currency === 'high' ? setPremiumBalance(result.balanceCoins) : setWalletBalance(result.balanceCoins);
       setReload((value) => value + 1);
     } catch (cause) {
       if (cause instanceof UnlockError && cause.code === 'INSUFFICIENT_COINS') {
-        setUnlockError('Số dư Linh Thạch không đủ để mở khóa nội dung này.');
+        setUnlockError('Số dư loại Linh Thạch đã chọn không đủ để mở khóa nội dung này.');
       } else {
         setUnlockError(messageForError(cause, 'Không thể mở khóa nội dung.'));
       }
@@ -412,7 +415,9 @@ export default function ReaderScreen() {
   if (loadError) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></View>;
 
   if (lockedContent) {
-    const enough = walletBalance === null || walletBalance >= lockedContent.priceCoins;
+    const enough = walletBalance !== null && walletBalance >= lockedContent.priceCoins;
+    const highPrice = premiumPrice(lockedContent.priceCoins);
+    const enoughHigh = premiumBalance !== null && premiumBalance >= highPrice;
     const earlyAccessUntil = lockedContent.kind === 'chapter' ? selectedChapter?.earlyAccessUntil ?? null : null;
     const earlyAccessActive = Boolean(earlyAccessUntil && new Date(earlyAccessUntil).getTime() > Date.now());
     const earlyAccessLabel = earlyAccessActive && earlyAccessUntil
@@ -427,7 +432,7 @@ export default function ReaderScreen() {
           <Text style={styles.paywallTopTitle}>{book.title}</Text>
           <View style={styles.topIcon} />
         </View>
-        <View style={styles.paywallCard}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}><View style={styles.paywallCard}>
           <View style={styles.lockCircle}><Ionicons name="lock-closed" size={28} color="#8F1D3F" /></View>
           <Text style={styles.paywallKicker}>{lockedContent.kind === 'book' ? 'TRUYỆN VIP' : earlyAccessActive ? 'TIÊN CƠ · ĐỌC SỚM' : 'CHƯƠNG VIP'}</Text>
           <Text style={styles.paywallTitle}>Chương {chapterNumber} · {selectedChapter?.title || 'Nội dung dành cho thành viên'}</Text>
@@ -435,31 +440,28 @@ export default function ReaderScreen() {
             {lockedContent.kind === 'book'
               ? 'Mở khóa truyện một lần để đọc các nội dung VIP thuộc gói truyện này.'
               : earlyAccessActive
-                ? `Bạn có thể dùng Linh Thạch để đọc chương này ngay, hoặc chờ đến ${earlyAccessLabel} khi chương tự mở miễn phí.`
+                ? `Bạn có thể dùng Hạ Phẩm Linh Thạch để đọc chương này ngay, hoặc chờ đến ${earlyAccessLabel} khi chương tự mở miễn phí.`
                 : 'Mở khóa chương này một lần. Quyền đọc được lưu vào tài khoản của bạn.'}
           </Text>
-          <View style={styles.pricePill}><Text style={styles.priceText}>{lockedContent.priceCoins} Linh Thạch</Text></View>
+          <View style={styles.pricePill}><Text style={styles.priceText}>{lockedContent.priceCoins} Hạ Phẩm · hoặc {highPrice} Thượng Phẩm</Text></View>
           {earlyAccessActive ? <Text style={styles.earlyAccessPaywall}>Tự mở miễn phí · {earlyAccessLabel}</Text> : null}
-          {user ? <Text style={styles.balanceText}>Số dư hiện tại: {walletBalance === null ? 'Đang cập nhật…' : `${walletBalance} Linh Thạch`}</Text> : <Text style={styles.balanceText}>Đăng nhập để đồng bộ quyền đọc trên các thiết bị.</Text>}
+          {user ? <Text style={styles.balanceText}>Số dư hiện tại: {walletBalance === null ? 'Đang cập nhật…' : `${walletBalance} Hạ Phẩm · ${premiumBalance ?? 0} Thượng Phẩm`}</Text> : <Text style={styles.balanceText}>Đăng nhập để đồng bộ quyền đọc trên các thiết bị.</Text>}
           {unlockError ? <Text style={styles.unlockError}>{unlockError}</Text> : null}
-          {!user ? (
-            <Pressable style={styles.unlockButton} onPress={() => router.push('/auth/login')}>
-              <ButtonArt />
-              <Text style={styles.unlockButtonText}>Đăng nhập để mở khóa</Text>
+          {!user ? <Pressable style={styles.unlockButton} onPress={() => router.push('/auth/login')}><ButtonArt /><Text style={styles.unlockButtonText}>Đăng nhập để mở khóa</Text></Pressable> : <>
+            <Pressable accessibilityRole="button" style={[styles.unlockButton, (!enough || unlocking) && styles.unlockDisabled]} disabled={!enough || unlocking} onPress={() => void unlockCurrent('low')}>
+              <ButtonArt /><Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa bằng Hạ Phẩm · ${lockedContent.priceCoins}`}</Text>
             </Pressable>
-          ) : !enough ? (
-            <Pressable style={styles.unlockButton} onPress={() => router.push('/wallet')}>
-              <ButtonArt />
-              <Text style={styles.unlockButtonText}>Không đủ Linh Thạch · Xem Ví CHƯƠNG</Text>
+            {!enough ? <View style={{ gap: 10, marginVertical: 12 }}>
+              <Pressable onPress={() => router.push('/rewards?quest=rewarded_ad')}><Text style={styles.balanceText}>Xem quảng cáo để nhận Hạ Phẩm</Text></Pressable>
+              <Pressable onPress={() => router.push('/rewards')}><Text style={styles.balanceText}>Làm nhiệm vụ để nhận Hạ Phẩm</Text></Pressable>
+            </View> : null}
+            <Pressable accessibilityRole="button" style={[styles.unlockButton, (!enoughHigh || unlocking) && styles.unlockDisabled]} disabled={!enoughHigh || unlocking} onPress={() => void unlockCurrent('high')}>
+              <ButtonArt /><Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa bằng Thượng Phẩm · ${highPrice}`}</Text>
             </Pressable>
-          ) : (
-            <Pressable style={[styles.unlockButton, unlocking && styles.unlockDisabled]} disabled={unlocking} onPress={unlockCurrent}>
-              <ButtonArt />
-              <Text style={styles.unlockButtonText}>{unlocking ? 'Đang mở khóa…' : `Mở khóa · ${lockedContent.priceCoins} Linh Thạch`}</Text>
-            </Pressable>
-          )}
-          <Text style={styles.paywallSafety}>{earlyAccessActive ? 'Nếu chọn đọc sớm, quyền đọc được lưu ngay trên tài khoản. Khi Tiên Cơ hết hạn, mọi độc giả sẽ đọc chương này miễn phí.' : 'Mỗi lần mở khóa được xử lý nguyên tử: Linh Thạch chỉ bị trừ khi quyền đọc được cấp thành công.'}</Text>
-        </View>
+            {!enoughHigh ? <Pressable onPress={() => router.push('/wallet/store')} style={{ paddingVertical: 12 }}><Text style={styles.balanceText}>Nạp Thượng Phẩm Linh Thạch</Text></Pressable> : null}
+          </>}
+          <Text style={styles.paywallSafety}>{earlyAccessActive ? 'Nếu chọn đọc sớm, quyền đọc được lưu ngay trên tài khoản. Khi Tiên Cơ hết hạn, mọi độc giả sẽ đọc chương này miễn phí.' : 'Hạ Phẩm hoặc Thượng Phẩm chỉ bị trừ khi quyền đọc được cấp thành công.'}</Text>
+        </View></ScrollView>
       </View>
     );
   }
@@ -876,7 +878,7 @@ function MoreSheet({
     <Pressable style={sheetStyles.moreRow} onPress={onBookmark}><Ionicons name={bookmark?.chapter === chapter ? 'bookmark' : 'bookmark-outline'} size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>{bookmark?.chapter === chapter ? 'Bỏ dấu trang' : 'Lưu vị trí đọc'}</Text><Text style={sheetStyles.aiDetail}>{bookmark ? `Đã lưu Chương ${bookmark.chapter} · ${bookmark.progress}%` : 'Chưa có dấu trang'}</Text></View></Pressable>
     <Pressable style={sheetStyles.moreRow} onPress={onComments}><Ionicons name="chatbubble-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Bình luận chương</Text><Text style={sheetStyles.aiDetail}>Tham gia thảo luận ở cuối chương</Text></View></Pressable>
     <Pressable style={sheetStyles.moreRow} onPress={onShareQuote}><Ionicons name="share-social-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Chia sẻ trích đoạn</Text><Text style={sheetStyles.aiDetail}>Chọn đoạn gần vị trí đang đọc · hoặc nhấn giữ đoạn bất kỳ</Text></View></Pressable>
-    {canGiftAuthor ? <Pressable style={sheetStyles.moreRow} onPress={onGiftAuthor}><Ionicons name="gift-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Tặng quà tác giả</Text><Text style={sheetStyles.aiDetail}>Ủng hộ tác giả bằng Linh Thạch</Text></View></Pressable> : null}
+    {canGiftAuthor ? <Pressable style={sheetStyles.moreRow} onPress={onGiftAuthor}><Ionicons name="gift-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Tặng quà tác giả</Text><Text style={sheetStyles.aiDetail}>Ủng hộ tác giả bằng Thượng Phẩm Linh Thạch</Text></View></Pressable> : null}
     <Pressable style={sheetStyles.moreRow} onPress={() => Alert.alert('Báo lỗi nội dung', 'Đã ghi nhận. Tính năng gửi báo cáo sẽ kết nối với CHƯƠNG backend ở giai đoạn sau.')}><Ionicons name="flag-outline" size={21} color="#8F1D3F" /><View><Text style={sheetStyles.aiTitle}>Báo lỗi nội dung</Text><Text style={sheetStyles.aiDetail}>Gửi ghi chú cho ban biên tập</Text></View></Pressable>
   </BottomSheet>;
 }

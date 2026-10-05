@@ -1,3 +1,5 @@
+import { AuthorGiftDashboard } from '../../components/AuthorGiftDashboard';
+import { spiritCurrencyLabel } from '../../services/spiritStones';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -65,10 +67,11 @@ export default function AuthorRevenueScreen() {
     >
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      <AuthorGiftDashboard />
       <View style={styles.hero}>
         <Text style={styles.heroKicker}>CÓ THỂ ĐỐI SOÁT</Text>
-        <Text style={styles.heroValue}>{formatRevenueCoins(data.availablePayoutCoins)} Linh Thạch</Text>
-        <Text style={styles.heroBody}>Số này là phần còn có thể tạo yêu cầu rút sau hoàn tiền, khoản đã thanh toán và {formatRevenueCoins(data.reservedPayoutCoins)} Linh Thạch đang được giữ cho yêu cầu chờ xử lý. Đây chưa phải số tiền VND thực nhận.</Text>
+        <Text style={styles.heroValue}>{formatRevenueCoins(data.availablePayoutCoins)} đơn vị đối soát</Text>
+        <Text style={styles.heroBody}>Số này là phần còn có thể tạo yêu cầu rút sau hoàn tiền, khoản đã thanh toán và {formatRevenueCoins(data.reservedPayoutCoins)} đơn vị đối soát đang được giữ cho yêu cầu chờ xử lý. Đây chưa phải số tiền VND thực nhận.</Text>
       </View>
       <Pressable style={styles.payoutCta} onPress={() => router.push('/author/payout')}>
         <View style={styles.payoutCtaIcon}><Ionicons name="cash-outline" size={20} color="#8F1D3F" /></View>
@@ -91,7 +94,7 @@ export default function AuthorRevenueScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.policyTitle}>{data.policy ? `Tỷ lệ tác giả đang áp dụng: ${policyPercent}%` : 'Chưa kích hoạt tỷ lệ chia doanh thu'}</Text>
           <Text style={styles.policyBody}>{data.policy ? 'Mỗi giao dịch mới chụp lại tỷ lệ tại thời điểm mua để lịch sử không bị thay đổi khi chính sách đổi.' : 'Giao dịch vẫn có thể ghi nhận doanh thu gộp, nhưng phần tác giả chưa được phân bổ cho đến khi quản trị kích hoạt chính sách.'}</Text>
-          {data.unallocatedGrossCoins !== 0 ? <Text style={styles.unallocated}>Chưa phân bổ theo chính sách: {formatRevenueCoins(data.unallocatedGrossCoins)} Linh Thạch</Text> : null}
+          {data.unallocatedGrossCoins !== 0 ? <Text style={styles.unallocated}>Chưa phân bổ theo chính sách: {formatRevenueCoins(data.unallocatedGrossCoins)} đơn vị đối soát</Text> : null}
         </View>
       </View>
 
@@ -105,16 +108,16 @@ export default function AuthorRevenueScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.rowTitle}>{item.bookTitle || 'Truyện CHƯƠNG'}</Text>
             <Text style={styles.rowSub}>{gift ? 'Quà độc giả' : item.description || (sale ? 'Mở khóa nội dung' : 'Hoàn tiền')} · {new Date(item.created_at).toLocaleString('vi-VN')}</Text>
-            <Text style={styles.rowSub}>Phần tác giả: {item.author_share_bps == null ? 'chưa phân bổ' : `${formatRevenueCoins(item.author_earnings_coins)} Linh Thạch (${sharePercent(item.author_share_bps)}%)`}</Text>
+            <Text style={styles.rowSub}>Phần tác giả: {item.author_share_bps == null ? 'chưa phân bổ' : `${formatRevenueCoins(item.author_earnings_coins)} ${spiritCurrencyLabel(item.currency_type)} (${sharePercent(item.author_share_bps)}%)`}</Text>
           </View>
-          <Text style={[styles.amount, positive ? styles.positive : styles.negative]}>{item.gross_coins > 0 ? '+' : ''}{formatRevenueCoins(item.gross_coins)} Linh Thạch</Text>
+          <Text style={[styles.amount, positive ? styles.positive : styles.negative]}>{item.gross_coins > 0 ? '+' : ''}{formatRevenueCoins(item.gross_coins)} {spiritCurrencyLabel(item.currency_type)}</Text>
         </View>;
       })}
 
       <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Lịch sử đối soát</Text><Text style={styles.sectionMeta}>{data.payouts.length} mục</Text></View>
       {!data.payouts.length ? <EmptyCopy text="Chưa có khoản thanh toán tác giả nào được ghi nhận." /> : data.payouts.map((item) => <View key={item.id} style={styles.row}>
         <View style={[styles.rowIcon, styles.saleIcon]}><Ionicons name="cash-outline" size={17} color="#47704D" /></View>
-        <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{formatRevenueCoins(item.amount_coins)} Linh Thạch</Text><Text style={styles.rowSub}>{item.status === 'paid' ? 'Đã ghi nhận thanh toán' : item.status} · {new Date(item.created_at).toLocaleString('vi-VN')}</Text>{item.external_reference ? <Text style={styles.rowSub}>Mã đối soát: {item.external_reference}</Text> : null}</View>
+        <View style={{ flex: 1 }}><Text style={styles.rowTitle}>{formatRevenueCoins(item.amount_coins)} đơn vị đối soát</Text><Text style={styles.rowSub}>{item.status === 'paid' ? 'Đã ghi nhận thanh toán' : item.status} · {new Date(item.created_at).toLocaleString('vi-VN')}</Text>{item.external_reference ? <Text style={styles.rowSub}>Mã đối soát: {item.external_reference}</Text> : null}</View>
       </View>)}
 
       <View style={styles.notice}><Ionicons name="information-circle-outline" size={19} color="#8F1D3F" /><Text style={styles.noticeText}>CHƯƠNG hiện chỉ xây sổ doanh thu và đối soát. Chức năng rút tiền thật chưa được bật cho tới khi hoàn thiện chính sách thanh toán, thuế, KYC và phương thức payout.</Text></View>
@@ -123,7 +126,7 @@ export default function AuthorRevenueScreen() {
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
-  return <View style={styles.metric}><Text style={styles.metricValue}>{formatRevenueCoins(value)} Linh Thạch</Text><Text style={styles.metricLabel}>{label}</Text></View>;
+  return <View style={styles.metric}><Text style={styles.metricValue}>{formatRevenueCoins(value)} đơn vị đối soát</Text><Text style={styles.metricLabel}>{label}</Text></View>;
 }
 
 function EmptyCopy({ text }: { text: string }) {

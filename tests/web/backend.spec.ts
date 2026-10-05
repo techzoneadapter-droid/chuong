@@ -168,6 +168,9 @@ async function mock(page: Page, authenticated = false) {
         });
       }
 
+      if (fn === 'get_my_author_gifts') return route.fulfill({ json: { totalHigh: 0, totalLow: 0, count: 0, recent: [] } });
+      if (fn === 'get_author_chapter_for_editing') return route.fulfill({ json: chapters.filter((item) => item.id === data.p_chapter_id).map((item) => ({ ...item, status: 'draft', is_vip: true, price_coins: 101, scheduled_publish_at: '2027-01-01T00:00:00Z' })) });
+      if (fn === 'get_book_gift_summary') return route.fulfill({ json: [{ total_gifts: 0, total_coins: 0 }] });
       if (fn === 'get_unread_notification_count') return route.fulfill({ json: 0 });
 
       if (fn === 'get_public_reader_profile') {
@@ -354,7 +357,9 @@ async function mock(page: Page, authenticated = false) {
       table === 'authors' ? [author] :
       table === 'profiles' ? [profile] :
       table === 'book_genres' ? [{ book_id: bookId, genre: 'Fantasy' }] :
-      table === 'chapters' ? chapters :
+      table === 'chapters' ? chapters.map((item) => ({ ...item, is_vip: true, price_coins: 101, scheduled_publish_at: '2027-01-01T00:00:00Z' })) :
+      table === 'wallet_accounts' ? [{ user_id: userId, balance_coins: 100, low_spirit_stones: 100, high_spirit_stones: 50 }] :
+      table === 'wallet_transactions' ? [] :
       table === 'reading_progress' ? [] :
       table === 'library' ? [] :
       table === 'bookmarks' ? [] :
@@ -476,4 +481,128 @@ test('community discovery, follow, public profile and privacy settings stay conn
   await page.getByText('Lưu quyền riêng tư', { exact: true }).click();
   await expect(page.getByText('Đã lưu quyền riêng tư.', { exact: true })).toBeVisible();
   await expect.poll(() => writes.filter((item) => item.table === 'update_reader_privacy').length).toBe(1);
+});
+
+
+test('author book chapters render list and report runtime errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => { errors.push(error.message); console.log('AUTHOR_RUNTIME_ERROR:', error.stack); });
+  await mock(page, true);
+  await page.goto('/write');
+  await page.getByText(book.title, { exact: true }).first().click();
+  await expect(page.getByText('Quản lý chương', { exact: true })).toBeVisible();
+  await expect(page.getByText('Nội dung máy chủ 1', { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+
+test('author existing VIP chapter and legacy route show editor, price preview and schedule', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await mock(page, true);
+  await page.goto(`/author/books/${bookId}/chapters/${chapterId}`);
+  await expect(page.getByPlaceholder('Tên chương')).toHaveValue('Nội dung máy chủ 1');
+  await expect(page.getByText('Giá Hạ Phẩm Linh Thạch', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Giá Thượng Phẩm: 51/)).toBeVisible();
+  await expect(page.getByText(/Hẹn đăng ·/)).toBeVisible();
+  await page.getByPlaceholder('Tên chương').fill('Chương được chỉnh sửa');
+  await page.getByText('Lưu', { exact: true }).click();
+  await expect(page.getByText('Đã lưu', { exact: true })).toBeVisible();
+  await page.goto(`/author/books/${bookId}/chapter/${chapterId}`);
+  await expect(page.getByPlaceholder('Tên chương')).toHaveValue('Nội dung máy chủ 1');
+  expect(errors).toEqual([]);
+});
+
+test('author errors have retry and back; malformed chapter routes safely return to books', async ({ page }) => {
+  await mock(page, true);
+  let failing = true;
+  await page.route('**/rest/v1/rpc/get_author_chapter_for_editing', (route) => route.fulfill(failing ? { status: 500, json: { message: 'Không thể tải bản thảo kiểm thử.' } } : { json: [chapters[0]] }));
+  await page.goto(`/author/books/${bookId}/chapters/${chapterId}`);
+  await expect(page.getByText('Thử lại', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Quay lại', { exact: true })).toBeVisible();
+  await expect(page.getByPlaceholder('Tên chương')).toHaveCount(0);
+  failing = false;
+  await page.getByText('Thử lại', { exact: true }).click();
+  await expect(page.getByPlaceholder('Tên chương')).toHaveValue('Nội dung máy chủ 1');
+  await page.goto('/author/books/invalid/chapters/missing');
+  await expect(page).toHaveURL(/\/write$/);
+  await expect(page.getByText('Truyện của tôi', { exact: true })).toBeVisible();
+});
+
+test('wallet shows distinct balances and premium-only gift packages', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await mock(page, true);
+  await page.goto('/wallet');
+  await expect(page.getByText('Hạ Phẩm', { exact: true })).toBeVisible();
+  await expect(page.getByText('Thượng Phẩm', { exact: true })).toBeVisible();
+  await expect(page.getByText('100', { exact: true })).toBeVisible();
+  await expect(page.getByText('50', { exact: true })).toBeVisible();
+  await page.screenshot({ path: '.cache/two-currency-wallet.png', fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test('VIP paywall shows both prices, spends selected currency, and offers reward/top-up links', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await mock(page, true);
+  let unlocked = false;
+  let selectedCurrency = '';
+  await page.route('**/rest/v1/rpc/get_chapter_for_reading', (route) => route.fulfill({ json: [{ ...chapters[0], content: unlocked ? chapters[0].content : null, lock_kind: unlocked ? null : 'chapter', lock_price_coins: 101 }] }));
+  await page.route('**/rest/v1/wallet_accounts?**', (route) => route.fulfill({ json: { user_id: userId, balance_coins: 0, low_spirit_stones: 0, high_spirit_stones: 100 } }));
+  await page.route('**/rest/v1/rpc/unlock_chapter_currency', (route) => {
+    selectedCurrency = route.request().postDataJSON().p_currency_type;
+    unlocked = true;
+    return route.fulfill({ json: [{ unlocked: true, already_unlocked: false, balance_coins: 49, price_paid_coins: 51, entitlement_id: chapterId }] });
+  });
+  await page.goto(`/reader/${bookId}?chapter=1`);
+  await expect(page.getByText('101 Hạ Phẩm · hoặc 51 Thượng Phẩm', { exact: true })).toBeVisible();
+  await expect(page.getByText('Xem quảng cáo để nhận Hạ Phẩm', { exact: true })).toBeVisible();
+  await expect(page.getByText('Làm nhiệm vụ để nhận Hạ Phẩm', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mở khóa bằng Hạ Phẩm · 101' })).toBeDisabled();
+  await page.screenshot({ path: '.cache/two-currency-paywall.png', fullPage: true });
+  await page.getByRole('button', { name: 'Mở khóa bằng Thượng Phẩm · 51' }).click();
+  await expect(page.locator('body')).toContainText('Văn bản từ backend chương 1.');
+  expect(selectedCurrency).toBe('high');
+  expect(errors).toEqual([]);
+});
+
+test('VIP paywall without premium offers recharge and low unlock at full price', async ({ page }) => {
+  await mock(page, true);
+  let selectedCurrency = '';
+  await page.route('**/rest/v1/rpc/get_chapter_for_reading', (route) => route.fulfill({ json: [{ ...chapters[0], content: null, lock_kind: 'chapter', lock_price_coins: 100 }] }));
+  await page.route('**/rest/v1/wallet_accounts?**', (route) => route.fulfill({ json: { user_id: userId, balance_coins: 100, low_spirit_stones: 100, high_spirit_stones: 0 } }));
+  await page.route('**/rest/v1/rpc/unlock_chapter_currency', (route) => {
+    selectedCurrency = route.request().postDataJSON().p_currency_type;
+    return route.fulfill({ status: 400, json: { message: 'INSUFFICIENT_COINS' } });
+  });
+  await page.goto(`/reader/${bookId}?chapter=1`);
+  await expect(page.getByText('Nạp Thượng Phẩm Linh Thạch', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Mở khóa bằng Hạ Phẩm · 100' }).click();
+  await expect(page.getByText('Số dư loại Linh Thạch đã chọn không đủ để mở khóa nội dung này.', { exact: true })).toBeVisible();
+  expect(selectedCurrency).toBe('low');
+});
+
+test('author profile opens premium gift packages and submits a gift', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await mock(page, true);
+  await page.route('**/rest/v1/rpc/get_public_reader_profile', (route) => route.fulfill({ json: [{ ...targetProfile, role: 'author', follower_count: 0, following_count: 0, viewer_follows: false, viewer_muted: false, viewer_blocked: false, profile_public: true, allow_follows: true }] }));
+  await page.route('**/rest/v1/authors?**', (route) => route.fulfill({ json: { ...author, user_id: targetUserId } }));
+  let giftKey = '';
+  await page.route('**/rest/v1/rpc/send_author_gift', (route) => {
+    giftKey = route.request().postDataJSON().p_gift_key;
+    return route.fulfill({ json: [{ gift_id: 'gift-test', amount_coins: 50, balance_coins: 0, author_earnings_coins: 35, platform_share_coins: 15, already_sent: false }] });
+  });
+  await page.goto(`/user/${targetUserId}`);
+  await page.getByText('Tặng quà tác giả', { exact: true }).click();
+  await expect(page.getByText('10 Thượng Phẩm Linh Thạch', { exact: true })).toBeVisible();
+  await expect(page.getByText('50 Thượng Phẩm Linh Thạch', { exact: true })).toBeVisible();
+  await expect(page.getByText('100 Thượng Phẩm Linh Thạch', { exact: true })).toBeVisible();
+  await expect(page.getByText('500 Thượng Phẩm Linh Thạch', { exact: true })).toBeVisible();
+  await page.screenshot({ path: '.cache/two-currency-gifts.png', fullPage: true });
+  await page.getByText('Tặng Tiên Đan · 50 Thượng Phẩm Linh Thạch', { exact: true }).click();
+  await expect(page.getByText(/Đã tặng Tiên Đan cho/)).toBeVisible();
+  expect(giftKey).toBe('tien_dan');
+  expect(errors).toEqual([]);
 });

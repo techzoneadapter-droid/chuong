@@ -117,7 +117,7 @@ export async function saveNotificationPreferences(input: NotificationPreferences
 }
 
 export function notificationCategoryLabel(category: string) {
-  if (category === 'purchase') return 'Linh Thạch';
+  if (category === 'purchase') return 'Hạ Phẩm · Thượng Phẩm';
   if (category === 'author_earnings') return 'Doanh thu';
   if (category === 'payout') return 'Thanh toán tác giả';
   if (category === 'comment') return 'Bình luận';

@@ -1,3 +1,4 @@
+import { SpiritPricePreview } from '../../../../../components/SpiritPricePreview';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -230,18 +231,19 @@ export default function StudioChapterEditor() {
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.switchTitle}>Chương VIP</Text>
-              <Text style={styles.switchBody}>{isVip ? 'Độc giả cần mở khóa bằng Linh Thạch.' : 'Độc giả có thể đọc miễn phí.'}</Text>
+              <Text style={styles.switchBody}>{isVip ? 'Độc giả cần mở khóa bằng Hạ Phẩm Linh Thạch.' : 'Độc giả có thể đọc miễn phí.'}</Text>
             </View>
             <Switch value={isVip} onValueChange={(value) => { setIsVip(value); if (!value) setEarlyAccessUntil(null); }} />
           </View>
           {isVip ? <>
-            <Text style={styles.label}>Giá Linh Thạch</Text>
+            <Text style={styles.label}>Giá Hạ Phẩm Linh Thạch</Text>
             <TextInput value={priceCoins} onChangeText={setPriceCoins} keyboardType="number-pad" style={styles.input} />
+            <SpiritPricePreview lowPrice={Number(priceCoins) || 0} />
             <View style={styles.earlyBox}>
               <View style={styles.switchRowPlain}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.switchTitle}>Tiên Cơ · đọc sớm</Text>
-                  <Text style={styles.switchBody}>Tạm khóa bằng Linh Thạch rồi tự mở miễn phí khi hết hạn.</Text>
+                  <Text style={styles.switchBody}>Tạm khóa bằng Hạ Phẩm Linh Thạch rồi tự mở miễn phí khi hết hạn.</Text>
                 </View>
                 <Switch value={earlyConfigured} onValueChange={(value) => value ? setEarlyDays(3) : setEarlyAccessUntil(null)} />
               </View>
@@ -258,7 +260,7 @@ export default function StudioChapterEditor() {
           <Check ok={Number(chapterNumber) > 0} label="Số chương hợp lệ" />
           <Check ok={title.trim().length >= 2} label="Có tiêu đề chương" />
           <Check ok={content.trim().length >= 50} label="Nội dung từ 50 ký tự" />
-          <Check ok={!isVip || Number(priceCoins) > 0} label={isVip ? 'Có giá Linh Thạch' : 'Chương miễn phí'} />
+          <Check ok={!isVip || Number(priceCoins) > 0} label={isVip ? 'Có giá Hạ Phẩm Linh Thạch' : 'Chương miễn phí'} />
           {earlyConfigured ? <Check ok={!earlyExpired} label={earlyExpired ? 'Tiên Cơ đã hết hạn' : 'Tiên Cơ còn hiệu lực'} /> : null}
         </View>
 

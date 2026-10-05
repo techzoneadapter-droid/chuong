@@ -108,7 +108,7 @@ export default function PremiumScreen() {
 
       <View style={styles.note}>
         <Ionicons name="information-circle-outline" size={19} color={xianxia.cinnabar} />
-        <Text style={styles.noteText}>Linh Thạch là vật phẩm tiêu hao và tách biệt với thuê bao VIP. Không dùng số dư Linh Thạch để giả lập trạng thái VIP.</Text>
+        <Text style={styles.noteText}>Hạ Phẩm và Thượng Phẩm Linh Thạch tách biệt với thuê bao VIP. Số dư ví không thay thế thuê bao VIP.</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;

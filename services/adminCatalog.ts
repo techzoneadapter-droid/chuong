@@ -126,7 +126,7 @@ export async function createAdminCatalogBook(input: AdminCatalogBookInput) {
   if (input.creditedAuthorName && input.creditedAuthorName.trim().length < 2) throw new Error('Tên tác giả hiển thị cần có ít nhất 2 ký tự.');
   const isVip = Boolean(input.isVip);
   const priceCoins = isVip ? Math.max(0, Number(input.priceCoins ?? 0)) : 0;
-  if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) throw new Error('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
+  if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) throw new Error('Truyện VIP cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
 
   const slugBase = slugify(input.title) || 'truyen';
   const slug = `${slugBase}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -265,8 +265,8 @@ export async function saveAdminCatalogChapter(input: AdminCatalogChapterInput) {
   if (!Number.isInteger(input.chapterNumber) || input.chapterNumber <= 0) throw new Error('Số chương phải lớn hơn 0.');
   if (input.title.trim().length < 2) throw new Error('Tiêu đề chương cần ít nhất 2 ký tự.');
   if (input.status === 'published' && input.content.trim().length < 50) throw new Error('Chương cần ít nhất 50 ký tự trước khi xuất bản.');
-  if (input.isVip && (!Number.isInteger(input.priceCoins) || input.priceCoins <= 0)) throw new Error('Chương VIP/Tiên Cơ cần giá Linh Thạch lớn hơn 0.');
-  if (input.earlyAccessUntil && !input.isVip) throw new Error('Tiên Cơ chỉ dùng cho chương có mở khóa bằng Linh Thạch.');
+  if (input.isVip && (!Number.isInteger(input.priceCoins) || input.priceCoins <= 0)) throw new Error('Chương VIP/Tiên Cơ cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
+  if (input.earlyAccessUntil && !input.isVip) throw new Error('Tiên Cơ chỉ dùng cho chương có mở khóa bằng Hạ Phẩm Linh Thạch.');
   if (input.earlyAccessUntil && Number.isNaN(Date.parse(input.earlyAccessUntil))) throw new Error('Thời điểm kết thúc Tiên Cơ không hợp lệ.');
 
   const duplicateQuery = client

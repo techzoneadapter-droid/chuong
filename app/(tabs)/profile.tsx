@@ -58,12 +58,12 @@ export default function ProfileScreen() {
       <View style={styles.stats}><View><Text style={styles.statValue}>{social ? social.followers.toLocaleString('vi-VN') : '—'}</Text><Text style={styles.statLabel}>Người theo dõi</Text></View><View><Text style={styles.statValue}>{social ? social.following.toLocaleString('vi-VN') : '—'}</Text><Text style={styles.statLabel}>Đang theo dõi</Text></View><View><Text style={styles.statValue}>{profile?.role === 'admin' ? 'Quản trị' : profile?.role === 'author' ? 'Tác giả' : 'Độc giả'}</Text><Text style={styles.statLabel}>Vai trò</Text></View></View>
       <Pressable style={styles.wallet} onPress={() => router.push('/wallet')}>
         <View style={styles.walletIcon}><Ionicons name="diamond-outline" size={20} color={xianxia.jadeDeep} /></View>
-        <View style={{ flex: 1 }}><Text style={styles.walletTitle}>Ví CHƯƠNG</Text><Text style={styles.walletBody}>Số dư Linh Thạch · Lịch sử giao dịch</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.walletTitle}>Ví CHƯƠNG</Text><Text style={styles.walletBody}>Hạ Phẩm · Thượng Phẩm · Giao dịch</Text></View>
         <Ionicons name="chevron-forward" size={18} color={xianxia.jade} />
       </Pressable>
       <Pressable style={styles.rewards} onPress={() => router.push('/rewards')}>
         <View style={styles.rewardsIcon}><Ionicons name="flame-outline" size={20} color={xianxia.goldSoft} /></View>
-        <View style={{ flex: 1 }}><Text style={styles.rewardsTitle}>Nhật Ký Tu Luyện</Text><Text style={styles.rewardsBody}>Điểm danh · nhiệm vụ hằng ngày · nhận Linh Thạch</Text></View>
+        <View style={{ flex: 1 }}><Text style={styles.rewardsTitle}>Nhật Ký Tu Luyện</Text><Text style={styles.rewardsBody}>Điểm danh · nhiệm vụ hằng ngày · nhận Hạ Phẩm Linh Thạch</Text></View>
         <Ionicons name="chevron-forward" size={18} color={xianxia.goldSoft} />
       </Pressable>
       <Pressable style={[styles.premium, membership.isPremium && styles.premiumActive]} onPress={() => router.push('/premium')}>

@@ -1,3 +1,4 @@
+import { SpiritPricePreview } from '../../../components/SpiritPricePreview';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -19,7 +20,7 @@ export default function CreateBookScreen() {
   useEffect(() => { if (!configured || authLoading) return; if (!user) { router.replace('/auth/login'); return; } getAuthorForUser(user.id).then((value) => { if (!value) router.replace('/author/onboarding'); else setAuthor(value); }).catch((cause) => setError(messageForError(cause))); }, [router, user, configured, authLoading]);
   const pickCover = async () => { try { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [2, 3], quality: .85 }); if (!result.canceled) { const asset = result.assets[0]; if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) return setError('Ảnh bìa cần nhỏ hơn 5 MB.'); setCover({ uri: asset.uri, mimeType: asset.mimeType }); setError(''); } } catch { setError('Trình chọn ảnh không khả dụng trên thiết bị này. Bạn vẫn có thể tạo truyện và thêm bìa sau.'); } };
   const submit = async () => {
-    if (!author || !user) return; if (!agreed) return setError('Bạn cần xác nhận quyền sử dụng nội dung.'); if (title.trim().length < 2) return setError('Tên truyện cần có ít nhất 2 ký tự.'); if (description.trim().length < 20) return setError('Mô tả cần có ít nhất 20 ký tự.'); if (!genre.trim()) return setError('Vui lòng nhập thể loại.'); if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
+    if (!author || !user) return; if (!agreed) return setError('Bạn cần xác nhận quyền sử dụng nội dung.'); if (title.trim().length < 2) return setError('Tên truyện cần có ít nhất 2 ký tự.'); if (description.trim().length < 20) return setError('Mô tả cần có ít nhất 20 ký tự.'); if (!genre.trim()) return setError('Vui lòng nhập thể loại.'); if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
     setLoading(true); setError('');
     try { if (!createdBookId.current) { const book = await createBook(author.id, { title, penName: author.penName, description, genre, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean), language: language.trim() || 'vi', status: 'draft', coverUrl: null, sourceType, isVip, priceCoins: isVip ? priceCoins : 0 }); createdBookId.current = book.id; }
       if (cover) await replaceBookCover(user.id, createdBookId.current, cover.uri, cover.mimeType);
@@ -43,8 +44,9 @@ export default function CreateBookScreen() {
     <FormField label="Tags" value={tags} onChangeText={setTags} placeholder="Phiêu lưu, trưởng thành, kỳ ảo" />
     <FormField label="Ngôn ngữ" value={language} onChangeText={setLanguage} placeholder="vi" autoCapitalize="none" />
     <View style={styles.vipCard}>
-      <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật nếu muốn độc giả dùng Linh Thạch để mở khóa toàn bộ truyện.</Text></View><Switch value={isVip} onValueChange={setIsVip} trackColor={{ false: '#D8CEC1', true: '#9D6A32' }} /></View>
-      {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa toàn truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Linh Thạch</Text></View> : null}
+      <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật nếu muốn độc giả dùng Hạ Phẩm Linh Thạch để mở khóa toàn bộ truyện.</Text></View><Switch value={isVip} onValueChange={setIsVip} trackColor={{ false: '#D8CEC1', true: '#9D6A32' }} /></View>
+      {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa toàn truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Hạ Phẩm</Text></View> : null}
+          {isVip ? <SpiritPricePreview lowPrice={priceCoins} /> : null}
       <Text style={styles.vipHint}>Bạn vẫn có thể đặt VIP riêng từng chương trong màn soạn chương.</Text>
     </View>
     <Text style={styles.label}>Trạng thái: Bản nháp</Text>

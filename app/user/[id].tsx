@@ -1,6 +1,8 @@
+import { AuthorGiftSheet } from '../../components/AuthorGiftSheet';
+import { getAuthorGiftTarget } from '../../services/gifts';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingState, RetryState } from '../../components/States';
@@ -22,6 +24,9 @@ export default function ReaderProfileScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const { user } = useAuth();
   const userId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [giftTarget, setGiftTarget] = useState<Awaited<ReturnType<typeof getAuthorGiftTarget>>>(null);
+  const [giftLoading, setGiftLoading] = useState(false);
   const [profile, setProfile] = useState<PublicReaderProfile | null>(null);
   const [shelf, setShelf] = useState<PublicShelfItem[]>([]);
   const [activity, setActivity] = useState<CommunityActivity[]>([]);
@@ -62,6 +67,17 @@ export default function ReaderProfileScreen() {
   }, [userId]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  useEffect(() => {
+    setGiftTarget(null);
+    if (profile?.role !== 'author' || !userId || isSelf) return;
+    let active = true;
+    setGiftLoading(true);
+    getAuthorGiftTarget(userId).then((target) => { if (active) setGiftTarget(target); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Không thể tải quà tác giả.'); })
+      .finally(() => { if (active) setGiftLoading(false); });
+    return () => { active = false; };
+  }, [profile?.role, userId, isSelf]);
 
   const displayName = profile?.displayName || profile?.username || 'Độc giả CHƯƠNG';
   const favoriteCount = useMemo(() => shelf.filter((item) => item.shelfStatus === 'favorite').length, [shelf]);
@@ -153,6 +169,11 @@ export default function ReaderProfileScreen() {
         </View>
       </View>
 
+      {profile.role === 'author' && !isSelf ? <View style={{ marginVertical: 12 }}>
+        <Pressable disabled={!giftTarget || giftLoading} style={styles.primaryButton} onPress={() => ensureLogin() && setGiftOpen(true)}><Ionicons name="gift-outline" size={18} color="#FFF" /><Text style={styles.primaryText}>Tặng quà tác giả</Text></Pressable>
+        <Text style={{ marginTop: 8, color: '#716965', fontSize: 12 }}>{giftLoading ? 'Đang tải truyện nhận quà…' : giftTarget ? 'Quà bằng Thượng Phẩm Linh Thạch' : 'Tác giả chưa có truyện công khai để nhận quà.'}</Text>
+      </View> : null}
+      {user && giftTarget ? <AuthorGiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} {...giftTarget} userId={user.id} onOpenWallet={() => { setGiftOpen(false); router.push('/wallet/store'); }} /> : null}
       <View style={styles.stats}>
         <View style={styles.stat}><Text style={styles.statValue}>{profile.followerCount.toLocaleString('vi-VN')}</Text><Text style={styles.statLabel}>Người theo dõi</Text></View>
         <View style={styles.stat}><Text style={styles.statValue}>{profile.followingCount.toLocaleString('vi-VN')}</Text><Text style={styles.statLabel}>Đang theo dõi</Text></View>

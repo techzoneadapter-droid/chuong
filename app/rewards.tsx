@@ -70,7 +70,7 @@ export default function RewardsScreen() {
         }
         const adResult = await showDailyRewardedAd();
         if (adResult !== 'earned') {
-          setError(adResult === 'closed' ? 'Bạn cần xem hết quảng cáo để nhận Linh Thạch.' : 'Chưa tải được quảng cáo. Vui lòng thử lại sau.');
+          setError(adResult === 'closed' ? 'Bạn cần xem hết quảng cáo để nhận Hạ Phẩm Linh Thạch.' : 'Chưa tải được quảng cáo. Vui lòng thử lại sau.');
           return;
         }
         setState(await claimRewardedAdBonus());
@@ -133,11 +133,11 @@ export default function RewardsScreen() {
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryValue}>+{state?.earnedToday ?? 0}</Text>
-          <Text style={styles.summaryLabel}>Linh Thạch hôm nay</Text>
+          <Text style={styles.summaryLabel}>Hạ Phẩm hôm nay</Text>
         </View>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryValue}>{state?.balance ?? 0}</Text>
-          <Text style={styles.summaryLabel}>Số dư hiện tại</Text>
+          <Text style={styles.summaryLabel}>Số dư Hạ Phẩm</Text>
         </View>
       </View>
 

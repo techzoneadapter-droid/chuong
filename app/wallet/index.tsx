@@ -68,21 +68,23 @@ export default function WalletScreen() {
 
       <View style={styles.brandCard}>
         <BrandLockup compact inverse showTagline={false} />
-        <Text style={styles.brandCardNote}>Linh Thạch dùng để mở khóa nội dung VIP và được quản lý bằng sổ cái giao dịch.</Text>
+        <Text style={styles.brandCardNote}>Hạ Phẩm nhận từ tu luyện. Thượng Phẩm nhận từ nạp, mở VIP với nửa giá và tặng tác giả.</Text>
       </View>
 
       <View style={styles.hero}>
         <View style={styles.heroOrnament}><ArtIcon source={artwork.lotus} size={64} /></View>
         <Text style={styles.heroKicker}>SỐ DƯ KHẢ DỤNG</Text>
         <View style={styles.balanceRow}>
-          <Text style={styles.balance}>{formatCoins(wallet?.balance_coins ?? 0)}</Text>
-          <View style={styles.coin}><Ionicons name="diamond-outline" size={14} color={xianxia.goldSoft} /><Text style={styles.coinText}>Linh Thạch</Text></View>
+          <Text style={styles.balance}>{formatCoins(wallet?.low_spirit_stones ?? 0)}</Text>
+          <View style={styles.coin}><Ionicons name="diamond-outline" size={14} color={xianxia.goldSoft} /><Text style={styles.coinText}>Hạ Phẩm</Text></View>
         </View>
-        <Text style={styles.heroNote}>Dùng Linh Thạch để mở khóa truyện và chương VIP trên CHƯƠNG.</Text>
+        <View style={styles.balanceRow}><Text style={styles.balance}>{formatCoins(wallet?.high_spirit_stones ?? 0)}</Text><View style={styles.coin}><Text style={styles.coinText}>Thượng Phẩm</Text></View></View>
+        <Text style={styles.heroNote}>Hạ Phẩm: quảng cáo, điểm danh, nhiệm vụ. Thượng Phẩm: nạp, mở VIP nửa giá, tặng tác giả.</Text>
+        <Pressable style={styles.buyButton} onPress={() => router.push('/rewards')}><Text style={styles.buyButtonText}>Nhận Hạ Phẩm · Tu luyện</Text></Pressable>
         <Pressable style={styles.buyButton} onPress={() => router.push('/wallet/store')}>
           <ButtonArt />
           <Ionicons name="add-circle-outline" size={18} color={xianxia.goldSoft} />
-          <Text style={styles.buyButtonText}>Nạp Linh Thạch</Text>
+          <Text style={styles.buyButtonText}>Nạp Thượng Phẩm Linh Thạch</Text>
           <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
         </Pressable>
         <Text style={styles.storeNote}>Thanh toán thật chỉ hoạt động trên build Android/iOS đã kết nối native billing.</Text>
@@ -90,7 +92,7 @@ export default function WalletScreen() {
 
       {wallet?.debt_coins ? <View style={styles.debtNotice}>
         <Ionicons name="warning-outline" size={20} color={xianxia.cinnabar} />
-        <Text style={styles.debtNoticeText}>Tài khoản đang có {formatCoins(wallet.debt_coins)} Linh Thạch cần bù do giao dịch cửa hàng bị hoàn/hủy. Các lần nạp tiếp theo sẽ ưu tiên bù khoản này trước khi cộng vào số dư khả dụng.</Text>
+        <Text style={styles.debtNoticeText}>Tài khoản đang có {formatCoins(wallet.debt_coins)} đơn vị cần bù do giao dịch cửa hàng bị hoàn/hủy. Các lần nạp tiếp theo sẽ ưu tiên bù khoản này trước khi cộng vào số dư khả dụng.</Text>
       </View> : null}
 
       <View style={styles.metrics}>
@@ -104,11 +106,11 @@ export default function WalletScreen() {
         <Text style={styles.sectionMeta}>{items.length ? `${items.length} giao dịch` : 'Chưa có'}</Text>
       </View>
 
-      {!items.length ? <View style={styles.emptyWrap}><EmptyState title="Chưa có giao dịch Linh Thạch" detail="Khi bạn nạp hoặc sử dụng Linh Thạch, lịch sử sẽ xuất hiện tại đây." /></View> : items.map((item) => <TransactionRow key={item.id} item={item} />)}
+      {!items.length ? <View style={styles.emptyWrap}><EmptyState title="Chưa có giao dịch" detail="Lịch sử nhận, nạp và sử dụng Hạ Phẩm / Thượng Phẩm sẽ xuất hiện tại đây." /></View> : items.map((item) => <TransactionRow key={item.id} item={item} />)}
 
       <View style={styles.safety}>
         <View style={styles.safetyIcon}><Ionicons name="shield-checkmark-outline" size={20} color={xianxia.jadeDeep} /></View>
-        <Text style={styles.safetyText}>Số dư được quản lý bằng sổ cái bất biến. Ứng dụng không thể tự cộng Linh Thạch; các lần nạp chỉ được ghi nhận sau khi biên lai cửa hàng được xác minh.</Text>
+        <Text style={styles.safetyText}>Số dư được quản lý bằng sổ cái bất biến. Hạ Phẩm chỉ được cộng khi hoàn thành phần thưởng; Thượng Phẩm nạp chỉ được ghi nhận sau khi biên lai cửa hàng được xác minh.</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;
@@ -117,7 +119,7 @@ export default function WalletScreen() {
 function Metric({ label, value, icon }: { label: string; value: number; icon: keyof typeof Ionicons.glyphMap }) {
   return <View style={styles.metric}>
     <View style={styles.metricIcon}><Ionicons name={icon} size={19} color={xianxia.jadeDeep} /></View>
-    <Text style={styles.metricValue}>{formatCoins(value)} Linh Thạch</Text>
+    <Text style={styles.metricValue}>{formatCoins(value)}</Text>
     <Text style={styles.metricLabel}>{label}</Text>
   </View>;
 }
@@ -134,7 +136,7 @@ function TransactionRow({ item }: { item: WalletTransaction }) {
       {item.description ? <Text style={styles.txDate}>{new Date(item.created_at).toLocaleString('vi-VN')}</Text> : null}
     </View>
     <View style={styles.txAmountWrap}>
-      <Text style={[styles.txAmount, credit ? styles.creditText : styles.debitText]}>{credit ? '+' : ''}{formatCoins(item.amount_coins)} Linh Thạch</Text>
+      <Text style={[styles.txAmount, credit ? styles.creditText : styles.debitText]}>{credit ? '+' : ''}{formatCoins(item.amount_coins)} {item.currency_type === 'high' ? 'Thượng Phẩm' : 'Hạ Phẩm'}</Text>
       <Text style={styles.txBalance}>Còn {formatCoins(item.balance_after)}</Text>
     </View>
   </View>;
@@ -154,7 +156,7 @@ const styles = StyleSheet.create({
   hero: { position: 'relative', overflow: 'hidden', marginTop: 12, backgroundColor: '#173F35', borderRadius: 22, borderWidth: 1, borderColor: xianxia.gold, padding: 20 },
   heroOrnament: { position: 'absolute', right: 10, top: 6, opacity: .36 },
   heroKicker: { color: xianxia.goldSoft, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
-  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  balanceRow: { flexWrap: 'wrap', flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
   balance: { color: xianxia.white, fontSize: 40, fontWeight: '900', letterSpacing: -.8 },
   coin: { backgroundColor: 'rgba(185,137,69,.16)', borderWidth: 1, borderColor: 'rgba(229,209,163,.45)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 5 },
   coinText: { color: xianxia.goldSoft, fontSize: 10, fontWeight: '900' },

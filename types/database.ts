@@ -189,6 +189,7 @@ export type Database = {
       }
       author_gifts: {
         Row: {
+          currency_type: "low" | "high"
           amount_coins: number
           author_earnings_coins: number
           author_id: string
@@ -202,6 +203,7 @@ export type Database = {
           wallet_transaction_id: string | null
         }
         Insert: {
+          currency_type?: "low" | "high"
           amount_coins: number
           author_earnings_coins: number
           author_id: string
@@ -215,6 +217,7 @@ export type Database = {
           wallet_transaction_id?: string | null
         }
         Update: {
+          currency_type?: "low" | "high"
           amount_coins?: number
           author_earnings_coins?: number
           author_id?: string
@@ -300,6 +303,7 @@ export type Database = {
       }
       author_revenue_ledger: {
         Row: {
+          currency_type: "low" | "high"
           author_earnings_coins: number
           author_id: string
           author_share_bps: number | null
@@ -317,6 +321,7 @@ export type Database = {
           wallet_transaction_id: string | null
         }
         Insert: {
+          currency_type?: "low" | "high"
           author_earnings_coins?: number
           author_id: string
           author_share_bps?: number | null
@@ -334,6 +339,7 @@ export type Database = {
           wallet_transaction_id?: string | null
         }
         Update: {
+          currency_type?: "low" | "high"
           author_earnings_coins?: number
           author_id?: string
           author_share_bps?: number | null
@@ -2177,6 +2183,7 @@ export type Database = {
       }
       store_purchases: {
         Row: {
+          currency_type: "low" | "high"
           coins_granted: number
           coins_to_balance: number
           coins_to_debt: number
@@ -2195,6 +2202,7 @@ export type Database = {
           verified_at: string
         }
         Insert: {
+          currency_type?: "low" | "high"
           coins_granted?: number
           coins_to_balance?: number
           coins_to_debt?: number
@@ -2213,6 +2221,7 @@ export type Database = {
           verified_at?: string
         }
         Update: {
+          currency_type?: "low" | "high"
           coins_granted?: number
           coins_to_balance?: number
           coins_to_debt?: number
@@ -2299,6 +2308,8 @@ export type Database = {
       }
       wallet_accounts: {
         Row: {
+          low_spirit_stones: number
+          high_spirit_stones: number
           balance_coins: number
           debt_coins: number
           lifetime_credited: number
@@ -2308,6 +2319,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          high_spirit_stones?: number
           balance_coins?: number
           debt_coins?: number
           lifetime_credited?: number
@@ -2317,6 +2329,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          high_spirit_stones?: number
           balance_coins?: number
           debt_coins?: number
           lifetime_credited?: number
@@ -2337,6 +2350,10 @@ export type Database = {
       }
       wallet_transactions: {
         Row: {
+          currency_type: "low" | "high"
+          amount: number
+          direction: "in" | "out"
+          source_type: "ad_reward" | "mission_reward" | "daily_checkin" | "recharge" | "vip_unlock" | "author_gift" | "refund" | "admin_adjustment"
           amount_coins: number
           balance_after: number
           created_at: string
@@ -2350,6 +2367,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          currency_type?: "low" | "high"
           amount_coins: number
           balance_after: number
           created_at?: string
@@ -2363,6 +2381,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          currency_type?: "low" | "high"
           amount_coins?: number
           balance_after?: number
           created_at?: string
@@ -2390,6 +2409,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_adjust_wallet_currency: {
+        Args: { p_user_id: string; p_amount: number; p_reason: string; p_idempotency_key: string | null; p_currency_type: "low" | "high" }
+        Returns: { balance_coins: number; transaction_id: string }[]
+      }
+      get_my_author_gifts: { Args: Record<PropertyKey, never>; Returns: Json }
+      unlock_chapter_currency: {
+        Args: { p_chapter_id: string; p_idempotency_key: string; p_currency_type: "low" | "high" }
+        Returns: { unlocked: boolean; already_unlocked: boolean; balance_coins: number; price_paid_coins: number; entitlement_id: string | null }[]
+      }
+      unlock_book_currency: {
+        Args: { p_book_id: string; p_idempotency_key: string; p_currency_type: "low" | "high" }
+        Returns: { unlocked: boolean; already_unlocked: boolean; balance_coins: number; price_paid_coins: number; entitlement_id: string | null }[]
+      }
+
       admin_adjust_wallet: {
         Args: {
           p_amount: number

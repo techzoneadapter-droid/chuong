@@ -125,7 +125,7 @@ export default function AdminPayoutsScreen() {
             <View style={styles.avatar}><Text style={styles.avatarText}>{item.penName.slice(0, 1).toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.author}>{item.penName}</Text>
-              <Text style={styles.amount}>{formatRevenueCoins(item.amount_coins)} Linh Thạch</Text>
+              <Text style={styles.amount}>{formatRevenueCoins(item.amount_coins)} đơn vị đối soát</Text>
               <Text style={styles.rowSub}>{new Date(item.requested_at).toLocaleString('vi-VN')}</Text>
             </View>
             <StatusPill status={item.status} />

@@ -162,7 +162,7 @@ export async function createBook(authorId: string, input: AuthorBookInput): Prom
   const client = requireSupabase();
   const isVip = Boolean(input.isVip);
   const priceCoins = isVip ? Math.max(0, Number(input.priceCoins ?? 0)) : 0;
-  if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) throw new Error('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
+  if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) throw new Error('Truyện VIP cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
   try {
     const slug = `${slugify(input.title) || 'truyen'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
     const { data, error } = await client.from('books').insert({

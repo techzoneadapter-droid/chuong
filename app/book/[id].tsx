@@ -194,7 +194,7 @@ export default function BookDetailScreen() {
         <View style={styles.authorSection}>
           <View style={styles.authorSeal}><Ionicons name="person-outline" size={15} color={xianxia.goldSoft} /></View>
           <View style={styles.avatar}><Text style={styles.avatarText}>{book.author.split(' ').map((part) => part[0]).join('').slice(0, 2)}</Text></View>
-          <View style={styles.authorCopy}><Text style={styles.authorKicker}>TÁC GIẢ</Text><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></View>
+          <Pressable style={styles.authorCopy} disabled={!book.authorUserId} onPress={() => book.authorUserId && router.push({ pathname: '/user/[id]', params: { id: book.authorUserId } })}><Text style={styles.authorKicker}>TÁC GIẢ</Text><Text style={styles.authorName}>{book.author}</Text><Text style={styles.authorFollowers}>{book.authorFollowers} người theo dõi</Text></Pressable>
           <Pressable style={[styles.follow, following && styles.following]} onPress={() => toggleFollow('author')}><Text style={[styles.followText, following && styles.followingText]}>{following ? 'Đang theo dõi' : 'Theo dõi tác giả'}</Text></Pressable>
         </View>
 
@@ -202,7 +202,7 @@ export default function BookDetailScreen() {
           <View style={styles.giftSupportIcon}><Ionicons name="gift-outline" size={19} color={xianxia.goldSoft} /></View>
           <View style={{ flex: 1 }}>
             <Text style={styles.giftSupportTitle}>Ủng hộ tác giả</Text>
-            <Text style={styles.giftSupportBody}>{giftSummary.totalGifts ? `${giftSummary.totalGifts.toLocaleString('vi-VN')} lượt tặng · ${giftSummary.totalCoins.toLocaleString('vi-VN')} Linh Thạch` : 'Chưa có quà tặng · Hãy trở thành người đầu tiên ủng hộ tác giả.'}</Text>
+            <Text style={styles.giftSupportBody}>{giftSummary.totalGifts ? `${giftSummary.totalGifts.toLocaleString('vi-VN')} lượt tặng · ${giftSummary.totalCoins.toLocaleString('vi-VN')} Thượng Phẩm` : 'Chưa có quà tặng · Hãy trở thành người đầu tiên ủng hộ tác giả.'}</Text>
           </View>
           {book.authorUserId !== user?.id ? <Pressable
             style={styles.giftSupportButton}

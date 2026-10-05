@@ -51,7 +51,7 @@ export function AuthorGiftSheet({
       getBookGiftSummary(bookId),
     ]).then(([wallet, giftSummary]) => {
       if (!active) return;
-      setBalance(wallet.balance_coins);
+      setBalance(wallet.high_spirit_stones);
       setSummary(giftSummary);
     }).catch((cause) => {
       if (!active) return;
@@ -84,7 +84,7 @@ export function AuthorGiftSheet({
     }
   };
 
-  const enough = balance === null || balance >= option.amount;
+  const enough = balance !== null && balance >= option.amount;
 
   return <BottomSheet visible={visible} title="Tặng quà tác giả" onClose={() => !sending && onClose()} scroll>
     <View style={styles.hero}>
@@ -103,11 +103,11 @@ export function AuthorGiftSheet({
       </View>
       <View style={styles.summaryItem}>
         <Text style={styles.summaryValue}>{summary.totalCoins.toLocaleString('vi-VN')}</Text>
-        <Text style={styles.summaryLabel}>Linh Thạch đã ủng hộ</Text>
+        <Text style={styles.summaryLabel}>Thượng Phẩm đã tặng</Text>
       </View>
       <View style={styles.summaryItem}>
         <Text style={styles.summaryValue}>{balance === null ? '—' : balance.toLocaleString('vi-VN')}</Text>
-        <Text style={styles.summaryLabel}>Số dư của bạn</Text>
+        <Text style={styles.summaryLabel}>Số dư Thượng Phẩm</Text>
       </View>
     </View>
 
@@ -118,7 +118,7 @@ export function AuthorGiftSheet({
         return <Pressable key={gift.key} onPress={() => { setSelected(gift.key); setError(''); setSuccess(''); }} style={[styles.gift, active && styles.giftActive]}>
           <View style={[styles.giftIcon, active && styles.giftIconActive]}><Ionicons name="gift-outline" size={19} color={active ? xianxia.goldSoft : xianxia.jadeDeep} /></View>
           <Text style={[styles.giftName, active && styles.giftNameActive]}>{gift.name}</Text>
-          <Text style={[styles.giftAmount, active && styles.giftAmountActive]}>{gift.amount.toLocaleString('vi-VN')} Linh Thạch</Text>
+          <Text style={[styles.giftAmount, active && styles.giftAmountActive]}>{gift.amount.toLocaleString('vi-VN')} Thượng Phẩm Linh Thạch</Text>
           <Text style={[styles.giftSub, active && styles.giftSubActive]}>{gift.subtitle}</Text>
         </Pressable>;
       })}
@@ -135,12 +135,12 @@ export function AuthorGiftSheet({
 
     {!enough && onOpenWallet ? <Pressable onPress={onOpenWallet} style={styles.walletButton}>
       <Ionicons name="diamond-outline" size={17} color={xianxia.cinnabar} />
-      <Text style={styles.walletButtonText}>Nạp thêm Linh Thạch</Text>
+      <Text style={styles.walletButtonText}>Nạp thêm Thượng Phẩm Linh Thạch</Text>
     </Pressable> : null}
 
     <Pressable disabled={sending || loading || !enough} onPress={() => void send()} style={[styles.send, (sending || loading || !enough) && styles.disabled]}>
       <Ionicons name="sparkles-outline" size={18} color="#FFFDF8" />
-      <Text style={styles.sendText}>{sending ? 'Đang gửi quà…' : `Tặng ${option.name} · ${option.amount} Linh Thạch`}</Text>
+      <Text style={styles.sendText}>{sending ? 'Đang gửi quà…' : `Tặng ${option.name} · ${option.amount} Thượng Phẩm Linh Thạch`}</Text>
     </Pressable>
     {!enough ? <Text style={styles.insufficient}>Số dư chưa đủ cho món quà đã chọn.</Text> : null}
   </BottomSheet>;

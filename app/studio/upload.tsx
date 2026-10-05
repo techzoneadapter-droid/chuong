@@ -1,3 +1,4 @@
+import { SpiritPricePreview } from '../../components/SpiritPricePreview';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -153,7 +154,7 @@ export default function StudioUploadScreen() {
     if (!user || profile?.role !== 'admin' || busy) return;
     if (!ownerAuthorId) return setError('Cần chọn tác giả sở hữu nội bộ.');
     if (!rightsConfirmed) return setError('Cần xác nhận quyền sử dụng nội dung.');
-    if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
+    if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
     if (!selected.length) return setError('Chưa chọn truyện để nhập.');
 
     setBusy(true);
@@ -291,8 +292,9 @@ export default function StudioUploadScreen() {
           </View>
 
           <View style={styles.vipCard}>
-            <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật để áp dụng khóa Linh Thạch cho toàn bộ truyện được đẩy trong lần này.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
-            {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa / truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Linh Thạch</Text></View> : null}
+            <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật để áp dụng khóa Hạ Phẩm Linh Thạch cho toàn bộ truyện được đẩy trong lần này.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
+            {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa / truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Hạ Phẩm</Text></View> : null}
+          {isVip ? <SpiritPricePreview lowPrice={priceCoins} /> : null}
           </View>
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Khuyên để tắt lần đầu, kiểm tra bìa/chương rồi mới công khai.</Text></View>

@@ -23,7 +23,7 @@ export default function WalletStoreScreen() {
     try {
       setItems(await getStoreProducts());
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Không thể tải các gói Linh Thạch.');
+      setError(cause instanceof Error ? cause.message : 'Không thể tải các gói Thượng Phẩm Linh Thạch.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -51,7 +51,7 @@ export default function WalletStoreScreen() {
     await iap.refreshProducts();
   }, [iap, load]);
 
-  if (authLoading || (loading && user)) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải cửa hàng Linh Thạch…" /></SafeAreaView>;
+  if (authLoading || (loading && user)) return <SafeAreaView style={styles.safe}><LoadingState label="Đang tải cửa hàng Thượng Phẩm Linh Thạch…" /></SafeAreaView>;
   if (!user) return null;
   if (error && !items.length) return <SafeAreaView style={styles.safe}><RetryState detail={error} onRetry={() => load()} /></SafeAreaView>;
 
@@ -60,7 +60,7 @@ export default function WalletStoreScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <View style={styles.topbar}>
       <Pressable style={styles.iconButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color="#2E2428" /></Pressable>
-      <Text style={styles.topTitle}>Nạp Linh Thạch</Text>
+      <Text style={styles.topTitle}>Nạp Thượng Phẩm Linh Thạch</Text>
       <View style={styles.iconButton} />
     </View>
 
@@ -71,8 +71,8 @@ export default function WalletStoreScreen() {
     >
       <View style={styles.hero}>
         <Text style={styles.kicker}>LINH THẠCH</Text>
-        <Text style={styles.title}>Chọn gói Linh Thạch</Text>
-        <Text style={styles.subtitle}>Linh Thạch dùng để mở khóa truyện và chương VIP. Giá thanh toán thật được lấy trực tiếp từ Google Play hoặc App Store trên thiết bị của người dùng.</Text>
+        <Text style={styles.title}>Chọn gói Thượng Phẩm Linh Thạch</Text>
+        <Text style={styles.subtitle}>Thượng Phẩm Linh Thạch dùng để mở khóa truyện và chương VIP. Giá thanh toán thật được lấy trực tiếp từ Google Play hoặc App Store trên thiết bị của người dùng.</Text>
       </View>
 
       {isWeb ? <View style={styles.webNotice}>
@@ -87,7 +87,7 @@ export default function WalletStoreScreen() {
               ? 'Server chưa có đủ thông tin xác minh của cửa hàng nên nút mua được khóa an toàn.'
               : !iap.connected
                 ? 'Đang kết nối Google Play / App Store trên thiết bị.'
-                : 'Giao dịch chỉ được hoàn tất sau khi server xác minh và cộng Linh Thạch thành công.'}
+                : 'Giao dịch chỉ được hoàn tất sau khi server xác minh và cộng Thượng Phẩm Linh Thạch thành công.'}
           </Text>
         </View>
       </View>}
@@ -117,12 +117,12 @@ export default function WalletStoreScreen() {
             else if (!iap.connected) buttonText = 'Đang kết nối cửa hàng';
             else if (!nativeProduct) buttonText = 'Đang đồng bộ giá';
             else if (processing) buttonText = 'Đang xử lý…';
-            else buttonText = nativeProduct.displayPrice ? `Mua · ${nativeProduct.displayPrice}` : 'Mua Linh Thạch';
+            else buttonText = nativeProduct.displayPrice ? `Mua · ${nativeProduct.displayPrice}` : 'Mua Thượng Phẩm Linh Thạch';
           }
 
           return <View key={item.id} style={styles.card}>
             <View style={styles.coinCircle}><Ionicons name="diamond-outline" size={23} color="#8F1D3F" /></View>
-            <Text style={styles.coins}>{formatCoins(item.coins)} Linh Thạch</Text>
+            <Text style={styles.coins}>{formatCoins(item.coins)} Thượng Phẩm Linh Thạch</Text>
             <Text style={styles.storePrice}>{nativeProduct?.displayPrice || (isWeb ? 'Giá hiển thị trên cửa hàng' : 'Đang tải giá cửa hàng')}</Text>
             <Text style={styles.productId}>{productId || 'Chưa cấu hình product ID'}</Text>
             <Pressable
@@ -136,16 +136,16 @@ export default function WalletStoreScreen() {
         })}
       </View>
 
-      {!items.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>Chưa có gói Linh Thạch đang hoạt động</Text><Text style={styles.emptyBody}>Quản trị cần cấu hình product catalog trước khi phát hành.</Text></View> : null}
+      {!items.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>Chưa có gói Thượng Phẩm Linh Thạch đang hoạt động</Text><Text style={styles.emptyBody}>Quản trị cần cấu hình product catalog trước khi phát hành.</Text></View> : null}
 
       <View style={styles.safety}>
         <Ionicons name="shield-checkmark-outline" size={21} color="#8F1D3F" />
-        <Text style={styles.safetyText}>App không tự cộng Linh Thạch sau khi bấm mua. Google Play/App Store phải xác nhận giao dịch ở server, sau đó hệ thống mới cộng số dư và mới finish/consume giao dịch trên thiết bị.</Text>
+        <Text style={styles.safetyText}>App không tự cộng Thượng Phẩm Linh Thạch sau khi bấm mua. Google Play/App Store phải xác nhận giao dịch ở server, sau đó hệ thống mới cộng số dư và mới finish/consume giao dịch trên thiết bị.</Text>
       </View>
 
       <View style={styles.safety}>
         <Ionicons name="return-down-back-outline" size={21} color="#8F1D3F" />
-        <Text style={styles.safetyText}>Nếu cửa hàng hoàn hoặc thu hồi giao dịch, hệ thống có cơ chế thu hồi Linh Thạch và ghi nhận phần thiếu thành nợ Linh Thạch thay vì cho số dư âm.</Text>
+        <Text style={styles.safetyText}>Nếu cửa hàng hoàn hoặc thu hồi giao dịch, hệ thống có cơ chế thu hồi Thượng Phẩm Linh Thạch và ghi nhận phần thiếu thành khoản cần bù thay vì cho số dư âm.</Text>
       </View>
     </ScrollView>
   </SafeAreaView>;

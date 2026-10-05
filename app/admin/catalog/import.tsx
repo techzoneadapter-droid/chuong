@@ -1,3 +1,4 @@
+import { SpiritPricePreview } from '../../../components/SpiritPricePreview';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -152,7 +153,7 @@ export default function AdminBulkImportScreen() {
     if (!user || profile?.role !== 'admin') return;
     if (!ownerAuthorId) return setError('Cần chọn tác giả sở hữu nội bộ.');
     if (!rightsConfirmed) return setError('Cần xác nhận quyền sử dụng và phân phối nội dung.');
-    if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
+    if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
     if (!selected.length) return setError('Chưa chọn truyện nào để nhập.');
 
     const invalid = selected.find((item) => item.title.trim().length < 2 || !item.chapters.length);
@@ -291,7 +292,8 @@ export default function AdminBulkImportScreen() {
 
         <View style={styles.vipCard}>
           <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Áp dụng VIP toàn truyện cho tất cả truyện đang được chọn trong lần nhập này.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
-          {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa / truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Linh Thạch</Text></View> : null}
+          {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa / truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Hạ Phẩm</Text></View> : null}
+          {isVip ? <SpiritPricePreview lowPrice={priceCoins} /> : null}
         </View>
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}><Text style={styles.switchTitle}>Xuất bản ngay</Text><Text style={styles.switchBody}>Tắt: nhập thành bản nháp để kiểm tra. Bật: chương được xuất bản và áp dụng trạng thái bên dưới.</Text></View>

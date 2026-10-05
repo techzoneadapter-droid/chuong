@@ -1,3 +1,4 @@
+import { AuthorGiftDashboard } from '../../components/AuthorGiftDashboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -105,9 +106,10 @@ export default function WriteScreen() {
         </View>
       </View>
 
+      <AuthorGiftDashboard />
       <View style={styles.quickGrid}>
         {[
-          ['wallet-outline', 'Doanh thu tác giả', 'Linh Thạch · hoàn tiền · đối soát', '/author/revenue'],
+          ['wallet-outline', 'Doanh thu tác giả', 'Mở VIP · quà · đối soát', '/author/revenue'],
           ['star-outline', 'Đánh giá độc giả', 'Điểm sao · cảm nhận · phản hồi', '/author/reviews'],
           ['analytics-outline', 'Phân tích độc giả', 'Phiên đọc · hoàn thành · quay lại', '/author/analytics'],
         ].map(([icon, title, body, href]) => <Pressable key={href} style={styles.quickCard} onPress={() => router.push(href as never)}>

@@ -1,7 +1,8 @@
 import { requireSupabase, supabase } from '../lib/supabase';
-import { Author, Chapter, ChapterInput } from '../types';
+import { Author, Book, Chapter, ChapterInput } from '../types';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
+import { mapBook } from './books';
 
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
 
@@ -37,14 +38,29 @@ export async function updateAuthorAvatar(authorId: string, avatarUrl: string) {
 
 export { createBook, getMyBooks } from './books';
 
+/** Check the requested book directly; do not scan every book and chapter owned by an author. */
+export async function getOwnedAuthorBook(userId: string, bookId: string): Promise<Book | null> {
+  const author = await getAuthorForUser(userId);
+  if (!author) return null;
+  const { data, error } = await requireSupabase().from('books').select('*').eq('id', bookId).eq('author_id', author.id).maybeSingle();
+  if (error) throw toServiceError(error, 'Không thể tải truyện của bạn.');
+  return data ? { ...mapBook(data), author: author.penName, authorUserId: userId } : null;
+}
+
 export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
   const client = requireSupabase();
-  const { data, error } = await client
-    .from('chapters')
-    .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
-    .eq('book_id', bookId)
-    .order('chapter_number');
-  if (error) throw toServiceError(error, 'Không thể tải bản thảo.');
+  const data: Pick<Database['public']['Tables']['chapters']['Row'], 'id' | 'book_id' | 'chapter_number' | 'title' | 'status' | 'is_vip' | 'price_coins' | 'early_access_until' | 'scheduled_publish_at' | 'published_at' | 'updated_at'>[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data: page, error } = await client
+      .from('chapters')
+      .select('id,book_id,chapter_number,title,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
+      .eq('book_id', bookId)
+      .order('chapter_number')
+      .range(offset, offset + 499);
+    if (error) throw toServiceError(error, 'Không thể tải bản thảo.');
+    data.push(...(page ?? []));
+    if (!page || page.length < 500) break;
+  }
   return (data ?? []).map((row) => ({
     id: row.id,
     bookId: row.book_id,
@@ -106,8 +122,8 @@ export async function getAuthorChapter(bookId: string, chapterId: string): Promi
 export async function saveChapter(input: ChapterInput): Promise<string> {
   const client = requireSupabase();
   if (input.status === 'published' && (input.title.trim().length < 2 || input.content.trim().length < 50)) throw new Error('Chương cần có tiêu đề và ít nhất 50 ký tự trước khi xuất bản.');
-  if (input.isVip && (!Number.isInteger(input.priceCoins) || input.priceCoins <= 0)) throw new Error('Chương VIP/Tiên Cơ cần giá Linh Thạch lớn hơn 0.');
-  if (input.earlyAccessUntil && !input.isVip) throw new Error('Tiên Cơ chỉ dùng cho chương có mở khóa bằng Linh Thạch.');
+  if (input.isVip && (!Number.isInteger(input.priceCoins) || input.priceCoins <= 0)) throw new Error('Chương VIP/Tiên Cơ cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
+  if (input.earlyAccessUntil && !input.isVip) throw new Error('Tiên Cơ chỉ dùng cho chương có mở khóa bằng Hạ Phẩm Linh Thạch.');
   if (input.earlyAccessUntil && Number.isNaN(Date.parse(input.earlyAccessUntil))) throw new Error('Thời điểm kết thúc Tiên Cơ không hợp lệ.');
   const payload = {
     book_id: input.bookId,
@@ -122,7 +138,7 @@ export async function saveChapter(input: ChapterInput): Promise<string> {
   };
   try {
     if (input.id) {
-      const { data, error } = await client.from('chapters').update(payload).eq('id', input.id).select('id').single();
+      const { data, error } = await client.from('chapters').update(payload).eq('id', input.id).eq('book_id', input.bookId).select('id').single();
       if (error) throw error;
       return data.id;
     }

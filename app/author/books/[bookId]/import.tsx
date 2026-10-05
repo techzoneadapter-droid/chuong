@@ -1,3 +1,4 @@
+import { SpiritPricePreview } from '../../../../components/SpiritPricePreview';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -199,7 +200,7 @@ export default function AuthorImportBookScreen() {
       }
     }
     if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) {
-      setError('Truyện VIP cần giá Linh Thạch lớn hơn 0.');
+      setError('Truyện VIP cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
       return;
     }
     if (useAi && !premium?.premium) {
@@ -380,8 +381,9 @@ export default function AuthorImportBookScreen() {
         {premium?.premium && !premium.providerReady ? <Text style={styles.warning}>Premium đã hợp lệ nhưng server chưa có API AI dịch truyện. Cần cấu hình AI_TRANSLATE_API_KEY và AI_TRANSLATE_MODEL trước khi dùng production.</Text> : null}
 
         <View style={styles.vipCard}>
-          <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật để độc giả dùng Linh Thạch mở khóa toàn bộ truyện. Thiết lập này áp dụng cho cả truyện hiện tại.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
-          {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa toàn truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Linh Thạch</Text></View> : null}
+          <View style={styles.vipRow}><View style={{ flex: 1 }}><Text style={styles.vipTitle}>Truyện VIP</Text><Text style={styles.vipBody}>Bật để độc giả dùng Hạ Phẩm Linh Thạch mở khóa toàn bộ truyện. Thiết lập này áp dụng cho cả truyện hiện tại.</Text></View><Switch value={isVip} onValueChange={setIsVip} /></View>
+          {isVip ? <View style={styles.vipPriceRow}><Text style={styles.vipPriceLabel}>Giá mở khóa toàn truyện</Text><TextInput value={String(priceCoins)} onChangeText={(value) => setPriceCoins(Number(value.replace(/\D/g, '')) || 0)} keyboardType="number-pad" style={styles.vipPriceInput} /><Text style={styles.vipUnit}>Hạ Phẩm</Text></View> : null}
+          {isVip ? <SpiritPricePreview lowPrice={priceCoins} /> : null}
           <Text style={styles.vipHint}>Bạn vẫn có thể đặt VIP riêng cho từng chương sau khi nhập.</Text>
         </View>
         {!useAi ? <>

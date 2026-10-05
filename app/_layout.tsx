@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { ActivityIndicator, Platform, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -39,7 +39,7 @@ export default function RootLayout() {
   // Expo web may time out while FontFaceObserver checks the icon font inside
   // remote/cloud previews. Keep the app usable even if the icon font fails;
   // matching expo-font to SDK 54 handles the normal path.
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: '#F8F2E9', alignItems: 'center', justifyContent: 'center', gap: 12 }}><ActivityIndicator color="#315247" /><Text>Đang mở CHƯƠNG…</Text></View>;
 
   return (
     <SafeAreaProvider>

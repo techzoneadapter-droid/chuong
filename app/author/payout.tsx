@@ -138,8 +138,8 @@ export default function AuthorPayoutScreen() {
 
       <View style={styles.hero}>
         <Text style={styles.heroKicker}>CÓ THỂ YÊU CẦU</Text>
-        <Text style={styles.heroValue}>{formatRevenueCoins(data.requestableCoins)} Linh Thạch</Text>
-        <Text style={styles.heroBody}>Đã giữ chỗ cho yêu cầu đang chờ/đã duyệt: {formatRevenueCoins(data.reservedCoins)} Linh Thạch.</Text>
+        <Text style={styles.heroValue}>{formatRevenueCoins(data.requestableCoins)} đơn vị đối soát</Text>
+        <Text style={styles.heroBody}>Đã giữ chỗ cho yêu cầu đang chờ/đã duyệt: {formatRevenueCoins(data.reservedCoins)} đơn vị đối soát.</Text>
       </View>
 
       <Text style={styles.sectionTitle}>Hồ sơ thanh toán</Text>
@@ -160,7 +160,7 @@ export default function AuthorPayoutScreen() {
       </Pressable>
 
       <Text style={styles.sectionTitle}>Tạo yêu cầu rút</Text>
-      <Text style={styles.label}>Số Linh Thạch</Text>
+      <Text style={styles.label}>Số đơn vị đối soát</Text>
       <TextInput
         value={amount}
         onChangeText={setAmount}
@@ -188,7 +188,7 @@ export default function AuthorPayoutScreen() {
           <Ionicons name={item.status === 'paid' ? 'checkmark' : item.status === 'cancelled' ? 'close' : 'time-outline'} size={17} color={item.status === 'paid' ? '#47704D' : item.status === 'cancelled' ? '#A12B48' : '#9B6A22'} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>{formatRevenueCoins(item.amount_coins)} Linh Thạch · {payoutStatusLabel(item.status)}</Text>
+          <Text style={styles.rowTitle}>{formatRevenueCoins(item.amount_coins)} đơn vị đối soát · {payoutStatusLabel(item.status)}</Text>
           <Text style={styles.rowSub}>{new Date(item.requested_at).toLocaleString('vi-VN')}</Text>
           {item.external_reference ? <Text style={styles.rowSub}>Mã thanh toán: {item.external_reference}</Text> : null}
           {item.review_note ? <Text style={styles.rowSub}>Quản trị: {item.review_note}</Text> : null}

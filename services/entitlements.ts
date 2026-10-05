@@ -1,3 +1,4 @@
+import { SpiritCurrency } from './spiritStones';
 import { requireSupabase } from '../lib/supabase';
 import { Tables } from '../types/database';
 import { toServiceError } from './errors';
@@ -23,9 +24,9 @@ export class UnlockError extends Error {
 }
 
 function classifyUnlockError(error: unknown): never {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error);
   if (message.includes('AUTH_REQUIRED')) throw new UnlockError('AUTH_REQUIRED', 'Bạn cần đăng nhập để mở khóa nội dung.');
-  if (message.includes('INSUFFICIENT_COINS')) throw new UnlockError('INSUFFICIENT_COINS', 'Số dư Linh Thạch không đủ.');
+  if (message.includes('INSUFFICIENT_COINS')) throw new UnlockError('INSUFFICIENT_COINS', 'Số dư loại Linh Thạch đã chọn không đủ.');
   if (message.includes('CONTENT_NOT_AVAILABLE')) throw new UnlockError('CONTENT_NOT_AVAILABLE', 'Nội dung hiện không khả dụng.');
   if (message.includes('BOOK_UNLOCK_REQUIRED')) throw new UnlockError('BOOK_UNLOCK_REQUIRED', 'Truyện này cần được mở khóa toàn bộ.');
   throw toServiceError(error, 'Không thể mở khóa nội dung.');
@@ -51,10 +52,11 @@ function mapUnlock(row: {
   };
 }
 
-export async function unlockChapter(chapterId: string): Promise<UnlockResult> {
+export async function unlockChapter(chapterId: string, currency: SpiritCurrency = 'low'): Promise<UnlockResult> {
   try {
-    const { data, error } = await requireSupabase().rpc('unlock_chapter', {
+    const { data, error } = await requireSupabase().rpc('unlock_chapter_currency', {
       p_chapter_id: chapterId,
+      p_currency_type: currency,
       p_idempotency_key: idempotencyKey('chapter', chapterId),
     });
     if (error) throw error;
@@ -66,10 +68,11 @@ export async function unlockChapter(chapterId: string): Promise<UnlockResult> {
   }
 }
 
-export async function unlockBook(bookId: string): Promise<UnlockResult> {
+export async function unlockBook(bookId: string, currency: SpiritCurrency = 'low'): Promise<UnlockResult> {
   try {
-    const { data, error } = await requireSupabase().rpc('unlock_book', {
+    const { data, error } = await requireSupabase().rpc('unlock_book_currency', {
       p_book_id: bookId,
+      p_currency_type: currency,
       p_idempotency_key: idempotencyKey('book', bookId),
     });
     if (error) throw error;

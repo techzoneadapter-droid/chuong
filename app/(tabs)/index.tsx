@@ -256,7 +256,7 @@ export default function HomeScreen() {
           <ArtIcon source={artwork.write} size={64} />
           <View style={styles.authorCopy}>
             <Text style={styles.authorTitle}>Một thế giới mới bắt đầu từ chương đầu tiên.</Text>
-            <Text style={styles.authorBody}>Tác giả có thể đăng truyện, quản lý chương, xem phân tích độc giả và kiếm Linh Thạch.</Text>
+            <Text style={styles.authorBody}>Tác giả có thể đăng truyện, quản lý chương, xem phân tích độc giả và kiếm Hạ Phẩm Linh Thạch.</Text>
             <Pressable style={styles.authorButton} onPress={() => router.push('/write')}>
               <ButtonArt />
               <Text style={styles.authorButtonText}>Bắt đầu viết</Text>

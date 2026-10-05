@@ -8,7 +8,7 @@ function friendlyPurchaseError(error: unknown) {
   const code = (error as { code?: string })?.code;
   if (code === ErrorCode.UserCancelled) return '';
   const message = error instanceof Error ? error.message : String(error);
-  if (/not.?configured|xác minh cửa hàng/i.test(message)) return 'Cổng xác minh cửa hàng chưa được cấu hình. Chưa có Linh Thạch nào bị cộng hoặc trừ.';
+  if (/not.?configured|xác minh cửa hàng/i.test(message)) return 'Cổng xác minh cửa hàng chưa được cấu hình. Chưa có Thượng Phẩm Linh Thạch nào bị cộng hoặc trừ.';
   if (/pending/i.test(message)) return 'Giao dịch đang chờ cửa hàng xác nhận. CHƯƠNG sẽ xử lý lại khi giao dịch hoàn tất.';
   return message || 'Không thể hoàn tất giao dịch.';
 }
@@ -39,7 +39,7 @@ export function useLinhThachIap({ catalog, userId, onCredited }: LinhThachIapArg
       });
 
       await finishTransaction({ purchase, isConsumable: true });
-      setSuccess('Nạp Linh Thạch thành công. Số dư đã được đồng bộ.');
+      setSuccess('Nạp Thượng Phẩm Linh Thạch thành công. Số dư đã được đồng bộ.');
       onCredited?.({ balanceCoins: verified.balanceCoins, debtCoins: verified.debtCoins });
     } catch (cause) {
       const message = friendlyPurchaseError(cause);
@@ -107,7 +107,7 @@ export function useLinhThachIap({ catalog, userId, onCredited }: LinhThachIapArg
     setError('');
     setSuccess('');
     if (!verifierReady) {
-      setError('Xác minh thanh toán phía server chưa sẵn sàng. CHƯƠNG chưa cho phép mua để tránh phát sinh giao dịch không được cộng Linh Thạch.');
+      setError('Xác minh thanh toán phía server chưa sẵn sàng. CHƯƠNG chưa cho phép mua để tránh phát sinh giao dịch không được cộng Thượng Phẩm Linh Thạch.');
       return;
     }
     if (!iap.connected) {

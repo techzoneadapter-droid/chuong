@@ -16,6 +16,8 @@ export type VerifiedStorePurchaseResponse = {
   verified: boolean;
   credited: boolean;
   balanceCoins?: number | null;
+  lowSpiritStones?: number | null;
+  highSpiritStones?: number | null;
   debtCoins?: number | null;
   purchase?: StorePurchase | StorePurchase[] | null;
 };
@@ -31,7 +33,7 @@ export async function getStoreProducts(): Promise<StoreProduct[]> {
     if (error) throw error;
     return data ?? [];
   } catch (error) {
-    throw toServiceError(error, 'Không thể tải các gói Linh Thạch.');
+    throw toServiceError(error, 'Không thể tải các gói Thượng Phẩm Linh Thạch.');
   }
 }
 
@@ -46,7 +48,7 @@ export async function getMyStorePurchases(userId: string, limit = 50): Promise<S
     if (error) throw error;
     return data ?? [];
   } catch (error) {
-    throw toServiceError(error, 'Không thể tải lịch sử nạp Linh Thạch.');
+    throw toServiceError(error, 'Không thể tải lịch sử nạp Thượng Phẩm Linh Thạch.');
   }
 }
 
