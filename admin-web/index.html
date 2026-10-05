@@ -43,7 +43,100 @@
         <strong>Chỉ Admin.</strong> Trang này không thay thế Author Studio. Tác giả vẫn tạo và đăng truyện bằng tài khoản cá nhân.
       </div>
 
-      <div class="layout">
+      <div class="mode-switch" role="tablist" aria-label="Chế độ nhập truyện">
+        <button id="singleModeBtn" class="mode-button active" type="button">Nhập 1 truyện</button>
+        <button id="bulkModeBtn" class="mode-button" type="button">Nhập hàng loạt ZIP</button>
+      </div>
+
+      <section id="bulkImportMode" class="bulk-shell hidden">
+        <div class="bulk-toolbar card">
+          <div>
+            <p class="eyebrow">NHẬP HÀNG LOẠT</p>
+            <h2>Đẩy hàng nghìn truyện ZIP</h2>
+            <p class="muted">Mỗi ZIP là một truyện. Tên truyện/chương được nhận diện tự động; không có tác giả sẽ mặc định là <strong>Chuong</strong>; không có bìa vẫn nhập bình thường và có thể thêm tay sau.</p>
+          </div>
+          <div class="bulk-pickers">
+            <label class="secondary file-button">Chọn nhiều ZIP<input id="bulkZipFiles" type="file" accept=".zip,application/zip" multiple /></label>
+            <label class="secondary file-button">Chọn cả thư mục<input id="bulkZipFolder" type="file" accept=".zip,application/zip" multiple webkitdirectory directory /></label>
+          </div>
+        </div>
+
+        <div class="bulk-settings card">
+          <div class="section-head"><span>1</span><div><h2>Thiết lập chung</h2><p>Áp dụng cho các ZIP không có metadata tương ứng.</p></div></div>
+          <div class="bulk-settings-grid">
+            <label>Tác giả mặc định<input id="bulkDefaultAuthor" type="text" value="Chuong" /></label>
+            <label>Thể loại
+              <select id="bulkDefaultGenre">
+                <option>Khác</option><option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option>
+                <option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option><option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option>
+              </select>
+            </label>
+            <label>Trạng thái truyện
+              <select id="bulkDefaultStatus">
+                <option value="completed" selected>Hoàn thành</option>
+                <option value="ongoing">Đang ra</option>
+                <option value="paused">Tạm dừng / Drop</option>
+              </select>
+            </label>
+            <label>Nguồn nội dung
+              <select id="bulkSourceType">
+                <option value="authorized">Được cấp phép đăng</option>
+                <option value="original">Nội dung gốc</option>
+                <option value="licensed_translation">Bản dịch có bản quyền</option>
+              </select>
+            </label>
+          </div>
+          <label class="check-row"><input id="bulkPublishNow" type="checkbox" checked /> <span><strong>Xuất bản ngay sau khi nhập</strong><small>Nếu tắt, truyện được giữ ở bản nháp riêng tư để kiểm tra sau.</small></span></label>
+          <label class="check-row"><input id="bulkRightsConfirmed" type="checkbox" /> <span><strong>Xác nhận quyền nội dung cho cả lô</strong><small>Tôi xác nhận CHƯƠNG có quyền hợp pháp để lưu trữ và phân phối toàn bộ nội dung đã chọn.</small></span></label>
+        </div>
+
+        <div class="bulk-actions card">
+          <div class="bulk-summary">
+            <div><b id="bulkTotal">0</b><span>ZIP</span></div>
+            <div><b id="bulkScanned">0</b><span>đã quét</span></div>
+            <div><b id="bulkReady">0</b><span>sẵn sàng</span></div>
+            <div><b id="bulkDone">0</b><span>thành công</span></div>
+            <div><b id="bulkSkipped">0</b><span>bỏ qua</span></div>
+            <div><b id="bulkFailed">0</b><span>lỗi</span></div>
+          </div>
+          <div class="bulk-buttons">
+            <button id="bulkScanBtn" class="secondary" type="button">Quét ZIP</button>
+            <button id="bulkImportBtn" class="primary inline-primary" type="button" disabled>Nhập các truyện đã chọn</button>
+            <button id="bulkPauseBtn" class="ghost" type="button" disabled>Tạm dừng</button>
+          </div>
+          <div class="bulk-progress"><div id="bulkProgressBar"></div></div>
+          <p id="bulkProgressText" class="tiny">Chưa chọn file.</p>
+          <div id="bulkMessage" class="message hidden"></div>
+        </div>
+
+        <div id="bulkDropZone" class="bulk-drop-zone">Kéo thả nhiều file ZIP vào đây</div>
+
+        <div class="bulk-table-card card">
+          <div class="bulk-table-head">
+            <div class="bulk-filters">
+              <button class="ghost mini bulk-filter active" data-filter="all" type="button">Tất cả</button>
+              <button class="ghost mini bulk-filter" data-filter="ready" type="button">Hợp lệ</button>
+              <button class="ghost mini bulk-filter" data-filter="missing-cover" type="button">Thiếu bìa</button>
+              <button class="ghost mini bulk-filter" data-filter="duplicate" type="button">Trùng</button>
+              <button class="ghost mini bulk-filter" data-filter="failed" type="button">Lỗi</button>
+            </div>
+            <input id="bulkSearch" type="text" placeholder="Tìm tên truyện / file ZIP..." />
+          </div>
+          <div class="bulk-table-wrap">
+            <table class="bulk-table">
+              <thead><tr><th>Chọn</th><th>File ZIP</th><th>Tên truyện</th><th>Tác giả</th><th>Bìa</th><th>Trạng thái</th><th>Chương</th><th>Tình trạng</th></tr></thead>
+              <tbody id="bulkRows"><tr><td colspan="8" class="bulk-empty">Chưa có ZIP trong hàng đợi.</td></tr></tbody>
+            </table>
+          </div>
+          <div class="bulk-pagination">
+            <button id="bulkPrevPage" class="ghost mini" type="button">Trang trước</button>
+            <span id="bulkPageLabel">1 / 1</span>
+            <button id="bulkNextPage" class="ghost mini" type="button">Trang sau</button>
+          </div>
+        </div>
+      </section>
+
+      <div id="singleImportMode" class="layout">
         <div class="left-col">
           <section class="card">
             <div class="section-head"><span>1</span><div><h2>Nguồn truyện</h2><p>Chọn file hoặc dán nguyên truyện.</p></div></div>
@@ -181,5 +274,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="./app.js"></script>
+  <script src="./bulk-import.js"></script>
 </body>
 </html>
