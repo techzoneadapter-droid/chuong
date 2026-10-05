@@ -257,6 +257,7 @@ export default function StudioBookManager() {
     subtitle="Quản lý metadata, bìa, trạng thái truyện và chương hiển thị trong ứng dụng mobile."
     actions={<>
       <Pressable style={styles.primaryAction} onPress={() => router.push({ pathname: '/studio/book/[bookId]/chapter/[chapterId]', params: { bookId: book.id, chapterId: 'new' } })}><Ionicons name="add-circle-outline" size={16} color="#FFF8EA" /><Text style={styles.primaryActionText}>Thêm chương</Text></Pressable>
+      <Pressable style={styles.lightAction} onPress={() => router.push({ pathname: '/studio/book/[bookId]/schedule', params: { bookId: book.id } })}><Ionicons name="calendar-outline" size={16} color={xianxia.jadeDeep} /><Text style={styles.lightActionText}>Lịch đăng</Text></Pressable>
       <Pressable style={styles.lightAction} onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })}><Ionicons name="eye-outline" size={16} color={xianxia.jadeDeep} /><Text style={styles.lightActionText}>Xem trên app</Text></Pressable>
       <Pressable style={styles.lightAction} onPress={() => router.push('/studio')}><Ionicons name="arrow-back" size={16} color={xianxia.jadeDeep} /><Text style={styles.lightActionText}>Về kho</Text></Pressable>
     </>}
