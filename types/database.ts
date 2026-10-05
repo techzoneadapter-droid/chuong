@@ -1008,6 +1008,7 @@ export type Database = {
           chapter_number: number
           content: string
           created_at: string
+          early_access_until: string | null
           id: string
           is_vip: boolean
           moderated_at: string | null
@@ -1025,6 +1026,7 @@ export type Database = {
           chapter_number: number
           content?: string
           created_at?: string
+          early_access_until?: string | null
           id?: string
           is_vip?: boolean
           moderated_at?: string | null
@@ -1042,6 +1044,7 @@ export type Database = {
           chapter_number?: number
           content?: string
           created_at?: string
+          early_access_until?: string | null
           id?: string
           is_vip?: boolean
           moderated_at?: string | null
