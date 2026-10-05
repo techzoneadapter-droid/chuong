@@ -659,19 +659,35 @@ $('uploadBtn').addEventListener('click',async()=>{
   if(isVip&&(!Number.isInteger(priceCoins)||priceCoins<=0))return showMessage(uploadMessage,'Truyện VIP cần giá Linh Thạch lớn hơn 0.');
   if(!chapters.length)return showMessage(uploadMessage,'Chưa có chương để đẩy.');
   if(useAi&&!state.aiReady)return showMessage(uploadMessage,'AI chưa sẵn sàng trên máy chủ. Hãy tắt AI hoặc cấu hình nhà cung cấp AI.');
-  const audit=auditChapters(chapters);if(audit.duplicates.length)return showMessage(uploadMessage,'Có số chương trùng, chưa thể đẩy.');
-  if(publish&&chapters.some(ch=>ch.content.trim().length<50))return showMessage(uploadMessage,'Có chương dưới 50 ký tự. Hãy tắt “Xuất bản ngay” hoặc kiểm tra lại nội dung.');
-  const btn=$('uploadBtn');btn.disabled=true;btn.textContent=useAi?'Đang nhập rồi AI xử lý…':'Đang đẩy và xác minh…';
-  let bookId='';
+
+  const audit=auditChapters(chapters);
+  if(audit.duplicates.length)return showMessage(uploadMessage,'Có số chương trùng, chưa thể đẩy.');
+  if(audit.empty.length)return showMessage(uploadMessage,'Có chương rỗng. Hãy xóa hoặc sửa chương trước khi đẩy.');
+  if(publish&&audit.short.length)return showMessage(uploadMessage,'Có '+audit.short.length+' chương quá ngắn. Hãy tắt “Xuất bản ngay” hoặc xử lý các chương được đánh dấu.');
+
+  const btn=$('uploadBtn');btn.disabled=true;btn.textContent='Đang kiểm tra trùng truyện…';
+  let bookId='',logId='';
   try{
+    const duplicates=await findDuplicateBooks(title,author);
+    if(duplicates.length){
+      const found=duplicates.slice(0,3).map(row=>'“'+row.title+'” · '+(row.status||'')+' · '+row.id).join('\n');
+      throw new Error('Phát hiện truyện có cùng tên/tác giả trong kho. Không tạo bản trùng.\n'+found);
+    }
+
+    logId=await createImportLog({title,author,chapters});
+    btn.textContent=useAi?'Đang nhập rồi AI xử lý…':'Đang đẩy và xác minh…';
+
     const slug=(slugify(title)||'truyen')+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
     const books=await rest('books?select=id',{method:'POST',prefer:'return=representation',body:{author_id:state.ownerAuthorId,title,slug,description:'Truyện được Admin nhập bằng CHƯƠNG Upload Studio từ nguồn '+(state.sourceName||'nội dung quản trị')+'.',credited_author_name:author,language:'vi',source_type:sourceType,status:'draft',visibility:'private',tags:[],is_vip:isVip,price_coins:priceCoins}});
     bookId=books[0].id;
+    await rest('admin_import_logs?id=eq.'+encodeURIComponent(logId),{method:'PATCH',body:{book_id:bookId}}).catch(()=>{});
     await rest('book_genres',{method:'POST',prefer:'return=minimal',body:{book_id:bookId,genre}});
-    showMessage(uploadMessage,'Đang ghi '+chapters.length+' chương vào kho…','info');
+    showMessage(uploadMessage,'Đang ghi '+chapters.length+' chương · '+audit.totalWords.toLocaleString('vi-VN')+' từ vào kho…','info');
+
     await insertChapters(bookId,chapters);
     const verification=await verifyStored(bookId,chapters);
     if(!verification.ok)throw new Error('Xác minh thất bại: dự kiến '+verification.want.length+' chương nhưng database có '+verification.actual.length+'.');
+
     if(state.coverBlob)await uploadCover(bookId);
     if(useAi)await translateWholeBook(bookId,genre);
     if(publish){
@@ -679,11 +695,15 @@ $('uploadBtn').addEventListener('click',async()=>{
       await rest('chapters?book_id=eq.'+bookId,{method:'PATCH',body:{status:'published',published_at:now}});
       await rest('books?id=eq.'+bookId,{method:'PATCH',body:{status:bookStatus,visibility:'public',language:'vi'}});
     }
+
     const statusLabel=bookStatus==='completed'?'Hoàn thành':bookStatus==='paused'?'Tạm dừng / Drop':'Đang ra';
-    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+'\nTrạng thái: '+(publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+(isVip?'\nVIP toàn truyện: '+priceCoins+' Linh Thạch':'\nTruyện miễn phí')+'.\nBook ID: '+bookId,'success');
+    const detail='Đã xác minh '+chapters.length+'/'+chapters.length+' chương · '+audit.totalWords+' từ'+(useAi?' · AI hoàn tất':'')+'.';
+    await finishImportLog(logId,'completed',bookId,detail);
+    showMessage(uploadMessage,'✓ Đẩy truyện thành công.\n✓ Đã xác minh đủ '+chapters.length+'/'+chapters.length+' chương.\n✓ Tổng '+audit.totalWords.toLocaleString('vi-VN')+' từ.'+(useAi?'\n✓ AI đã dịch/làm mượt toàn truyện sang tiếng Việt.':'')+'\nTrạng thái: '+(publish?('Đã công khai · '+statusLabel):'Bản nháp riêng tư')+(isVip?'\nVIP toàn truyện: '+priceCoins+' Linh Thạch':'\nTruyện miễn phí')+'.\nBook ID: '+bookId,'success');
     btn.textContent='Đã đẩy đủ '+chapters.length+'/'+chapters.length+' chương';
   }catch(err){
     if(bookId)await deleteDraftBook(bookId);
+    await finishImportLog(logId,'failed',bookId,err.message||String(err));
     showMessage(uploadMessage,(err.message||String(err))+'\nNếu thao tác dừng giữa chừng, truyện nháp mới tạo đã được dọn lại khi có thể.');
     btn.disabled=false;btn.textContent='Đẩy truyện lên app';
   }
