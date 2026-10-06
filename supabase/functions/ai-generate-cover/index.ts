@@ -40,7 +40,11 @@ function findNestedImage(value: unknown): { data: string; mimeType: string } | n
   const mime = String(record.mime_type ?? record.mimeType ?? "");
   const data = typeof record.data === "string" ? record.data : null;
   if (data && mime.startsWith("image/")) return { data, mimeType: mime };
-  if (typeof record.b64_json === "string") return { data: record.b64_json, mimeType: "image/png" };
+  if (typeof record.b64_json === "string") return { data: record.b64_json, mimeType: String(record.media_type ?? record.mime_type ?? "image/png") };
+  if (typeof record.url === "string") {
+    const match = record.url.match(/^data:([^;,]+);base64,(.+)$/s);
+    if (match) return { data: match[2], mimeType: match[1] || "image/png" };
+  }
   for (const child of Object.values(record)) {
     if (Array.isArray(child)) {
       for (const item of child) {
@@ -64,8 +68,8 @@ async function fetchImageUrl(url: string) {
   };
 }
 
-type PromptProvider = "none" | "openai" | "gemini" | "xai" | "deepseek" | "custom";
-type ImageProvider = "openai" | "gemini" | "xai" | "custom";
+type PromptProvider = "none" | "experiential" | "openai" | "gemini" | "xai" | "deepseek" | "custom";
+type ImageProvider = "experiential" | "openai" | "gemini" | "xai" | "custom";
 
 async function improvePrompt(input: {
   provider: PromptProvider;
@@ -89,6 +93,29 @@ async function improvePrompt(input: {
     "Prompt nền:",
     input.draft,
   ].filter(Boolean).join("\n");
+
+  if (input.provider === "experiential") {
+    const response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + input.apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: input.model || "deepseek-v4-flash",
+        messages: [
+          { role: "system", content: "You are a concise commercial book-cover art director." },
+          { role: "user", content: requestText },
+        ],
+        stream: false,
+      }),
+    });
+    if (!response.ok) {
+      const raw = await response.text();
+      throw new Error("experiential_prompt_" + response.status + ":" + raw.slice(0, 800));
+    }
+    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error("experiential_prompt_empty");
+    return text;
+  }
 
   if (input.provider === "gemini") {
     const baseUrl = cleanBaseUrl(input.baseUrl, "https://generativelanguage.googleapis.com/v1beta");
@@ -144,6 +171,28 @@ async function generateImage(input: {
   prompt: string;
 }) {
   if (!input.apiKey) throw new Error("image_api_key_required");
+
+  if (input.provider === "experiential") {
+    const response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + input.apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: input.model || "gemini-2.5-flash-image",
+        messages: [{ role: "user", content: input.prompt }],
+        modalities: ["image", "text"],
+        image_config: { aspect_ratio: "2:3" },
+        stream: false,
+      }),
+    });
+    if (!response.ok) {
+      const raw = await response.text();
+      throw new Error("experiential_image_" + response.status + ":" + raw.slice(0, 1000));
+    }
+    const data = await response.json();
+    const found = findNestedImage(data);
+    if (!found) throw new Error("experiential_image_missing_payload");
+    return { ...found, revisedPrompt: null };
+  }
 
   if (input.provider === "gemini") {
     const baseUrl = cleanBaseUrl(input.baseUrl, "https://generativelanguage.googleapis.com/v1beta");
@@ -251,13 +300,14 @@ Deno.serve(async (req: Request) => {
   const bookId = body.bookId?.trim();
   if (!bookId) return reply(400, { error: "book_id_required" });
 
-  const imageProvider: ImageProvider = body.imageProvider || "openai";
+  const imageProvider: ImageProvider = body.imageProvider || "experiential";
   const imageApiKey = (body.imageApiKey || body.apiKey || "").trim();
   const imageBaseUrl = body.imageBaseUrl || body.baseUrl || "";
   const imageModel = (
     body.imageModel ||
     body.model ||
-    (imageProvider === "xai" ? "grok-imagine-image-2.0" :
+    (imageProvider === "experiential" ? "gemini-2.5-flash-image" :
+      imageProvider === "xai" ? "grok-imagine-image-2.0" :
       imageProvider === "gemini" ? "gemini-3.1-flash-image" : "gpt-image-2")
   ).trim();
   const promptProvider: PromptProvider = body.promptProvider || "none";
@@ -291,7 +341,8 @@ Deno.serve(async (req: Request) => {
       apiKey: body.promptApiKey?.trim() || "",
       baseUrl: body.promptBaseUrl || "",
       model: body.promptModel?.trim() || (
-        promptProvider === "deepseek" ? "deepseek-flash" :
+        promptProvider === "experiential" ? "deepseek-v4-flash" :
+        promptProvider === "deepseek" ? "deepseek-v4-flash" :
         promptProvider === "xai" ? "grok-4.7" :
         promptProvider === "gemini" ? "gemini-3.1-flash" :
         "gpt-6-luna"
