@@ -173,41 +173,104 @@ async function generateImage(input: {
   if (!input.apiKey) throw new Error("image_api_key_required");
 
   if (input.provider === "experiential") {
-    // Experiential's OpenAI-compatible gateway rejects top-level "modalities".
-    // Image-capable slugs are invoked like a normal Chat Completions model.
-    // The prompt itself requests a 2:3 cover; the Admin UI then hard-normalizes
-    // the returned image to exactly 1024x1536 before upload.
-    const response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + input.apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: input.model || "gemini-3.1-flash-lite-image",
-        messages: [{ role: "user", content: input.prompt }],
-        stream: false,
-      }),
-    });
-    const raw = await response.text();
-    if (!response.ok) {
-      throw new Error("experiential_image_" + response.status + ":" + raw.slice(0, 1000));
+    // Experiential can return transient 502/503/504 when every route for a
+    // model is unavailable. Retry the selected model, then fall back to the
+    // much more stable Gemini 2.5 Flash Image route on the same Experiential key.
+    const selectedModel = input.model || "gemini-3.1-flash-lite-image";
+    const fallbackModel = "gemini-2.5-flash-image";
+    const candidates = selectedModel === fallbackModel
+      ? [selectedModel]
+      : [selectedModel, fallbackModel];
+
+    let lastStatus = 0;
+    let lastCode = "";
+    let lastModel = selectedModel;
+
+    for (const model of candidates) {
+      const maxAttempts = model === selectedModel ? 3 : 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        lastModel = model;
+        try {
+          const response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + input.apiKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content: input.prompt }],
+              stream: false,
+            }),
+          });
+
+          const raw = await response.text();
+          lastStatus = response.status;
+
+          if (response.ok) {
+            let data: unknown;
+            try {
+              data = JSON.parse(raw);
+            } catch {
+              throw new Error("experiential_image_invalid_json");
+            }
+            const found = findNestedImage(data);
+            if (!found) {
+              throw new Error("experiential_image_missing_payload");
+            }
+            return { ...found, revisedPrompt: null, usedModel: model };
+          }
+
+          let code = "";
+          try {
+            const parsed = JSON.parse(raw) as { error?: { code?: string } };
+            code = parsed.error?.code || "";
+          } catch {}
+          lastCode = code;
+
+          const retryable =
+            response.status === 429 ||
+            response.status === 502 ||
+            response.status === 503 ||
+            response.status === 504 ||
+            code === "all_routes_failed" ||
+            code === "gateway_draining" ||
+            code === "deadline_exceeded";
+
+          if (!retryable) {
+            throw new Error(
+              "experiential_image_" + response.status + ":" +
+              (code || raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 320))
+            );
+          }
+
+          if (attempt < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 900 * Math.pow(2, attempt - 1)));
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          const isNetwork = /fetch|network|connection|timed out|timeout/i.test(message);
+          const isStructuredFailure =
+            message.startsWith("experiential_image_") &&
+            !message.includes("_502") &&
+            !message.includes("_503") &&
+            !message.includes("_504");
+
+          if (isStructuredFailure && !isNetwork) throw error;
+          if (attempt < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 900 * Math.pow(2, attempt - 1)));
+          }
+        }
+      }
+      // Selected route exhausted: continue to the same-key fallback model.
     }
 
-    let data: unknown;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new Error("experiential_image_invalid_json");
-    }
-
-    const found = findNestedImage(data);
-    if (!found) {
-      // Keep a short response fragment in the error so we can diagnose a
-      // provider/profile that returned text instead of image content.
-      throw new Error("experiential_image_missing_payload:" + raw.slice(0, 700));
-    }
-    return { ...found, revisedPrompt: null };
+    throw new Error(
+      "experiential_upstream_unavailable:" +
+      " Không tạo được ảnh sau nhiều lần thử. Model cuối: " + lastModel +
+      (lastStatus ? " · HTTP " + lastStatus : "") +
+      (lastCode ? " · " + lastCode : "")
+    );
   }
 
   if (input.provider === "gemini") {
