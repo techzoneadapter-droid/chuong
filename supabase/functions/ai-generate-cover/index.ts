@@ -179,7 +179,7 @@ async function generateImage(input: {
     const selectedModel = input.model || "gemini-2.5-flash-image";
     const stableModel = "gemini-2.5-flash-image";
     const experimentalModel = "gemini-3.1-flash-lite-image";
-    const candidates = [...new Set([stableModel, selectedModel, experimentalModel])];
+    const candidates = [...new Set([selectedModel, stableModel, experimentalModel])];
 
     let lastStatus = 0;
     let lastCode = "";
@@ -226,11 +226,80 @@ async function generateImage(input: {
           }
 
           let code = "";
+          let refusalReason = "";
+          let providerMessage = "";
           try {
-            const parsed = JSON.parse(raw) as { error?: { code?: string } };
+            const parsed = JSON.parse(raw) as {
+              error?: { code?: string; message?: string; refusal_reason?: string };
+            };
             code = parsed.error?.code || "";
+            refusalReason = parsed.error?.refusal_reason || "";
+            providerMessage = parsed.error?.message || "";
           } catch {}
           lastCode = code;
+
+          if (code === "refusal") {
+            const safePrompt = [
+              input.prompt,
+              "",
+              "SAFETY ADAPTATION:",
+              "Render any horror, zombie, combat, danger or death-related concept in a strictly non-graphic PG-13 way.",
+              "No gore, no blood, no wounds, no corpses, no dismemberment, no visible injury, no explicit attack.",
+              "Use atmosphere, silhouettes, distance, dramatic lighting and symbolic danger instead of graphic violence.",
+              "Still use only the story title and genre as the story source."
+            ].join("\n");
+            const safeBytes = new TextEncoder().encode(safePrompt);
+            const safeDigest = await crypto.subtle.digest("SHA-256", safeBytes);
+            const safeHash = Array.from(new Uint8Array(safeDigest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+            const safeKey = "chuong-cover-safe-" + model.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 40) + "-" + safeHash.slice(0, 36);
+            const safeResponse = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + input.apiKey,
+                "Content-Type": "application/json",
+                "Idempotency-Key": safeKey,
+              },
+              body: JSON.stringify({
+                model,
+                messages: [{ role: "user", content: safePrompt }],
+                stream: false,
+              }),
+            });
+            const safeRaw = await safeResponse.text();
+            if (safeResponse.ok) {
+              let safeData: unknown;
+              try { safeData = JSON.parse(safeRaw); }
+              catch { throw new Error("experiential_image_invalid_json"); }
+              const safeFound = findNestedImage(safeData);
+              if (safeFound) return { ...safeFound, revisedPrompt: safePrompt, usedModel: model };
+            }
+            let safeCode = "";
+            let safeRefusal = "";
+            let safeMessage = "";
+            try {
+              const safeParsed = JSON.parse(safeRaw) as {
+                error?: { code?: string; message?: string; refusal_reason?: string };
+              };
+              safeCode = safeParsed.error?.code || "";
+              safeRefusal = safeParsed.error?.refusal_reason || "";
+              safeMessage = safeParsed.error?.message || "";
+            } catch {}
+            console.error("CHUONG_EXPLABS_SAFE_FAIL", JSON.stringify({
+              model,
+              originalCode: code,
+              originalRefusal: refusalReason,
+              safeStatus: safeResponse.status,
+              safeCode,
+              safeRefusal,
+              requestId: safeResponse.headers.get("x-request-id")
+            }));
+            throw new Error(
+              "experiential_image_" + safeResponse.status + ":" +
+              (safeCode || "refusal") + ":" +
+              (safeRefusal || refusalReason || "unspecified") + ":" +
+              (safeMessage || providerMessage || "provider_refused").slice(0, 220)
+            );
+          }
 
           const retryable =
             response.status === 429 ||
@@ -253,7 +322,9 @@ async function generateImage(input: {
             }));
             throw new Error(
               "experiential_image_" + response.status + ":" +
-              (code || raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 320))
+              (code || "unknown") + ":" +
+              (refusalReason || "") + ":" +
+              (providerMessage || raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()).slice(0, 260)
             );
           }
 
@@ -691,6 +762,28 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "image_generation_failed";
-    return reply(502, { error: message });
+    const match = message.match(/^experiential_image_(\d{3}):([^:]*):([^:]*):(.*)$/s);
+    const upstreamStatus = match ? Number(match[1]) : null;
+    const upstreamCode = match?.[2] || "";
+    const refusalReason = match?.[3] || "";
+    const providerMessage = match?.[4] || "";
+    console.error("CHUONG_COVER_GENERATION_ERROR", JSON.stringify({
+      bookId,
+      imageModel,
+      upstreamStatus,
+      upstreamCode,
+      refusalReason,
+      message: providerMessage || message
+    }));
+    const responseStatus =
+      upstreamStatus && [400,401,403,409,429].includes(upstreamStatus)
+        ? upstreamStatus
+        : 502;
+    return reply(responseStatus, {
+      error: message,
+      upstreamStatus,
+      upstreamCode: upstreamCode || null,
+      refusalReason: refusalReason || null
+    });
   }
 });
