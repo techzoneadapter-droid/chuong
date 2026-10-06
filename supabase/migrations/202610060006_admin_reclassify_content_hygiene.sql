@@ -250,7 +250,7 @@ begin
     coalesce(a.total_chapters,0),
     coalesce(a.affected_chapters,0),
     coalesce(a.junk_lines,0),
-    coalesce(a.sample_lines,array[]::text[])[1:8]
+    (coalesce(a.sample_lines,array[]::text[]))[1:8]
   from public.books b
   left join agg a on a.book_id=b.id
   where b.id=any(p_book_ids)
