@@ -595,3 +595,28 @@ button,input,select,textarea{letter-spacing:0}
   #catalogManageMode .provider-layout{grid-template-columns:1fr}
   #catalogManageMode .ai-style-row{grid-template-columns:1fr}
 }
+
+
+/* Locked AI cover format */
+#catalogManageMode .ai-style-row-locked{grid-template-columns:1fr 280px;align-items:stretch}
+#catalogManageMode .cover-lock-note{
+  min-height:54px;
+  padding:10px 12px;
+  border-radius:11px;
+  border:1px solid #d6e1db;
+  background:#eef5f1;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:3px;
+}
+#catalogManageMode .cover-lock-note strong{
+  font-size:11px;
+  font-weight:800;
+  color:#1f4d3e;
+}
+#catalogManageMode .cover-lock-note span{
+  font-size:9.5px;
+  line-height:1.45;
+  color:#65736d;
+}
