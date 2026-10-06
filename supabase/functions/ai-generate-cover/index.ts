@@ -281,6 +281,7 @@ Deno.serve(async (req: Request) => {
   if (profile?.role !== "admin") return reply(403, { error: "admin_required" });
 
   let body: {
+    action?: "check" | "generate";
     bookId?: string;
     imageProvider?: ImageProvider;
     imageApiKey?: string;
@@ -297,11 +298,50 @@ Deno.serve(async (req: Request) => {
   };
   try { body = await req.json(); } catch { return reply(400, { error: "invalid_json" }); }
 
+  const action = body.action || "generate";
+  const imageApiKey = (body.imageApiKey || body.apiKey || "").trim();
+
+  if (action === "check") {
+    if (!imageApiKey) return reply(400, { error: "experiential_api_key_required" });
+    try {
+      const modelResponse = await fetch("https://api.experientiallabs.ai/v1/models", {
+        method: "GET",
+        headers: { Authorization: "Bearer " + imageApiKey },
+      });
+      const raw = await modelResponse.text();
+      if (!modelResponse.ok) {
+        return reply(modelResponse.status === 401 || modelResponse.status === 403 ? 401 : 502, {
+          ok: false,
+          error: "experiential_api_check_failed",
+          detail: raw.slice(0, 1000),
+          status: modelResponse.status,
+        });
+      }
+      let parsed: Record<string, unknown> = {};
+      try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch {}
+      const data = Array.isArray(parsed.data) ? parsed.data as Array<Record<string, unknown>> : [];
+      const ids = data.map((item) => String(item.id || "")).filter(Boolean);
+      const imageModel = body.imageModel?.trim() || "gemini-2.5-flash-image";
+      const promptModel = body.promptModel?.trim() || "";
+      return reply(200, {
+        ok: true,
+        provider: "Experiential Labs",
+        modelCount: ids.length,
+        imageModel,
+        imageModelAvailable: ids.includes(imageModel),
+        promptModel: promptModel || null,
+        promptModelAvailable: promptModel ? ids.includes(promptModel) : null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "experiential_api_check_failed";
+      return reply(502, { ok: false, error: message });
+    }
+  }
+
   const bookId = body.bookId?.trim();
   if (!bookId) return reply(400, { error: "book_id_required" });
 
   const imageProvider: ImageProvider = body.imageProvider || "experiential";
-  const imageApiKey = (body.imageApiKey || body.apiKey || "").trim();
   const imageBaseUrl = body.imageBaseUrl || body.baseUrl || "";
   const imageModel = (
     body.imageModel ||
