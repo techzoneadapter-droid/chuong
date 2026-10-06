@@ -2,10 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { xianxia } from '../constants/xianxia';
 import { Chapter } from '../types';
+import { displayChapterTitle } from '../services/contentText';
 
 interface Props { chapter: Chapter; onPress: () => void; showDate?: boolean; }
 
 export function ChapterRow({ chapter, onPress, showDate = true }: Props) {
+  const displayTitle = displayChapterTitle(chapter.title, chapter.number);
   const earlyAccessActive = Boolean(
     chapter.access === 'vip' &&
     chapter.earlyAccessUntil &&
@@ -19,7 +21,7 @@ export function ChapterRow({ chapter, onPress, showDate = true }: Props) {
       <View style={[styles.number, chapter.isRead && styles.numberRead]}><Text style={styles.numberText}>{chapter.number}</Text></View>
       <View style={styles.main}>
         <View style={styles.titleLine}>
-          <Text numberOfLines={1} style={[styles.title, chapter.isRead && styles.read]}>Chương {chapter.number} · {chapter.title}</Text>
+          <Text numberOfLines={1} style={[styles.title, chapter.isRead && styles.read]}>Chương {chapter.number}{displayTitle ? ` · ${displayTitle}` : ''}</Text>
           {chapter.access === 'vip' ? <View style={[styles.vip, earlyAccessActive && styles.early]}><Ionicons name={earlyAccessActive ? 'time-outline' : 'lock-closed'} size={8} color={earlyAccessActive ? xianxia.jadeDeep : xianxia.cinnabar} /><Text style={[styles.vipText, earlyAccessActive && styles.earlyText]}>{earlyAccessActive ? `TIÊN CƠ · miễn phí ${earlyDate}` : `VIP${chapter.priceCoins ? ` · ${chapter.priceCoins} Hạ Phẩm Linh Thạch` : ''}`}</Text></View> : null}
         </View>
         {showDate ? <Text style={styles.date}>{chapter.relativeDate}{chapter.isRead ? ' · Đã đọc' : ''}</Text> : null}
