@@ -4,7 +4,7 @@
     "slug": "chuong",
     "icon": "./assets/xianxia/icon.png",
     "scheme": "chuong",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -29,10 +29,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "vn.chuong.app"
+      "bundleIdentifier": "vn.chuong.app",
+      "buildNumber": "1"
     },
     "android": {
-      "package": "vn.chuong.app"
+      "package": "vn.chuong.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/xianxia/icon.png",
+        "backgroundColor": "#FFF8EA"
+      }
     },
     "web": {
       "favicon": "./assets/xianxia/icon.png",
@@ -40,6 +46,12 @@
     },
     "experiments": {
       "typedRoutes": true
+    },
+    "backgroundColor": "#FFF8EA",
+    "splash": {
+      "image": "./assets/xianxia/logo-horizontal.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF8EA"
     }
   }
 }
