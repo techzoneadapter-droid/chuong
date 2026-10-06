@@ -216,3 +216,382 @@
   .ai-studio{padding:14px}.ai-studio-head{align-items:flex-start}.ai-security-pill{display:none}
   .provider-fields{grid-template-columns:1fr}.provider-wide{grid-column:auto}
 }
+
+
+/* ===== Catalog UI v3: clean typography + calm admin layout ===== */
+:root{
+  --ui-font:"Segoe UI Variable","Segoe UI",Roboto,"Noto Sans","Helvetica Neue",Arial,sans-serif;
+}
+html,body,input,select,textarea,button{font-family:var(--ui-font)!important;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3,.catalog-title,.catalog-stat strong,.catalog-selection strong,.brand-mark{font-family:var(--ui-font)!important}
+button,input,select,textarea{letter-spacing:0}
+#catalogManageMode{
+  color:#202724;
+  font-size:13px;
+}
+#catalogManageMode::before{display:none}
+#catalogManageMode .catalog-shell{gap:14px}
+#catalogManageMode .catalog-hero{
+  min-height:126px;
+  padding:22px 24px;
+  border-radius:20px;
+  border:1px solid #dbe3df;
+  background:linear-gradient(135deg,#f9fbfa 0%,#f4f8f6 100%);
+  color:#1f2d28;
+  box-shadow:0 6px 20px rgba(24,62,50,.055);
+}
+#catalogManageMode .catalog-hero::after{display:none}
+#catalogManageMode .catalog-hero-copy{max-width:840px}
+#catalogManageMode .catalog-kicker{
+  color:#8e2945;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.9px;
+  line-height:1.3;
+}
+#catalogManageMode .catalog-hero h2{
+  margin:5px 0 6px;
+  color:#173f35;
+  font-size:28px;
+  line-height:1.15;
+  font-weight:800;
+  letter-spacing:-.45px;
+}
+#catalogManageMode .catalog-hero p{
+  color:#65716c;
+  font-size:13px;
+  line-height:1.55;
+}
+#catalogManageMode .catalog-hero-badges{gap:7px;margin-top:13px}
+#catalogManageMode .catalog-hero-badges span{
+  padding:6px 9px;
+  border-radius:8px;
+  border:1px solid #dbe5df;
+  background:#fff;
+  color:#5a6963;
+  font-size:11px;
+  font-weight:650;
+}
+#catalogManageMode .catalog-hero-mark{
+  right:136px;
+  width:68px;
+  height:68px;
+  border:0;
+  border-radius:18px;
+  background:#173f35;
+  box-shadow:none;
+}
+#catalogManageMode .catalog-hero-mark span{
+  color:#f3dfaa;
+  font-size:30px;
+  font-weight:800;
+  text-shadow:none;
+}
+#catalogManageMode .catalog-refresh{
+  right:22px;
+  top:22px;
+  min-height:40px;
+  padding:0 15px;
+  border-radius:10px;
+  border:1px solid #cadbd2;
+  background:#eaf2ee;
+  color:#173f35;
+  font-size:12px;
+  font-weight:750;
+}
+#catalogManageMode .catalog-refresh:hover{background:#dfece6;transform:none}
+
+#catalogManageMode .catalog-overview{gap:10px}
+#catalogManageMode .catalog-stat{
+  min-height:82px;
+  padding:13px 14px;
+  border-radius:16px;
+  border:1px solid #e1ddd5;
+  background:#fffdfa;
+  box-shadow:0 4px 14px rgba(50,42,34,.035);
+}
+#catalogManageMode .catalog-stat-icon{
+  width:40px;height:40px;border-radius:12px;font-size:16px;
+}
+#catalogManageMode .catalog-stat small{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.15px;
+  text-transform:none;
+  color:#7c827f;
+}
+#catalogManageMode .catalog-stat strong{
+  margin-top:2px;
+  font-size:24px;
+  font-weight:800;
+  color:#21362e;
+}
+#catalogManageMode .catalog-stat em{
+  margin-top:1px;
+  font-size:10px;
+  color:#8a8f8c;
+}
+
+#catalogManageMode .catalog-filter-card,
+#catalogManageMode .catalog-bulkbar,
+#catalogManageMode .catalog-table-card{
+  border:1px solid #e2ded6;
+  border-radius:16px;
+  background:#fffdfa;
+  box-shadow:0 4px 16px rgba(50,42,34,.035);
+}
+#catalogManageMode .catalog-filter-card{padding:16px}
+#catalogManageMode .catalog-card-title{margin-bottom:12px}
+#catalogManageMode .catalog-section-icon{
+  width:34px;height:34px;border-radius:10px;font-size:16px;
+}
+#catalogManageMode .catalog-card-title strong{
+  font-size:14px;
+  font-weight:750;
+}
+#catalogManageMode .catalog-card-title small{
+  font-size:11px;
+  margin-top:2px;
+  line-height:1.4;
+}
+#catalogManageMode .catalog-filters{
+  grid-template-columns:1.45fr 1.05fr .92fr .92fr .72fr .72fr 1.05fr;
+  gap:10px;
+}
+#catalogManageMode .catalog-filters label,
+#catalogManageMode .provider-panel label,
+#catalogManageMode .ai-style-row label{
+  font-size:11px;
+  font-weight:700;
+  color:#59635f;
+  letter-spacing:0;
+}
+#catalogManageMode .catalog-filters input,
+#catalogManageMode .catalog-filters select,
+#catalogManageMode .provider-panel input,
+#catalogManageMode .provider-panel select,
+#catalogManageMode .ai-style-row input{
+  height:42px;
+  margin-top:5px;
+  padding:0 11px;
+  border-radius:10px;
+  border:1px solid #d8ddd9;
+  background:#fff;
+  color:#27302d;
+  font-size:12px;
+  font-weight:500;
+  box-shadow:none;
+}
+#catalogManageMode .catalog-filters input:focus,
+#catalogManageMode .catalog-filters select:focus,
+#catalogManageMode .provider-panel input:focus,
+#catalogManageMode .provider-panel select:focus,
+#catalogManageMode .ai-style-row input:focus{
+  border-color:#7ea394;
+  box-shadow:0 0 0 3px rgba(37,93,73,.08);
+}
+#catalogManageMode .filter-search input{background:#fff;border-color:#bcd0c6}
+
+#catalogManageMode .ai-studio{
+  overflow:visible;
+  padding:17px;
+  border-radius:18px;
+  border:1px solid #d9e1dc;
+  background:#f9fbfa;
+  box-shadow:0 5px 18px rgba(34,75,61,.04);
+}
+#catalogManageMode .ai-studio::after{display:none}
+#catalogManageMode .ai-studio-head{
+  padding-bottom:13px;
+  border-bottom:1px solid #e0e7e3;
+}
+#catalogManageMode .ai-orb{
+  width:44px;height:44px;border-radius:12px;
+  background:#173f35;
+  box-shadow:none;
+}
+#catalogManageMode .ai-orb span{font-size:14px;font-weight:800;color:#f1d995}
+#catalogManageMode .ai-studio-copy .catalog-kicker{font-size:10px}
+#catalogManageMode .ai-studio-copy h2{
+  margin:2px 0 2px;
+  font-size:18px;
+  font-weight:800;
+  color:#23342e;
+}
+#catalogManageMode .ai-studio-copy p{
+  color:#6d7773;
+  font-size:11px;
+  line-height:1.5;
+}
+#catalogManageMode .ai-security-pill{
+  padding:7px 10px;
+  border-radius:8px;
+  background:#edf4f0;
+  border:1px solid #d4e2da;
+  color:#456558;
+  font-size:10px;
+  font-weight:650;
+}
+#catalogManageMode .provider-layout{gap:12px;margin-top:13px}
+#catalogManageMode .provider-panel{
+  padding:13px;
+  border-radius:14px;
+  border:1px solid #dde3df;
+  background:#fff;
+  box-shadow:none;
+}
+#catalogManageMode .provider-panel-title{gap:9px;margin-bottom:10px}
+#catalogManageMode .provider-panel-title>span{
+  width:28px;height:28px;border-radius:9px;
+  font-size:11px;
+}
+#catalogManageMode .provider-panel-title strong{
+  font-size:13px;
+  font-weight:750;
+}
+#catalogManageMode .provider-panel-title small{
+  margin-top:2px;
+  font-size:10px;
+  line-height:1.35;
+}
+#catalogManageMode .provider-select-row{gap:8px}
+#catalogManageMode .provider-badge{
+  min-width:82px;height:42px;
+  border-radius:10px;
+  font-size:11px;
+  font-weight:750;
+}
+#catalogManageMode .provider-fields{gap:8px;margin-top:9px}
+#catalogManageMode .provider-hint{
+  min-height:auto;
+  margin:8px 0 0;
+  padding:8px 9px;
+  border-radius:8px;
+  background:#f5f7f6;
+  color:#727b77;
+  font-size:10px;
+  line-height:1.45;
+}
+#catalogManageMode .ai-style-row{grid-template-columns:1fr 280px;gap:10px;margin-top:11px}
+#catalogManageMode .ai-toggle-card{
+  min-height:54px!important;
+  border-radius:11px!important;
+  background:#fff!important;
+  border:1px solid #dce2de!important;
+}
+#catalogManageMode .ai-toggle-card b{font-size:11px}
+#catalogManageMode .ai-toggle-card small{font-size:9px;line-height:1.35}
+
+#catalogManageMode .catalog-bulkbar{
+  position:sticky;
+  top:8px;
+  z-index:8;
+  padding:13px 15px;
+}
+#catalogManageMode .catalog-selection{font-size:12px;color:#6c7571}
+#catalogManageMode .catalog-selection strong{font-size:22px;font-weight:800}
+#catalogManageMode .catalog-bulk-actions{gap:7px;margin-top:7px}
+#catalogManageMode .catalog-bulk-actions button{
+  min-height:36px;
+  border-radius:9px;
+  padding:0 12px;
+  font-size:11px;
+}
+#catalogManageMode .catalog-table-card{overflow:hidden}
+#catalogManageMode .catalog-table-wrap{padding:0 8px 7px;max-height:680px}
+#catalogManageMode .catalog-table{
+  min-width:1280px;
+  border-collapse:collapse;
+  border-spacing:0;
+}
+#catalogManageMode .catalog-table th{
+  padding:11px 9px;
+  background:#f5f7f5;
+  border-bottom:1px solid #dde4df;
+  color:#68726d;
+  font-size:10px;
+  font-weight:750;
+  letter-spacing:.15px;
+  text-transform:none;
+}
+#catalogManageMode .catalog-table tbody tr{
+  background:#fffdfa;
+  box-shadow:none;
+  transition:background .12s ease;
+}
+#catalogManageMode .catalog-table tbody tr:hover{
+  transform:none;
+  background:#f6faf7;
+  box-shadow:none;
+}
+#catalogManageMode .catalog-table td{
+  padding:9px;
+  border:0;
+  border-bottom:1px solid #ece9e2;
+  font-size:11px;
+  color:#46514c;
+}
+#catalogManageMode .catalog-table td:first-child,
+#catalogManageMode .catalog-table td:last-child{
+  border-left:0;border-right:0;border-radius:0;
+}
+#catalogManageMode .catalog-cover{
+  width:48px;height:72px;
+  border-radius:8px;
+  border:1px solid #e0e3df;
+  background:#f2f2ef;
+}
+#catalogManageMode .catalog-title{
+  max-width:280px;
+  font-size:12px;
+  line-height:1.42;
+  font-weight:750;
+  color:#26342f;
+}
+#catalogManageMode .catalog-table .tiny{
+  margin-top:3px;
+  font-size:9px;
+  color:#8b928f;
+}
+#catalogManageMode .catalog-status{
+  padding:5px 8px;
+  border-radius:7px;
+  font-size:10px;
+  font-weight:700;
+}
+#catalogManageMode .catalog-table .secondary.mini{
+  min-height:32px;
+  padding:0 10px;
+  border-radius:8px;
+  font-size:10px;
+}
+#catalogManageMode .bulk-pagination{
+  padding:10px;
+  background:#fafaf8;
+  border-top:1px solid #e5e5df;
+  font-size:11px;
+}
+
+#catalogManageMode .message,
+#catalogManageMode .tiny{font-family:var(--ui-font)!important}
+#catalogManageMode .message{font-size:11px}
+#catalogManageMode .ghost.mini{font-size:10px}
+
+.mode-switch .mode-button{
+  font-family:var(--ui-font)!important;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:0;
+}
+.mode-switch .mode-button.active{
+  background:#173f35;
+  color:#fff;
+  border-color:#173f35;
+}
+
+@media(max-width:1250px){
+  #catalogManageMode .catalog-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #catalogManageMode .catalog-filters{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #catalogManageMode .provider-layout{grid-template-columns:1fr}
+  #catalogManageMode .ai-style-row{grid-template-columns:1fr}
+}
