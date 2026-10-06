@@ -61,7 +61,7 @@
       promptApiKey:$c('coverPromptKey').value.trim(),
       promptBaseUrl:$c('coverPromptBaseUrl').value.trim(),
       promptModel:$c('coverPromptModel').value.trim(),
-      extraPrompt:$c('coverAiExtraPrompt').value.trim(),
+      extraPrompt:'',
       overwrite:$c('coverAiOverwrite').checked
     };
   }
@@ -103,7 +103,7 @@
     sessionStorage.setItem('chuong_cover_prompt_provider',settings.promptProvider);
     sessionStorage.setItem('chuong_cover_prompt_base_url',settings.promptBaseUrl);
     sessionStorage.setItem('chuong_cover_prompt_model',settings.promptModel);
-    sessionStorage.setItem('chuong_cover_ai_extra',settings.extraPrompt);
+    sessionStorage.removeItem('chuong_cover_ai_extra');
     if(settings.imageApiKey)sessionStorage.setItem('chuong_cover_image_key',settings.imageApiKey);
     else sessionStorage.removeItem('chuong_cover_image_key');
     if(settings.promptApiKey)sessionStorage.setItem('chuong_cover_prompt_key',settings.promptApiKey);
@@ -120,7 +120,7 @@
     $c('coverPromptKey').value=sessionStorage.getItem('chuong_cover_prompt_key')||'';
     $c('coverPromptBaseUrl').value=sessionStorage.getItem('chuong_cover_prompt_base_url')||PROMPT_PRESETS[promptProvider]?.baseUrl||'';
     $c('coverPromptModel').value=sessionStorage.getItem('chuong_cover_prompt_model')||PROMPT_PRESETS[promptProvider]?.model||'';
-    $c('coverAiExtraPrompt').value=sessionStorage.getItem('chuong_cover_ai_extra')||'';
+    if($c('coverAiExtraPrompt'))$c('coverAiExtraPrompt').value='';
     applyImageProvider(imageProvider,false);
     applyPromptProvider(promptProvider,false);
   }
@@ -332,6 +332,47 @@
     }
     return new Blob(chunks,{type:mime||'image/png'});
   }
+
+  async function normalizeGeneratedCover(blob){
+    const targetWidth=1024,targetHeight=1536,targetRatio=targetWidth/targetHeight;
+    let source=null,sourceWidth=0,sourceHeight=0,cleanup=()=>{};
+    if('createImageBitmap' in window){
+      source=await createImageBitmap(blob);
+      sourceWidth=source.width;sourceHeight=source.height;
+      cleanup=()=>source.close?.();
+    }else{
+      const url=URL.createObjectURL(blob);
+      const image=new Image();
+      image.decoding='async';
+      await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('Không đọc được ảnh AI.'));image.src=url;});
+      source=image;sourceWidth=image.naturalWidth;sourceHeight=image.naturalHeight;
+      cleanup=()=>URL.revokeObjectURL(url);
+    }
+    if(!sourceWidth||!sourceHeight){cleanup();throw new Error('Ảnh AI không có kích thước hợp lệ.');}
+    const sourceRatio=sourceWidth/sourceHeight;
+    let sx=0,sy=0,sw=sourceWidth,sh=sourceHeight;
+    if(sourceRatio>targetRatio){
+      sw=Math.round(sourceHeight*targetRatio);
+      sx=Math.round((sourceWidth-sw)/2);
+    }else if(sourceRatio<targetRatio){
+      sh=Math.round(sourceWidth/targetRatio);
+      sy=Math.round((sourceHeight-sh)/2);
+    }
+    const canvas=document.createElement('canvas');
+    canvas.width=targetWidth;canvas.height=targetHeight;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx){cleanup();throw new Error('Trình duyệt không hỗ trợ chuẩn hóa bìa.');}
+    ctx.imageSmoothingEnabled=true;
+    ctx.imageSmoothingQuality='high';
+    ctx.drawImage(source,sx,sy,sw,sh,0,0,targetWidth,targetHeight);
+    cleanup();
+    const output=await new Promise((resolve,reject)=>canvas.toBlob(
+      value=>value?resolve(value):reject(new Error('Không thể xuất bìa 1024×1536.')),
+      'image/jpeg',
+      0.94
+    ));
+    return output;
+  }
   async function uploadCatalogCover(bookId,blob,mime){
     if(blob.size>12*1024*1024)throw new Error('Ảnh bìa lớn hơn 12 MB.');
     const ext=mime==='image/webp'?'webp':mime==='image/jpeg'?'jpg':'png';
@@ -355,15 +396,15 @@
       body:JSON.stringify({
         bookId,
         imageProvider:settings.imageProvider,imageApiKey:settings.imageApiKey,imageBaseUrl:settings.imageBaseUrl,imageModel:settings.imageModel,
-        promptProvider:settings.promptProvider,promptApiKey:settings.promptApiKey,promptBaseUrl:settings.promptBaseUrl,promptModel:settings.promptModel,
-        extraPrompt:settings.extraPrompt
+        promptProvider:settings.promptProvider,promptApiKey:settings.promptApiKey,promptBaseUrl:settings.promptBaseUrl,promptModel:settings.promptModel
       })
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.detail||data.error||'AI không tạo được bìa.');
     if(!data.imageBase64)throw new Error('AI không trả về ảnh.');
-    const blob=base64ToBlob(data.imageBase64,data.mimeType||'image/png');
-    return uploadCatalogCover(bookId,blob,data.mimeType||'image/png');
+    const rawBlob=base64ToBlob(data.imageBase64,data.mimeType||'image/png');
+    const coverBlob=await normalizeGeneratedCover(rawBlob);
+    return uploadCatalogCover(bookId,coverBlob,'image/jpeg');
   }
   async function generateSingleCover(){
     const row=catalogState.editing;if(!row||catalogState.coverBusy)return;
@@ -464,7 +505,7 @@
   restoreAiSettings();
   $c('coverImageProvider')?.addEventListener('change',event=>{applyImageProvider(event.target.value,true);persistAiSettings();});
   $c('coverPromptProvider')?.addEventListener('change',event=>{applyPromptProvider(event.target.value,true);persistAiSettings();});
-  ['coverAiKey','coverAiBaseUrl','coverAiModel','coverPromptKey','coverPromptBaseUrl','coverPromptModel','coverAiExtraPrompt'].forEach(id=>$c(id)?.addEventListener('change',persistAiSettings));
+  ['coverAiKey','coverAiBaseUrl','coverAiModel','coverPromptKey','coverPromptBaseUrl','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('change',persistAiSettings));
   $c('catalogRefreshBtn')?.addEventListener('click',()=>loadCatalog(true));
   $c('catalogResetFilters')?.addEventListener('click',()=>{
     $c('catalogSearch').value='';$c('catalogAuthorFilter').value='';$c('catalogGenreFilter').value='';$c('catalogStatusFilter').value='';
