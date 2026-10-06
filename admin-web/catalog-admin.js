@@ -114,7 +114,8 @@
   }
   function restoreAiSettings(){
     $c('coverAiKey').value=sessionStorage.getItem('chuong_explabs_api_key')||sessionStorage.getItem('chuong_cover_image_key')||'';
-    $c('coverAiModel').value=sessionStorage.getItem('chuong_explabs_image_model')||EXPERIENTIAL_IMAGE_DEFAULT;
+    const storedImageModel=sessionStorage.getItem('chuong_explabs_image_model')||EXPERIENTIAL_IMAGE_DEFAULT;
+    $c('coverAiModel').value=storedImageModel==='gemini-3.1-flash-lite-image'?EXPERIENTIAL_IMAGE_DEFAULT:storedImageModel;
     $c('coverPromptProvider').value=sessionStorage.getItem('chuong_explabs_prompt_mode')||'none';
     $c('coverPromptModel').value=sessionStorage.getItem('chuong_explabs_prompt_model')||EXPERIENTIAL_PROMPT_DEFAULT;
     applyPromptMode();
@@ -472,17 +473,36 @@
     const settings=aiSettings();persistAiSettings();
     if(!settings.apiKey)return showCatalogMessage('Hãy nhập Experiential Labs API key trước.','error');
     $c('catalogBulkCoverBtn').disabled=true;
-    let done=0,success=0,skipped=0,failed=0;
+    let done=0,success=0,skipped=0,failed=0,consecutiveProviderFailures=0,stoppedEarly=false;
     for(const id of ids){
       try{
         const rows=await rest('books?id=eq.'+encodeURIComponent(id)+'&select=cover_url&limit=1');
         if(rows?.[0]?.cover_url&&!settings.overwrite){skipped++;done++;setCatalogProgress(done,ids.length,'Bỏ qua bìa đã có · '+done+'/'+ids.length);continue;}
         setCatalogProgress(done,ids.length,'Đang tạo bìa AI '+(done+1)+'/'+ids.length);
-        await generateCover(id);success++;
-      }catch(error){failed++;showCatalogMessage('Có lỗi khi tạo bìa: '+(error.message||String(error)),'warn');}
+        await generateCover(id);
+        success++;
+        consecutiveProviderFailures=0;
+        await new Promise(resolve=>setTimeout(resolve,1200));
+      }catch(error){
+        failed++;
+        const message=error.message||String(error);
+        const providerDown=/Experiential đang lỗi tuyến tạo ảnh|experiential_upstream_unavailable|all_routes_failed|provider_internal|unavailable_route/i.test(message);
+        consecutiveProviderFailures=providerDown?consecutiveProviderFailures+1:0;
+        showCatalogMessage('Có lỗi khi tạo bìa: '+message,'warn');
+        if(consecutiveProviderFailures>=2){
+          stoppedEarly=true;
+          done++;
+          setCatalogProgress(done,ids.length,'Đã dừng sớm vì Experiential lỗi liên tiếp · '+done+'/'+ids.length);
+          break;
+        }
+      }
       done++;setCatalogProgress(done,ids.length,'Đã xử lý bìa '+done+'/'+ids.length);
     }
-    showCatalogMessage('Tạo bìa xong · '+success+' thành công · '+skipped+' bỏ qua · '+failed+' lỗi.',failed?'warn':'success');
+    if(stoppedEarly){
+      showCatalogMessage('Đã tự dừng batch sau 2 lỗi tuyến Experiential liên tiếp để tránh chạy hỏng cả lô. Thành công: '+success+' · lỗi: '+failed+'. Hãy kiểm tra lại tuyến tạo ảnh rồi chạy tiếp.','warn');
+    }else{
+      showCatalogMessage('Tạo bìa xong · '+success+' thành công · '+skipped+' bỏ qua · '+failed+' lỗi.',failed?'warn':'success');
+    }
     $c('catalogBulkCoverBtn').disabled=false;
     await loadCatalog(false);
   }
