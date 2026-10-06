@@ -25,6 +25,33 @@
     const label=box.querySelector('span:last-child');
     if(label)label.textContent=text;
   }
+  function populateExperientialImageModels(models,preferred){
+    const select=$c('coverAiModel');if(!select)return;
+    const rows=Array.isArray(models)?models.filter(item=>item&&item.id):[];
+    const current=preferred||select.value||EXPERIENTIAL_IMAGE_DEFAULT;
+    select.innerHTML='';
+    if(!rows.length){
+      const option=document.createElement('option');
+      option.value=current;option.textContent=current;
+      select.appendChild(option);
+      $c('coverImageModelHint').textContent='Không đọc được danh sách model ảnh từ catalog. Bạn vẫn có thể thử model đang chọn.';
+      return;
+    }
+    for(const item of rows){
+      const option=document.createElement('option');
+      option.value=item.id;
+      option.textContent=item.name&&item.name!==item.id?item.name+' · '+item.id:item.id;
+      select.appendChild(option);
+    }
+    const found=rows.some(item=>item.id===current);
+    if(found)select.value=current;
+    else if(rows.some(item=>item.id===EXPERIENTIAL_IMAGE_DEFAULT))select.value=EXPERIENTIAL_IMAGE_DEFAULT;
+    else select.selectedIndex=0;
+    $c('coverImageModelHint').textContent='Đã tải '+rows.length.toLocaleString('vi-VN')+' model tạo ảnh khả dụng. Chọn model rồi bấm tạo bìa.';
+    persistAiSettings();
+  }
+
+
   async function checkExperientialApi(){
     const settings=aiSettings();
     persistAiSettings();
@@ -51,13 +78,15 @@
       if(!response.ok||!data.ok){
         throw new Error(data.detail||data.error||'API key không hợp lệ.');
       }
+      populateExperientialImageModels(data.imageModels,settings.imageModel);
       const parts=['API key hợp lệ'];
       if(Number.isFinite(Number(data.modelCount)))parts.push(Number(data.modelCount).toLocaleString('vi-VN')+' model truy cập được');
-      if(data.imageModelAvailable===false)parts.push('model tạo ảnh chưa khả dụng');
+      if(Array.isArray(data.imageModels))parts.push(data.imageModels.length.toLocaleString('vi-VN')+' model tạo ảnh');
+      if(data.imageModelAvailable===false&&data.imageModels?.length)parts.push('đã tự chọn model ảnh khả dụng');
       else if(data.imageModelAvailable===true)parts.push('model tạo ảnh OK');
       if(data.promptModel&&data.promptModelAvailable===false)parts.push('model viết prompt chưa khả dụng');
       else if(data.promptModel&&data.promptModelAvailable===true)parts.push('model prompt OK');
-      setApiCheckStatus(data.imageModelAvailable===false?'warn':'ok',parts.join(' · '));
+      setApiCheckStatus(data.imageModels?.length?'ok':'warn',parts.join(' · '));
     }catch(error){
       setApiCheckStatus('bad','Kiểm tra thất bại: '+(error.message||String(error)));
     }finally{
@@ -115,7 +144,11 @@
   function restoreAiSettings(){
     $c('coverAiKey').value=sessionStorage.getItem('chuong_explabs_api_key')||sessionStorage.getItem('chuong_cover_image_key')||'';
     const storedImageModel=sessionStorage.getItem('chuong_explabs_image_model')||EXPERIENTIAL_IMAGE_DEFAULT;
-    $c('coverAiModel').value=storedImageModel==='gemini-3.1-flash-lite-image'?EXPERIENTIAL_IMAGE_DEFAULT:storedImageModel;
+    const restoredModel=storedImageModel==='gemini-3.1-flash-lite-image'?EXPERIENTIAL_IMAGE_DEFAULT:storedImageModel;
+    if(!$c('coverAiModel').querySelector('option[value="'+CSS.escape(restoredModel)+'"]')){
+      const option=document.createElement('option');option.value=restoredModel;option.textContent=restoredModel;$c('coverAiModel').appendChild(option);
+    }
+    $c('coverAiModel').value=restoredModel;
     $c('coverPromptProvider').value=sessionStorage.getItem('chuong_explabs_prompt_mode')||'none';
     $c('coverPromptModel').value=sessionStorage.getItem('chuong_explabs_prompt_model')||EXPERIENTIAL_PROMPT_DEFAULT;
     applyPromptMode();
@@ -560,7 +593,8 @@
 
   restoreAiSettings();
   $c('coverPromptProvider')?.addEventListener('change',()=>{applyPromptMode();persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');});
-  ['coverAiKey','coverAiModel','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('input',()=>{persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');}));
+  ['coverAiKey','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('input',()=>{persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');}));
+  $c('coverAiModel')?.addEventListener('change',()=>{persistAiSettings();setApiCheckStatus('neutral','Đã đổi model tạo ảnh · có thể tạo thử 1 bìa.');});
   $c('coverCheckApiBtn')?.addEventListener('click',()=>void checkExperientialApi());
   $c('catalogRefreshBtn')?.addEventListener('click',()=>loadCatalog(true));
   $c('catalogResetFilters')?.addEventListener('click',()=>{
