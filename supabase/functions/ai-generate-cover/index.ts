@@ -74,7 +74,6 @@ async function improvePrompt(input: {
   model: string;
   title: string;
   genre: string;
-  description: string;
   draft: string;
 }) {
   if (input.provider === "none") return input.draft;
@@ -86,7 +85,7 @@ async function improvePrompt(input: {
     "Không thêm chữ/tựa/logo vào ảnh. Tỷ lệ bìa 2:3 dọc. Chỉ trả prompt cuối cùng, không giải thích.",
     "Tên truyện: " + input.title,
     "Thể loại: " + input.genre,
-    input.description ? "Mô tả: " + input.description.slice(0, 2500) : "",
+    "Chỉ được dùng tên truyện và thể loại làm dữ liệu nội dung. Không suy luận từ mô tả, tag hoặc dữ liệu nào khác.",
     "Prompt nền:",
     input.draft,
   ].filter(Boolean).join("\n");
@@ -265,7 +264,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: book, error: bookError } = await admin
     .from("books")
-    .select("id,title,description")
+    .select("id,title")
     .eq("id", bookId)
     .maybeSingle();
   if (bookError) return reply(500, { error: bookError.message });
@@ -276,16 +275,15 @@ Deno.serve(async (req: Request) => {
 
   const draftPrompt = [
     "Create a premium vertical Vietnamese web-novel cover illustration.",
-    "Aspect ratio exactly 2:3 for a mobile book cover.",
-    "Story title for visual inspiration: \"" + book.title + "\".",
-    "Genre: " + genre + ".",
-    book.description ? "Story summary: " + book.description.slice(0, 1800) : "",
-    "Infer the strongest protagonist archetype, setting, mood, costume and symbolic visual motif from the title and genre.",
-    "Cinematic commercial illustration, strong central silhouette, atmospheric depth, dramatic lighting, polished details, clear focal hierarchy.",
-    "No title, no letters, no typography, no logo, no watermark, no UI, no frame, no readable text anywhere.",
-    "Keep face and key subject away from extreme edges so the artwork crops safely.",
-    body.extraPrompt?.trim() ? "Additional art direction: " + body.extraPrompt.trim() : "",
-  ].filter(Boolean).join("\n");
+    "FINAL COVER FORMAT IS LOCKED: exact 2:3 portrait composition, prepared for 1024 x 1536 pixels.",
+    "Use ONLY these story signals:",
+    "Title: \"" + book.title + "\".",
+    "Genre: \"" + genre + "\".",
+    "Infer the most suitable main subject, environment, costume, mood and visual motif ONLY from the title and genre.",
+    "Commercial mobile-reading-app cover artwork, strong single focal subject, cinematic depth, polished lighting and detail.",
+    "No title text, no letters, no typography, no logo, no watermark, no UI, no frame, no readable text anywhere.",
+    "Keep faces and important subjects inside the center safe area so a strict 2:3 crop remains usable.",
+  ].join("\n");
 
   try {
     const finalPrompt = await improvePrompt({
@@ -300,7 +298,6 @@ Deno.serve(async (req: Request) => {
       ),
       title: book.title,
       genre,
-      description: book.description || "",
       draft: draftPrompt,
     });
 
