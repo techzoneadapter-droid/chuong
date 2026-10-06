@@ -225,12 +225,16 @@
                 <label>Experiential API key
                   <input id="coverAiKey" type="password" autocomplete="off" placeholder="xpl_..." />
                 </label>
-                <button id="coverCheckApiBtn" class="cover-check-api" type="button">Kiểm tra API</button>
+                <div class="api-test-buttons">
+                  <button id="coverCheckApiBtn" class="cover-check-api" type="button">Kiểm tra API</button>
+                  <button id="coverDiagnoseModelBtn" class="cover-diagnose-model" type="button">Test model ảnh</button>
+                </div>
               </div>
               <div id="coverApiCheckStatus" class="api-check-status neutral">
                 <span class="api-check-dot"></span>
                 <span>Chưa kiểm tra khóa API</span>
               </div>
+              <div id="coverModelDiagnostic" class="model-diagnostic hidden"></div>
               <label>Model tạo ảnh
                 <select id="coverAiModel">
                   <option value="gemini-2.5-flash-image">gemini-2.5-flash-image</option>
