@@ -37,8 +37,12 @@ check(existsSync(new URL('app.config.js', root)), 'Dynamic Expo config exists fo
 check(Boolean(easJson.build?.preview), 'EAS preview build profile exists');
 check(Boolean(easJson.build?.production), 'EAS production build profile exists');
 check(easJson.build?.production?.autoIncrement === true, 'Production build auto-increments native build numbers');
+check(expo.version === '1.0.0', 'First public version is set to 1.0.0');
+check(Boolean(expo.android?.adaptiveIcon?.foregroundImage), 'Android adaptive icon is configured');
+check(Boolean(expo.splash?.image), 'Splash artwork is configured');
 
 const requiredFiles = [
+  'app/+html.tsx',
   'app/(tabs)/index.tsx',
   'app/(tabs)/discover.tsx',
   'app/(tabs)/library.tsx',
@@ -91,6 +95,7 @@ const requiredFiles = [
   'constants/brand-logo/chunk3.ts',
   'constants/brand-logo/chunk4.ts',
   'services/adminCatalog.ts',
+  'services/contentText.ts',
   'services/adminImport.ts',
   'services/authorImport.ts',
   'services/membership.ts',
@@ -149,6 +154,8 @@ check(ttsHookSource.includes("Thiết bị chưa có giọng tiếng Việt"), '
 check(ttsHookSource.includes("prefs.voice === 'Nam' ? 0.82 : 1.08"), 'TTS differentiates Nam/Nữ by pitch when only one Vietnamese system voice exists');
 check(ttsHookSource.includes('speakTtsSegment') && ttsHookSource.includes('seekBySeconds'), 'TTS controller supports real playback and approximate seeking');
 
+const htmlSource = readFileSync(new URL('app/+html.tsx', root), 'utf8');
+check(htmlSource.includes('lang="vi"') && htmlSource.includes('notranslate'), 'Web document declares Vietnamese and blocks browser auto-translation');
 const profileSource = readFileSync(new URL('app/(tabs)/profile.tsx', root), 'utf8');
 const readerSource = readFileSync(new URL('app/reader/[bookId].tsx', root), 'utf8');
 const settingsSource = readFileSync(new URL('app/settings/reading.tsx', root), 'utf8');
