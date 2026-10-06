@@ -141,14 +141,14 @@
       <section id="catalogManageMode" class="catalog-shell hidden">
         <div class="catalog-hero">
           <div class="catalog-hero-copy">
-            <div class="catalog-kicker">TÀNG KINH CÁC · CONTROL CENTER</div>
+            <div class="catalog-kicker">CHƯƠNG ADMIN · KHO TRUYỆN</div>
             <h2>Quản trị kho truyện</h2>
             <p>Tìm truyện, sửa nội dung, theo dõi hiệu suất và tạo bìa AI hàng loạt trong một màn hình.</p>
             <div class="catalog-hero-badges">
-              <span>Admin only</span><span>Lọc realtime</span><span>Batch actions</span><span>AI cover studio</span>
+              <span>Chỉ Admin</span><span>Lọc tức thì</span><span>Thao tác hàng loạt</span><span>AI tạo bìa</span>
             </div>
           </div>
-          <div class="catalog-hero-mark" aria-hidden="true"><span>章</span></div>
+          <div class="catalog-hero-mark" aria-hidden="true"><span>C</span></div>
           <button id="catalogRefreshBtn" class="catalog-refresh" type="button">↻ Làm mới</button>
         </div>
 
@@ -204,7 +204,7 @@
           <div class="ai-studio-head">
             <div class="ai-orb"><span>AI</span></div>
             <div class="ai-studio-copy">
-              <div class="catalog-kicker">AI COVER STUDIO</div>
+              <div class="catalog-kicker">AI TẠO BÌA</div>
               <h2>Tạo bìa tự động</h2>
               <p>Chọn nhà cung cấp ảnh. Có thể dùng thêm DeepSeek / Gemini / xAI / OpenAI để viết prompt tốt hơn trước khi tạo ảnh.</p>
             </div>
@@ -213,14 +213,14 @@
 
           <div class="provider-layout">
             <div class="provider-panel provider-image-panel">
-              <div class="provider-panel-title"><span>1</span><div><strong>AI tạo ảnh</strong><small>Provider thực sự sinh ảnh bìa 2:3</small></div></div>
+              <div class="provider-panel-title"><span>1</span><div><strong>AI tạo ảnh</strong><small>Dịch vụ trực tiếp tạo ảnh bìa tỷ lệ 2:3</small></div></div>
               <div class="provider-select-row">
                 <label>Nhà cung cấp
                   <select id="coverImageProvider">
                     <option value="openai">OpenAI Images</option>
                     <option value="gemini">Google Gemini · Nano Banana</option>
                     <option value="xai">xAI · Grok Imagine</option>
-                    <option value="custom">OpenAI-compatible khác</option>
+                    <option value="custom">API tương thích OpenAI khác</option>
                   </select>
                 </label>
                 <div id="coverImageProviderBadge" class="provider-badge provider-openai">OpenAI</div>
@@ -234,7 +234,7 @@
             </div>
 
             <div class="provider-panel provider-prompt-panel">
-              <div class="provider-panel-title"><span>2</span><div><strong>AI viết prompt · tùy chọn</strong><small>Đọc tên + thể loại + mô tả rồi viết prompt hình ảnh chi tiết</small></div></div>
+              <div class="provider-panel-title"><span>2</span><div><strong>AI viết prompt · tùy chọn</strong><small>Đọc tên, thể loại và mô tả để viết prompt hình ảnh tốt hơn</small></div></div>
               <div class="provider-select-row">
                 <label>Nhà cung cấp prompt
                   <select id="coverPromptProvider">
