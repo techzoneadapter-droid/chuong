@@ -117,7 +117,7 @@
     box.classList.remove('hidden');box.className='model-diagnostic';
     box.textContent='Đang gửi đúng 1 request thử nghiệm tới model '+settings.imageModel+'...';
     try{
-      const response=await fetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
+      const response=await window.chuongAuthFetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
         method:'POST',
         headers:authHeaders({'Content-Type':'application/json'}),
         body:JSON.stringify({
@@ -150,7 +150,7 @@
     button.textContent='Đang kiểm tra...';
     setApiCheckStatus('checking','Đang xác thực khóa và kiểm tra model...');
     try{
-      const response=await fetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
+      const response=await window.chuongAuthFetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
         method:'POST',
         headers:authHeaders({'Content-Type':'application/json'}),
         body:JSON.stringify({
@@ -528,7 +528,7 @@
     const ext=mime==='image/webp'?'webp':mime==='image/jpeg'?'jpg':'png';
     const path=state.userId+'/'+bookId+'/admin-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
     const encoded=path.split('/').map(encodeURIComponent).join('/');
-    const res=await fetch(SUPABASE_URL+'/storage/v1/object/book-covers/'+encoded,{
+    const res=await window.chuongAuthFetch(SUPABASE_URL+'/storage/v1/object/book-covers/'+encoded,{
       method:'POST',headers:authHeaders({'Content-Type':mime||'image/png','x-upsert':'false'}),body:blob
     });
     if(!res.ok){const body=await res.json().catch(()=>null);throw new Error(body?.message||'Không thể tải bìa lên kho.');}
@@ -539,7 +539,7 @@
   async function generateCover(bookId){
     const settings=aiSettings();persistAiSettings();
     if(!settings.apiKey)throw new Error('Hãy nhập Experiential Labs API key.');
-    const response=await fetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
+    const response=await window.chuongAuthFetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
       method:'POST',
       headers:authHeaders({'Content-Type':'application/json'}),
       body:JSON.stringify({
@@ -592,6 +592,8 @@
 
   async function bulkGenerateCovers(){
     const ids=[...catalogState.selected];if(!ids.length)return;
+    try{await window.chuongEnsureFreshToken(false);}
+    catch(error){return showCatalogMessage(error.message||String(error),'error');}
     const settings=aiSettings();persistAiSettings();
     if(!settings.apiKey)return showCatalogMessage('Hãy nhập Experiential Labs API key trước.','error');
     if(!catalogState.coverModelTest.ok||catalogState.coverModelTest.model!==settings.imageModel){
