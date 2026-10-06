@@ -1,3 +1,17 @@
+## Native RC-1 + mobile text cleanup — 2026-10-06
+
+- Work is now based on the current GitHub `main`; older Vibaocode sandboxes must be reloaded from main before further edits.
+- Public version is 1.0.0; Android versionCode and iOS buildNumber start at 1.
+- Existing CHƯƠNG icon is wired as the app/adaptive icon and the horizontal brand artwork is wired as the splash image.
+- EAS preview is configured as an internal Android APK; production remains store distribution with native auto-increment.
+- Real `extra.eas.projectId` remains intentionally unset because it must come from the owner's Expo account/project and cannot be invented safely.
+- Web preview now declares Vietnamese and opts out of Google/browser re-translation, preventing labels such as “Mục lục”, “Thêm”, “Tất cả” and “Tạm dừng” from being rewritten on phones.
+- Reader removes duplicate generic chapter headings and repeated leading “Chương N” markers.
+- Public book summaries no longer expose Admin/ZIP source filenames. Missing summaries display exactly “Hãy khám phá.”
+- Bulk ZIP import reads summary/description metadata when available; otherwise it stores “Hãy khám phá.”
+- Production catalog placeholders were migrated to “Hãy khám phá.” and 354 repeated leading chapter markers were removed from stored chapter bodies.
+- Browser regression now checks the 390×844 mobile layout, Vietnamese document metadata and core Reader/Discover labels.
+
 # CHƯƠNG — PROJECT STATUS
 
 ## Phase 4R4 — 2026-10-05
