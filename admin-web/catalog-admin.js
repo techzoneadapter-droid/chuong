@@ -19,6 +19,54 @@
     const box=$c('catalogMessage');if(!box)return;
     box.textContent=text;box.className='message '+type;
   }
+  function setApiCheckStatus(stateName,text){
+    const box=$c('coverApiCheckStatus');if(!box)return;
+    box.className='api-check-status '+stateName;
+    const label=box.querySelector('span:last-child');
+    if(label)label.textContent=text;
+  }
+  async function checkExperientialApi(){
+    const settings=aiSettings();
+    persistAiSettings();
+    if(!settings.apiKey){
+      setApiCheckStatus('bad','Chưa nhập Experiential API key');
+      return;
+    }
+    const button=$c('coverCheckApiBtn');
+    button.disabled=true;
+    button.textContent='Đang kiểm tra...';
+    setApiCheckStatus('checking','Đang xác thực khóa và kiểm tra model...');
+    try{
+      const response=await fetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
+        method:'POST',
+        headers:authHeaders({'Content-Type':'application/json'}),
+        body:JSON.stringify({
+          action:'check',
+          imageApiKey:settings.apiKey,
+          imageModel:settings.imageModel,
+          promptModel:settings.promptModel
+        })
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data.ok){
+        throw new Error(data.detail||data.error||'API key không hợp lệ.');
+      }
+      const parts=['API key hợp lệ'];
+      if(Number.isFinite(Number(data.modelCount)))parts.push(Number(data.modelCount).toLocaleString('vi-VN')+' model truy cập được');
+      if(data.imageModelAvailable===false)parts.push('model tạo ảnh chưa khả dụng');
+      else if(data.imageModelAvailable===true)parts.push('model tạo ảnh OK');
+      if(data.promptModel&&data.promptModelAvailable===false)parts.push('model viết prompt chưa khả dụng');
+      else if(data.promptModel&&data.promptModelAvailable===true)parts.push('model prompt OK');
+      setApiCheckStatus(data.imageModelAvailable===false?'warn':'ok',parts.join(' · '));
+    }catch(error){
+      setApiCheckStatus('bad','Kiểm tra thất bại: '+(error.message||String(error)));
+    }finally{
+      button.disabled=false;
+      button.textContent='Kiểm tra API';
+    }
+  }
+
+
   function showEditMessage(text,type='info'){
     const box=$c('catalogEditMessage');if(!box)return;
     box.textContent=text;box.className='message '+type;
@@ -484,8 +532,9 @@
   const reloadDebounced=debounce(()=>loadCatalog(true));
 
   restoreAiSettings();
-  $c('coverPromptProvider')?.addEventListener('change',()=>{applyPromptMode();persistAiSettings();});
-  ['coverAiKey','coverAiModel','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('change',persistAiSettings));
+  $c('coverPromptProvider')?.addEventListener('change',()=>{applyPromptMode();persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');});
+  ['coverAiKey','coverAiModel','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('input',()=>{persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');}));
+  $c('coverCheckApiBtn')?.addEventListener('click',()=>void checkExperientialApi());
   $c('catalogRefreshBtn')?.addEventListener('click',()=>loadCatalog(true));
   $c('catalogResetFilters')?.addEventListener('click',()=>{
     $c('catalogSearch').value='';$c('catalogAuthorFilter').value='';$c('catalogGenreFilter').value='';$c('catalogStatusFilter').value='';
