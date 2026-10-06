@@ -187,13 +187,14 @@ async function generateImage(input: {
 
     for (const model of candidates) {
       const maxAttempts = 2;
+      let requestNonce = crypto.randomUUID();
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         lastModel = model;
         try {
           const promptBytes = new TextEncoder().encode(input.prompt);
           const promptDigest = await crypto.subtle.digest("SHA-256", promptBytes);
           const promptHash = Array.from(new Uint8Array(promptDigest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-          const retryKey = "chuong-cover-" + model.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 48) + "-" + promptHash.slice(0, 40);
+          const retryKey = "chuong-cover-" + model.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 36) + "-" + promptHash.slice(0, 20) + "-" + requestNonce;
           const response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -238,6 +239,20 @@ async function generateImage(input: {
           } catch {}
           lastCode = code;
 
+          if (response.status === 409 && code === "idempotency_replay_unavailable") {
+            console.warn("CHUONG_EXPLABS_IDEMPOTENCY_ROTATE", JSON.stringify({
+              model,
+              attempt,
+              requestId: response.headers.get("x-request-id")
+            }));
+            requestNonce = crypto.randomUUID();
+            if (attempt < maxAttempts) continue;
+            throw new Error(
+              "experiential_image_409:idempotency_replay_unavailable::" +
+              (providerMessage || "Experiential yêu cầu gửi lại với Idempotency-Key mới.")
+            );
+          }
+
           if (code === "refusal") {
             const safePrompt = [
               input.prompt,
@@ -251,7 +266,7 @@ async function generateImage(input: {
             const safeBytes = new TextEncoder().encode(safePrompt);
             const safeDigest = await crypto.subtle.digest("SHA-256", safeBytes);
             const safeHash = Array.from(new Uint8Array(safeDigest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-            const safeKey = "chuong-cover-safe-" + model.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 40) + "-" + safeHash.slice(0, 36);
+            const safeKey = "chuong-cover-safe-" + model.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 30) + "-" + safeHash.slice(0, 16) + "-" + crypto.randomUUID();
             const safeResponse = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
               method: "POST",
               headers: {
@@ -493,10 +508,7 @@ Deno.serve(async (req: Request) => {
       providers = { error: error instanceof Error ? error.message : String(error) };
     }
 
-    const digestBytes = new TextEncoder().encode("diagnose|" + imageModel + "|" + testPrompt);
-    const digest = await crypto.subtle.digest("SHA-256", digestBytes);
-    const digestHex = Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,"0")).join("");
-    const idempotencyKey = "chuong-diagnose-" + digestHex.slice(0,40);
+    const idempotencyKey = "chuong-diagnose-" + crypto.randomUUID();
 
     let response: Response;
     try {
