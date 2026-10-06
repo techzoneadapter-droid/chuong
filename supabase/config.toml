@@ -1,0 +1,2 @@
+[functions.ai-generate-cover]
+verify_jwt = false
