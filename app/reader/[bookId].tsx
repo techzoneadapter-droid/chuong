@@ -34,6 +34,7 @@ import { getOfflineBookSnapshot } from '../../services/offlineDownloads';
 import { useAuth } from '../../contexts/AuthContext';
 import { SLEEP_TIMERS, SleepTimer, TTS_SPEEDS, TTS_VOICES, TtsVoice } from '../../services/tts';
 import { Book, Chapter, ReaderAutoScrollSpeed, ReaderFont, ReaderMode, ReaderSettings, ReaderSpacing, ReaderTheme } from '../../types';
+import { displayChapterTitle, stripLeadingChapterMarker } from '../../services/contentText';
 
 type Sheet = ReaderTool | null;
 type Bookmark = { chapter: number; progress: number; updatedAt: string };
@@ -80,6 +81,7 @@ export default function ReaderScreen() {
 
   const selectedChapter = book.chapters.find((item) => item.number === chapterNumber);
   const chapter = selectedChapter ?? { number: chapterNumber, title: '', content: '', id: undefined };
+  const chapterDisplayTitle = displayChapterTitle(chapter.title, chapterNumber);
   const chapterIndex = book.chapters.findIndex((item) => item.number === chapterNumber);
   const previousNumber = book.chapters[chapterIndex - 1]?.number;
   const nextNumber = book.chapters[chapterIndex + 1]?.number;
@@ -97,7 +99,11 @@ export default function ReaderScreen() {
     }
     router.replace({ pathname: '/book/[id]', params: { id: book.id } });
   };
-  const content = useMemo(() => chapter.content ? chapter.content.split(/\n\s*\n/).filter(Boolean) : getChapterContent(chapterNumber), [chapter.content, chapterNumber]);
+  const content = useMemo(() => {
+    if (!chapter.content) return getChapterContent(chapterNumber);
+    const cleaned = stripLeadingChapterMarker(chapter.content, chapterNumber);
+    return cleaned.split(/\n\s*\n/).filter(Boolean);
+  }, [chapter.content, chapterNumber]);
   const pagedContent = useMemo(() => {
     const spacingFactor = settings.spacing === 'compact' ? 1.12 : settings.spacing === 'relaxed' ? .82 : 1;
     const target = Math.max(520, Math.round(1120 * (18 / settings.fontSize) * spacingFactor));
@@ -355,7 +361,7 @@ export default function ReaderScreen() {
         bookTitle: book.title,
         authorName: book.author,
         chapterNumber,
-        chapterTitle: chapter.title,
+        chapterTitle: chapterDisplayTitle,
         quote: quoteToShare,
       });
       if (result === 'copied') setShareNotice('Đã sao chép trích đoạn và liên kết đọc.');
@@ -435,7 +441,7 @@ export default function ReaderScreen() {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}><View style={styles.paywallCard}>
           <View style={styles.lockCircle}><Ionicons name="lock-closed" size={28} color="#8F1D3F" /></View>
           <Text style={styles.paywallKicker}>{lockedContent.kind === 'book' ? 'TRUYỆN VIP' : earlyAccessActive ? 'TIÊN CƠ · ĐỌC SỚM' : 'CHƯƠNG VIP'}</Text>
-          <Text style={styles.paywallTitle}>Chương {chapterNumber} · {selectedChapter?.title || 'Nội dung dành cho thành viên'}</Text>
+          <Text style={styles.paywallTitle}>Chương {chapterNumber} · {displayChapterTitle(selectedChapter?.title, chapterNumber) || 'Nội dung dành cho thành viên'}</Text>
           <Text style={styles.paywallBody}>
             {lockedContent.kind === 'book'
               ? 'Mở khóa truyện một lần để đọc các nội dung VIP thuộc gói truyện này.'
@@ -494,7 +500,7 @@ export default function ReaderScreen() {
           {settings.mode !== 'page' || pageIndex === 0 ? <>
             <Text style={[styles.bookKicker, { color: palette.muted }]}>{book.title.toUpperCase()}</Text>
             <Text style={[styles.chapterNumber, { color: palette.text }]}>Chương {chapterNumber}</Text>
-            <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapter.title}</Text>
+            {chapterDisplayTitle ? <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapterDisplayTitle}</Text> : null}
             {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
           </> : null}
           {visibleContent.map((paragraph, index) => (
@@ -580,7 +586,7 @@ export default function ReaderScreen() {
         bookTitle={book.title}
         authorName={book.author}
         chapterNumber={chapterNumber}
-        chapterTitle={chapter.title}
+        chapterTitle={chapterDisplayTitle}
         sharing={sharingQuote}
         notice={shareNotice}
         onShare={() => void shareCurrentQuote()}
@@ -599,7 +605,7 @@ export default function ReaderScreen() {
         visible={sheet === 'audio'}
         onClose={() => setSheet(null)}
         chapterKey={`${book.id}:${chapterNumber}`}
-        chapterTitle={`Chương ${chapterNumber} · ${chapter.title}`}
+        chapterTitle={chapterDisplayTitle ? `Chương ${chapterNumber} · ${chapterDisplayTitle}` : `Chương ${chapterNumber}`}
         chapterText={content.join('\n\n')}
         initialProgress={readingProgress}
         onProgress={setReadingProgress}
