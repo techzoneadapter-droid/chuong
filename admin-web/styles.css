@@ -719,3 +719,15 @@ button,input,select,textarea{letter-spacing:0}
 #catalogManageMode .diag-grid b{font-weight:650;color:#3d4944;word-break:break-word}
 #catalogManageMode .diag-request{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:9px}
 #catalogManageMode .diag-message{margin-top:8px;padding:7px 8px;border-radius:7px;background:rgba(255,255,255,.65);word-break:break-word}
+
+
+/* Experiential quota guidance */
+#catalogManageMode .cover-buy-credits{
+  display:inline-flex;align-items:center;justify-content:center;
+  margin:-2px 0 10px;padding:9px 12px;border-radius:9px;
+  border:1px solid #d6b56a;background:#fff7df;color:#6e4e12;
+  font-size:10.5px;font-weight:800;text-decoration:none
+}
+#catalogManageMode .cover-buy-credits:hover{background:#f9ecc5}
+#catalogManageMode .quota-title{font-size:11px;font-weight:800;color:#8e3040;margin-bottom:8px}
+#catalogManageMode .quota-lock .diag-message{background:#fff7f0;color:#7b4a3d}
