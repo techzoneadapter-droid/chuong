@@ -120,7 +120,6 @@
     $c('coverPromptKey').value=sessionStorage.getItem('chuong_cover_prompt_key')||'';
     $c('coverPromptBaseUrl').value=sessionStorage.getItem('chuong_cover_prompt_base_url')||PROMPT_PRESETS[promptProvider]?.baseUrl||'';
     $c('coverPromptModel').value=sessionStorage.getItem('chuong_cover_prompt_model')||PROMPT_PRESETS[promptProvider]?.model||'';
-    if($c('coverAiExtraPrompt'))$c('coverAiExtraPrompt').value='';
     applyImageProvider(imageProvider,false);
     applyPromptProvider(promptProvider,false);
   }
