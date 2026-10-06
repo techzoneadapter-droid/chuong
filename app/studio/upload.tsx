@@ -170,7 +170,7 @@ export default function StudioUploadScreen() {
           ownerAuthorId,
           title: item.title,
           creditedAuthorName: creditedAuthorName.trim() || null,
-          description: `Truyện được nhập bằng CHƯƠNG Content Studio từ nguồn “${item.sourceName}”.`,
+          description: item.summary?.trim() || 'Hãy khám phá.',
           genre,
           tags: [],
           language,
