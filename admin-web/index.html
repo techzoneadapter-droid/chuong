@@ -232,9 +232,11 @@
                 <span>Chưa kiểm tra khóa API</span>
               </div>
               <label>Model tạo ảnh
-                <input id="coverAiModel" type="text" value="gemini-2.5-flash-image" placeholder="gemini-2.5-flash-image" />
+                <select id="coverAiModel">
+                  <option value="gemini-2.5-flash-image">gemini-2.5-flash-image</option>
+                </select>
               </label>
-              <p class="provider-hint">Khuyên dùng <strong>gemini-2.5-flash-image</strong> vì tuyến hiện ổn định hơn. Hệ thống sẽ tự thử model dự phòng nếu Experiential lỗi tuyến.</p>
+              <p id="coverImageModelHint" class="provider-hint">Bấm <strong>Kiểm tra API</strong> để tải danh sách model tạo ảnh mà khóa của bạn đang truy cập được, sau đó chọn model tại ô phía trên.</p>
             </div>
 
             <div class="provider-panel provider-prompt-panel">
