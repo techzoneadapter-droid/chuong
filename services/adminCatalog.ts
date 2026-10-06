@@ -121,7 +121,7 @@ export async function getAdminCatalogBook(bookId: string): Promise<Book | null> 
 export async function createAdminCatalogBook(input: AdminCatalogBookInput) {
   const { client } = await requireAdmin();
   if (input.title.trim().length < 2) throw new Error('Tên truyện cần có ít nhất 2 ký tự.');
-  if (input.description.trim().length < 20) throw new Error('Mô tả cần có ít nhất 20 ký tự.');
+  if (!input.description.trim()) throw new Error('Tóm tắt không được để trống.');
   if (!input.genre.trim()) throw new Error('Vui lòng nhập thể loại.');
   if (input.creditedAuthorName && input.creditedAuthorName.trim().length < 2) throw new Error('Tên tác giả hiển thị cần có ít nhất 2 ký tự.');
   const isVip = Boolean(input.isVip);
@@ -166,7 +166,7 @@ export async function createAdminCatalogBook(input: AdminCatalogBookInput) {
 export async function updateAdminCatalogBookMetadata(bookId: string, input: AdminCatalogBookMetadataInput) {
   const { client } = await requireAdmin();
   if (input.title.trim().length < 2) throw new Error('Tên truyện cần có ít nhất 2 ký tự.');
-  if (input.description.trim().length < 20) throw new Error('Mô tả cần có ít nhất 20 ký tự.');
+  if (!input.description.trim()) throw new Error('Tóm tắt không được để trống.');
   if (!input.genre.trim()) throw new Error('Vui lòng nhập thể loại.');
 
   const { error: bookError } = await client
