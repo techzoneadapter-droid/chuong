@@ -333,9 +333,9 @@ function genreHas(text,term){
   return source.includes(needle);
 }
 const CHUONG_GENRE_RULES=[
-  {genre:'Xuyên không',threshold:8,terms:[['xuyên không',12],['xuyên thư',12],['xuyên thành',12],['xuyên qua',10],['xuyên về',10],['xuyên vào',10],['nhập vào truyện',9],['nhập vào sách',9],['pháo hôi',4]]},
+  {genre:'Xuyên không',threshold:8,terms:[['xuyên không',12],['xuyên thư',12],['xuyên thành',12],['xuyên qua',10,'title'],['xuyên về',10,'title'],['xuyên vào',10],['nhập vào truyện',9],['nhập vào sách',9],['pháo hôi',4,'title']]},
   {genre:'Trọng sinh',threshold:8,terms:[['trọng sinh',12],['sống lại',10],['quay về năm',9],['trở lại năm',9],['làm lại cuộc đời',8],['kiếp trước',5],['đời trước',4]]},
-  {genre:'Hệ thống',threshold:8,terms:[['hệ thống',12],['ký chủ',10],['ban thưởng',8],['rút thưởng',8],['nhiệm vụ',7],['bảng thuộc tính',8],['điểm kỹ năng',7],['vô hạn điểm',7],['ting',5],['hack',4]]},
+  {genre:'Hệ thống',threshold:8,terms:[['hệ thống',12,'title'],['ký chủ',10],['ban thưởng',8],['rút thưởng',8],['nhiệm vụ',7],['bảng thuộc tính',8],['điểm kỹ năng',7],['vô hạn điểm',7],['ting',5],['hack',4],['hệ thống nhiệm vụ',10],['hệ thống ban thưởng',10],['hệ thống ký chủ',10]]},
   {genre:'Mạt thế',threshold:8,terms:[['mạt thế',12],['tận thế',12],['zombie',12],['xác sống',10],['dị năng',8],['căn cứ sinh tồn',7],['căn cứ hy vọng',7],['thây ma',9]]},
   {genre:'Đam mỹ',threshold:8,terms:[['đam mỹ',12],['boy love',12],['bl',10],['thụ',5],['công thụ',10],['nam nam',9],['song nam chủ',8]]},
   {genre:'Cung đấu',threshold:8,terms:[['cung đấu',12],['hậu cung',10],['hoàng hậu',8],['quý phi',8],['phi tần',8],['sủng phi',10],['lãnh cung',8],['thái hậu',7],['cung nữ',6]]},
@@ -351,7 +351,7 @@ const CHUONG_GENRE_RULES=[
   {genre:'Fantasy',threshold:8,terms:[['fantasy',12],['ma pháp',11],['pháp sư',10],['phù thủy',10],['dũng giả',9],['ma vương',8],['phép thuật',9],['elf',8]]},
   {genre:'Điền văn',threshold:8,terms:[['điền văn',12],['điền viên',10],['nông gia',10],['làm ruộng',9],['trồng trọt',8],['thôn quê',7],['nông thôn',6],['mở quán',5],['làm giàu',5]]},
   {genre:'Vô hạn lưu',threshold:8,terms:[['vô hạn lưu',12],['phó bản',9],['chủ thần',9],['luân hồi',7],['trò chơi sinh tồn',10],['không gian vô hạn',10]]},
-  {genre:'Niên đại',threshold:8,terms:[['niên đại',12],['thập niên 50',10],['thập niên 60',10],['thập niên 70',10],['thập niên 80',10],['thời bao cấp',10],['thời kỳ đầu lập quốc',8]]},
+  {genre:'Niên đại',threshold:8,terms:[['niên đại',12],['thập niên 50',10],['thập niên 60',10],['thập niên 70',10],['thập niên 80',10],['thập niên 90',10],['thời bao cấp',10],['thời kỳ đầu lập quốc',8]]},
   {genre:'Ngôn tình',threshold:8,terms:[['ngôn tình',12],['tổng tài',10],['phu nhân',8],['hào môn',8],['hôn nhân',7],['ly hôn',7],['kết hôn',7],['vợ cũ',9],['vợ',4],['chồng',4],['bạn trai',6],['bạn gái',6],['tình yêu',6],['sủng',4]]},
   {genre:'Cổ đại',threshold:8,terms:[['cổ đại',12],['vương gia',10],['điện hạ',8],['hoàng đế',8],['công chúa',7],['tử cấm thành',10],['thừa tướng',8],['hầu phủ',7],['vương phủ',7],['kinh thành',5],['tiểu thư',4]]},
   {genre:'Đô thị',threshold:8,terms:[['đô thị',12],['thành phố',7],['công ty',6],['tập đoàn',6],['bệnh viện',6],['đại học',5],['trung học',5],['wechat',6],['chung cư',5],['tổng tài',6],['livestream',5]]},
@@ -383,8 +383,9 @@ function inferGenresFromStory(input={}){
   const metadata=metadataGenres(input.metadataGenre);
   const scored=CHUONG_GENRE_RULES.map((rule,index)=>{
     let score=0;const matched=[];
-    for(const [term,weight] of rule.terms){
+    for(const [term,weight,scope] of rule.terms){
       if(genreHas(title,term)){score+=weight*3;matched.push('t:'+term);continue;}
+      if(scope==='title')continue;
       if(genreHas(summary,term)){score+=weight*2;matched.push('s:'+term);continue;}
       if(genreHas(sample,term)){score+=weight;matched.push('c:'+term);}
     }
