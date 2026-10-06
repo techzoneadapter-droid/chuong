@@ -82,9 +82,9 @@
       const bytes=await extractZipEntry(buffer,entry);
       const text=await parseBytesToText(entry.name,bytes);
       const prefixed=parsePrefixedStoryChapter(text);
-      if(prefixed)return prefixed;
+      if(prefixed)return {...prefixed,content:String(prefixed.content||text).slice(0,7000)};
       const author=parseInfoText(text).author||'';
-      return {bookTitle:'',chapterNumber:naturalNumber(entry.name),chapterTitle:'',content:'',author};
+      return {bookTitle:'',chapterNumber:naturalNumber(entry.name),chapterTitle:'',content:String(text||'').slice(0,7000),author};
     }catch{return null;}
   }
   async function duplicateByHash(hash){
@@ -129,10 +129,18 @@
     row.author=chosenAuthor;
     row.detectedAuthor=detectedAuthor;
     row.status=chosenStatus;
-    const inferredGenre=metadata.genre?{genre:metadata.genre,score:100,matched:['metadata']}:inferGenreFromTitle(title);
-    row.genre=metadata.genre||inferredGenre.genre||el('bulkDefaultGenre').value;
-    row.genreSource=metadata.genre?'metadata':(inferredGenre.genre?'title':'default');
     row.summary=String(metadata.summary||'').trim();
+    const genreSample=samples.map(sample=>String(sample.content||'')).join('\n').slice(0,26000);
+    const inferredGenre=inferGenresFromStory({
+      title,
+      summary:row.summary,
+      sample:genreSample,
+      metadataGenre:metadata.genre||''
+    });
+    row.genres=inferredGenre.genres.length?inferredGenre.genres:[el('bulkDefaultGenre').value||'Khác'];
+    row.genre=row.genres[0]||'Khác';
+    row.genreConfidence=inferredGenre.confidence;
+    row.genreSource=metadata.genre?'metadata+content':(inferredGenre.genres.length?'auto':'default');
     row.chapterCount=docs.length;
     row.hasCover=Boolean(cover);
     row.coverEntry=cover?.name||'';
@@ -188,7 +196,7 @@
         '<td class="zip-name"><strong>'+escapeAttr(relativeName(row.file))+'</strong><div class="tiny">'+(row.file.size/1024).toFixed(0)+' KB</div></td>'+
         '<td><input type="text" data-bulk-title="'+row.id+'" value="'+escapeAttr(row.title||cleanTitle(row.file.name))+'" /></td>'+
         '<td><input type="text" data-bulk-author="'+row.id+'" value="'+escapeAttr(row.author||el('bulkDefaultAuthor').value||'Chuong')+'" /></td>'+
-        '<td><select data-bulk-genre="'+row.id+'">'+['Tiên hiệp','Huyền huyễn','Đô thị','Kiếm hiệp','Ngôn tình','Kinh dị','Fantasy','Khoa huyễn','Hệ thống','Trinh thám','Văn học','Khác'].map(v=>'<option '+((row.genre||el('bulkDefaultGenre').value)===v?'selected':'')+'>'+v+'</option>').join('')+'</select><div class="tiny">'+(row.genreSource==='title'?'Tự nhận theo tên truyện':row.genreSource==='metadata'?'Theo metadata':'Mặc định')+'</div></td>'+
+        '<td><select data-bulk-genre="'+row.id+'">'+(window.CHUONG_GENRES||['Khác']).map(v=>'<option '+((row.genre||el('bulkDefaultGenre').value)===v?'selected':'')+'>'+v+'</option>').join('')+'</select><div class="tiny">'+(row.genreSource==='manual'?'Đã chỉnh tay':row.genreSource==='metadata+content'?'Metadata + nội dung':row.genreSource==='auto'?'Tự nhận: '+escapeAttr((row.genres||[row.genre]).join(' · ')):'Không nhận diện → '+escapeAttr(row.genre||'Khác'))+'</div></td>'+
         '<td>'+(row.hasCover===true?'Có bìa':row.hasCover===false?'Không có':'—')+'</td>'+
         '<td><select data-bulk-status="'+row.id+'">'+['completed','ongoing','paused'].map(v=>'<option value="'+v+'" '+((row.status||el('bulkDefaultStatus').value)===v?'selected':'')+'>'+statusLabel(v)+'</option>').join('')+'</select></td>'+
         '<td>'+(row.chapterCount||'—')+'</td>'+
@@ -211,6 +219,7 @@
         author:String(el('bulkDefaultAuthor')?.value||'Chuong').trim()||'Chuong',
         status:el('bulkDefaultStatus')?.value||'completed',
         genre:el('bulkDefaultGenre')?.value||'Khác',
+        genres:[el('bulkDefaultGenre')?.value||'Khác'],
         chapterCount:0,hasCover:null,message:'Chưa quét',sha256:''
       });
     }
@@ -340,7 +349,8 @@
       });
       bookId=books[0].id;
       await rest('admin_import_logs?id=eq.'+encodeURIComponent(logId),{method:'PATCH',body:{book_id:bookId}}).catch(()=>{});
-      await rest('book_genres',{method:'POST',prefer:'return=minimal',body:{book_id:bookId,genre:row.genre||el('bulkDefaultGenre').value||'Khác'}});
+      const genres=[...new Set((row.genres?.length?row.genres:[row.genre||el('bulkDefaultGenre').value||'Khác']).filter(Boolean))].slice(0,3);
+      await rest('book_genres',{method:'POST',prefer:'return=minimal',body:genres.map(genre=>({book_id:bookId,genre}))});
       row.message='Đang ghi '+chapters.length+' chương…';
       renderBulkRows();
       await insertChapters(bookId,chapters);
@@ -453,7 +463,7 @@
     if(target.dataset.bulkSelect)row.selected=target.checked;
     if(target.dataset.bulkTitle)row.title=target.value.trim();
     if(target.dataset.bulkAuthor)row.author=target.value.trim()||'Chuong';
-    if(target.dataset.bulkGenre){row.genre=target.value;row.genreSource='manual';}
+    if(target.dataset.bulkGenre){row.genre=target.value;row.genres=[target.value];row.genreSource='manual';row.genreConfidence='manual';}
     if(target.dataset.bulkStatus)row.status=target.value;
     updateSummary();
   });
@@ -463,7 +473,7 @@
         if(row.scan==='waiting'){
           if(id==='bulkDefaultAuthor')row.author=el(id).value.trim()||'Chuong';
           if(id==='bulkDefaultStatus')row.status=el(id).value;
-          if(id==='bulkDefaultGenre')row.genre=el(id).value;
+          if(id==='bulkDefaultGenre'){row.genre=el(id).value;row.genres=[el(id).value];}
         }
       }
       renderBulkRows();
