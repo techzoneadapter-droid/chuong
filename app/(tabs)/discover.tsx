@@ -298,7 +298,7 @@ function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; o
         <View style={styles.metaItem}><Ionicons name="star" size={12} color="#A36A24" /><Text style={styles.metaText}>{book.rating.toFixed(1)}</Text></View>
         <View style={styles.metaItem}><Ionicons name="eye-outline" size={13} color="#80747A" /><Text style={styles.metaText}>{book.views}</Text></View>
       </View>
-      <Text numberOfLines={2} style={styles.description}>{book.description || 'Chưa có mô tả.'}</Text>
+      <Text numberOfLines={2} style={styles.description}>{book.description || 'Hãy khám phá.'}</Text>
       <View style={styles.footerRow}>
         <Text style={styles.status}>{book.status}</Text>
         <Text style={styles.chapterCount}>{book.totalChapters} chương</Text>
