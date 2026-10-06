@@ -190,7 +190,10 @@ async function generateImage(input: {
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         lastModel = model;
         try {
-          const retryKey = "chuong-cover-" + model + "-" + btoa(input.prompt).replace(/[^A-Za-z0-9]/g,"").slice(0,48);
+          const promptBytes = new TextEncoder().encode(input.prompt);
+          const promptDigest = await crypto.subtle.digest("SHA-256", promptBytes);
+          const promptHash = Array.from(new Uint8Array(promptDigest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+          const retryKey = "chuong-cover-" + model.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 48) + "-" + promptHash.slice(0, 40);
           const response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -384,10 +387,17 @@ Deno.serve(async (req: Request) => {
   if (action === "check") {
     if (!imageApiKey) return reply(400, { error: "experiential_api_key_required" });
     try {
-      const modelResponse = await fetch("https://api.experientiallabs.ai/v1/models", {
-        method: "GET",
-        headers: { Authorization: "Bearer " + imageApiKey },
-      });
+      const [modelResponse, imageCatalogResponse] = await Promise.all([
+        fetch("https://api.experientiallabs.ai/v1/models", {
+          method: "GET",
+          headers: { Authorization: "Bearer " + imageApiKey },
+        }),
+        fetch("https://api.experientiallabs.ai/api/models?modality=image&sort=preferred&limit=200", {
+          method: "GET",
+          headers: { Authorization: "Bearer " + imageApiKey },
+        }),
+      ]);
+
       const raw = await modelResponse.text();
       if (!modelResponse.ok) {
         return reply(modelResponse.status === 401 || modelResponse.status === 403 ? 401 : 502, {
@@ -397,20 +407,81 @@ Deno.serve(async (req: Request) => {
           status: modelResponse.status,
         });
       }
+
       let parsed: Record<string, unknown> = {};
       try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch {}
       const data = Array.isArray(parsed.data) ? parsed.data as Array<Record<string, unknown>> : [];
       const ids = data.map((item) => String(item.id || "")).filter(Boolean);
+      const granted = new Set(ids);
+
+      let imageCatalogRaw = "";
+      let imageCatalog: Record<string, unknown> = {};
+      try {
+        imageCatalogRaw = await imageCatalogResponse.text();
+        if (imageCatalogResponse.ok) imageCatalog = JSON.parse(imageCatalogRaw) as Record<string, unknown>;
+      } catch {}
+
+      const catalogRows = (
+        Array.isArray(imageCatalog.data) ? imageCatalog.data :
+        Array.isArray(imageCatalog.models) ? imageCatalog.models :
+        Array.isArray(imageCatalog.items) ? imageCatalog.items :
+        []
+      ) as Array<Record<string, unknown>>;
+
+      const getArray = (value: unknown) => Array.isArray(value) ? value.map(String) : [];
+      const imageModels = catalogRows
+        .map((row) => {
+          const architecture = row.architecture && typeof row.architecture === "object"
+            ? row.architecture as Record<string, unknown>
+            : {};
+          const modalities = row.modalities && typeof row.modalities === "object"
+            ? row.modalities as Record<string, unknown>
+            : {};
+          const id = String(row.slug || row.id || "");
+          const name = String(row.display_name || row.name || id);
+          const output = [
+            ...getArray(row.output_modalities),
+            ...getArray(architecture.output_modalities),
+            ...getArray(modalities.output),
+          ].map((item) => item.toLowerCase());
+          const looksImageOutput =
+            output.includes("image") ||
+            /(?:image|imagen|flux|seedream|recraft|ideogram|stability|stable-diffusion|nano[- ]?banana)/i.test(id + " " + name);
+          return {
+            id,
+            name,
+            provider: String(row.provider || row.provider_name || ""),
+            category: String(row.category || ""),
+            looksImageOutput,
+          };
+        })
+        .filter((item) => item.id && granted.has(item.id) && item.looksImageOutput)
+        .map(({ looksImageOutput: _omit, ...item }) => item)
+        .slice(0, 120);
+
+      // The public catalog can lag behind a newly granted slug. Keep known
+      // image-named granted models as a safe fallback so the picker never empties.
+      if (!imageModels.length) {
+        for (const id of ids) {
+          if (/(?:image|imagen|flux|seedream|recraft|ideogram|stability|stable-diffusion|nano[- ]?banana)/i.test(id)) {
+            imageModels.push({ id, name: id, provider: "", category: "" });
+          }
+          if (imageModels.length >= 120) break;
+        }
+      }
+
       const imageModel = body.imageModel?.trim() || "gemini-2.5-flash-image";
       const promptModel = body.promptModel?.trim() || "";
       return reply(200, {
         ok: true,
         provider: "Experiential Labs",
         modelCount: ids.length,
+        imageModels,
         imageModel,
-        imageModelAvailable: ids.includes(imageModel),
+        imageModelAvailable: imageModels.some((item) => item.id === imageModel),
         promptModel: promptModel || null,
         promptModelAvailable: promptModel ? ids.includes(promptModel) : null,
+        catalogFilterOk: imageCatalogResponse.ok,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "experiential_api_check_failed";
