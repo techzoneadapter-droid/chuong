@@ -54,7 +54,7 @@
           <div>
             <p class="eyebrow">NHẬP HÀNG LOẠT</p>
             <h2>Đẩy hàng nghìn truyện ZIP</h2>
-            <p class="muted">Mỗi ZIP là một truyện. Tên truyện/chương được nhận diện tự động; không có tác giả sẽ mặc định là <strong>Chuong</strong>; không có bìa vẫn nhập bình thường và có thể thêm tay sau.</p>
+            <p class="muted">Mỗi ZIP là một truyện. Hệ thống tự nhận tên, chương, tác giả và phân loại thể loại từ tên + nội dung mẫu; không có tác giả sẽ mặc định là <strong>Chuong</strong>; không có bìa vẫn nhập bình thường.</p>
           </div>
           <div class="bulk-pickers">
             <label class="secondary file-button">Chọn nhiều ZIP<input id="bulkZipFiles" type="file" accept=".zip,application/zip" multiple /></label>
@@ -63,13 +63,15 @@
         </div>
 
         <div class="bulk-settings card">
-          <div class="section-head"><span>1</span><div><h2>Thiết lập chung</h2><p>Áp dụng cho các ZIP không có metadata tương ứng.</p></div></div>
+          <div class="section-head"><span>1</span><div><h2>Thiết lập chung</h2><p>Hệ thống tự đọc tên truyện + mẫu nội dung trong ZIP để gắn tối đa 3 thể loại. Giá trị dưới đây chỉ dùng khi không nhận diện được.</p></div></div>
           <div class="bulk-settings-grid">
             <label>Tác giả mặc định<input id="bulkDefaultAuthor" type="text" value="Chuong" /></label>
             <label>Thể loại
               <select id="bulkDefaultGenre">
-                <option>Khác</option><option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option>
-                <option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option><option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option>
+                <option>Khác</option><option>Xuyên không</option><option>Trọng sinh</option><option>Hệ thống</option><option>Tiên hiệp</option><option>Huyền huyễn</option><option>Mạt thế</option>
+                <option>Đam mỹ</option><option>Ngôn tình</option><option>Cổ đại</option><option>Cung đấu</option><option>Đô thị</option><option>Giới giải trí</option>
+                <option>Huyền học</option><option>Trinh thám</option><option>Kinh dị</option><option>Khoa huyễn</option><option>Esports</option><option>Kiếm hiệp</option>
+                <option>Fantasy</option><option>Điền văn</option><option>Vô hạn lưu</option><option>Niên đại</option><option>Văn học</option>
               </select>
             </label>
             <label>Trạng thái truyện
@@ -170,9 +172,10 @@
             <label>Thể loại
               <select id="catalogGenreFilter">
                 <option value="">Tất cả</option>
-                <option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option>
-                <option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option>
-                <option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option><option>Khác</option>
+                <option>Xuyên không</option><option>Trọng sinh</option><option>Hệ thống</option><option>Tiên hiệp</option><option>Huyền huyễn</option><option>Mạt thế</option>
+                <option>Đam mỹ</option><option>Ngôn tình</option><option>Cổ đại</option><option>Cung đấu</option><option>Đô thị</option><option>Giới giải trí</option>
+                <option>Huyền học</option><option>Trinh thám</option><option>Kinh dị</option><option>Khoa huyễn</option><option>Esports</option><option>Kiếm hiệp</option>
+                <option>Fantasy</option><option>Điền văn</option><option>Vô hạn lưu</option><option>Niên đại</option><option>Văn học</option><option>Khác</option>
               </select>
             </label>
             <label>Trạng thái
@@ -371,7 +374,7 @@
           <label class="check-row"><input id="bulkEditSetAuthor" type="checkbox" /> <span><strong>Đổi tác giả hiển thị</strong></span></label>
           <input id="bulkEditAuthor" type="text" value="Chuong" />
           <label class="check-row"><input id="bulkEditSetGenre" type="checkbox" /> <span><strong>Đổi thể loại</strong></span></label>
-          <select id="bulkEditGenre"><option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option><option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option><option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option><option>Khác</option></select>
+          <select id="bulkEditGenre"><option>Xuyên không</option><option>Trọng sinh</option><option>Hệ thống</option><option>Tiên hiệp</option><option>Huyền huyễn</option><option>Mạt thế</option><option>Đam mỹ</option><option>Ngôn tình</option><option>Cổ đại</option><option>Cung đấu</option><option>Đô thị</option><option>Giới giải trí</option><option>Huyền học</option><option>Trinh thám</option><option>Kinh dị</option><option>Khoa huyễn</option><option>Esports</option><option>Kiếm hiệp</option><option>Fantasy</option><option>Điền văn</option><option>Vô hạn lưu</option><option>Niên đại</option><option>Văn học</option><option>Khác</option></select>
           <label class="check-row"><input id="bulkEditSetStatus" type="checkbox" /> <span><strong>Đổi trạng thái</strong></span></label>
           <select id="bulkEditStatus"><option value="draft">Riêng tư</option><option value="ongoing">Đang ra</option><option value="completed">Hoàn thành</option><option value="paused">Tạm dừng / Drop</option></select>
           <button id="catalogApplyBulkEditBtn" class="primary" type="button">Áp dụng thay đổi</button>
