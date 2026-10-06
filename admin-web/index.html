@@ -225,7 +225,11 @@
                 <label>Experiential API key
                   <input id="coverAiKey" type="password" autocomplete="off" placeholder="xpl_..." />
                 </label>
-                <div class="provider-badge provider-experiential">Experiential</div>
+                <button id="coverCheckApiBtn" class="cover-check-api" type="button">Kiểm tra API</button>
+              </div>
+              <div id="coverApiCheckStatus" class="api-check-status neutral">
+                <span class="api-check-dot"></span>
+                <span>Chưa kiểm tra khóa API</span>
               </div>
               <label>Model tạo ảnh
                 <input id="coverAiModel" type="text" value="gemini-2.5-flash-image" placeholder="Ví dụ: gemini-2.5-flash-image" />
