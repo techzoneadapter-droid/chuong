@@ -184,6 +184,13 @@
                 <option value="paused">Tạm dừng / Drop</option>
               </select>
             </label>
+            <label>Bìa truyện
+              <select id="catalogCoverFilter">
+                <option value="">Tất cả</option>
+                <option value="missing">Chưa có bìa</option>
+                <option value="present">Đã có bìa</option>
+              </select>
+            </label>
             <label>Lượt xem từ<input id="catalogMinViews" type="number" min="0" step="1" placeholder="0" /></label>
             <label>Lượt xem đến<input id="catalogMaxViews" type="number" min="0" step="1" placeholder="∞" /></label>
             <label>Sắp xếp
@@ -211,49 +218,35 @@
             <div class="ai-security-pill">🔒 Key chỉ lưu trong phiên</div>
           </div>
 
-          <div class="provider-layout">
+          <div class="provider-layout experiential-layout">
             <div class="provider-panel provider-image-panel">
-              <div class="provider-panel-title"><span>1</span><div><strong>AI tạo ảnh</strong><small>Dịch vụ trực tiếp tạo ảnh bìa tỷ lệ 2:3</small></div></div>
-              <div class="provider-select-row">
-                <label>Nhà cung cấp
-                  <select id="coverImageProvider">
-                    <option value="openai">OpenAI Images</option>
-                    <option value="gemini">Google Gemini · Nano Banana</option>
-                    <option value="xai">xAI · Grok Imagine</option>
-                    <option value="custom">API tương thích OpenAI khác</option>
-                  </select>
+              <div class="provider-panel-title"><span>1</span><div><strong>Experiential Labs · AI tạo ảnh</strong><small>Dùng đúng API key mua tại platform.experientiallabs.ai</small></div></div>
+              <div class="experiential-key-row">
+                <label>Experiential API key
+                  <input id="coverAiKey" type="password" autocomplete="off" placeholder="xpl_..." />
                 </label>
-                <div id="coverImageProviderBadge" class="provider-badge provider-openai">OpenAI</div>
+                <div class="provider-badge provider-experiential">Experiential</div>
               </div>
-              <div class="provider-fields">
-                <label>API key<input id="coverAiKey" type="password" autocomplete="off" placeholder="Dán API key tạo ảnh..." /></label>
-                <label>Model<input id="coverAiModel" type="text" value="gpt-image-2" /></label>
-                <label class="provider-wide">API Base URL<input id="coverAiBaseUrl" type="text" value="https://api.openai.com/v1" /></label>
-              </div>
-              <p id="coverImageProviderHint" class="provider-hint">OpenAI Images · tạo bìa dọc 1024×1536.</p>
+              <label>Model tạo ảnh
+                <input id="coverAiModel" type="text" value="gemini-2.5-flash-image" placeholder="Ví dụ: gemini-2.5-flash-image" />
+              </label>
+              <p class="provider-hint">URL API được cố định trong hệ thống: Experiential Labs. Bạn chỉ cần nhập khóa API và model slug.</p>
             </div>
 
             <div class="provider-panel provider-prompt-panel">
-              <div class="provider-panel-title"><span>2</span><div><strong>AI viết prompt · tùy chọn</strong><small>Chỉ dùng tên truyện + thể loại để viết prompt hình ảnh</small></div></div>
-              <div class="provider-select-row">
-                <label>Nhà cung cấp prompt
-                  <select id="coverPromptProvider">
-                    <option value="none">Không dùng · nhanh nhất</option>
-                    <option value="deepseek">DeepSeek</option>
-                    <option value="gemini">Google Gemini</option>
-                    <option value="xai">xAI Grok</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="custom">OpenAI-compatible khác</option>
-                  </select>
-                </label>
-                <div id="coverPromptProviderBadge" class="provider-badge provider-none">OFF</div>
-              </div>
+              <div class="provider-panel-title"><span>2</span><div><strong>AI viết prompt · tùy chọn</strong><small>Dùng chung chính Experiential API key ở bên trái</small></div></div>
+              <label>Chế độ viết prompt
+                <select id="coverPromptProvider">
+                  <option value="none">Không dùng · nhanh nhất</option>
+                  <option value="experiential">Dùng model Experiential Labs</option>
+                </select>
+              </label>
               <div id="coverPromptFields" class="provider-fields prompt-fields is-disabled">
-                <label>API key<input id="coverPromptKey" type="password" autocomplete="off" placeholder="API key AI viết prompt..." /></label>
-                <label>Model<input id="coverPromptModel" type="text" value="" /></label>
-                <label class="provider-wide">API Base URL<input id="coverPromptBaseUrl" type="text" value="" /></label>
+                <label class="provider-wide">Model viết prompt
+                  <input id="coverPromptModel" type="text" value="deepseek-v4-flash" placeholder="Ví dụ: deepseek-v4-flash" />
+                </label>
               </div>
-              <p id="coverPromptProviderHint" class="provider-hint">DeepSeek không tạo ảnh trực tiếp; có thể dùng DeepSeek để viết prompt rồi gửi sang AI tạo ảnh ở cột bên trái.</p>
+              <p id="coverPromptProviderHint" class="provider-hint">Bật khi muốn một model như DeepSeek đọc tên truyện + thể loại và tối ưu prompt trước khi tạo bìa.</p>
             </div>
           </div>
 
@@ -267,6 +260,7 @@
           <div class="catalog-selection"><strong id="catalogSelectedCount">0</strong> truyện đang chọn · <span id="catalogTotalCount">0</span> kết quả</div>
           <div class="catalog-bulk-actions">
             <button id="catalogSelectPageBtn" class="ghost" type="button">Chọn trang này</button>
+            <button id="catalogSelectAllBtn" class="secondary" type="button">Chọn tất cả kết quả</button>
             <button id="catalogClearSelectionBtn" class="ghost" type="button">Bỏ chọn</button>
             <button id="catalogBulkEditBtn" class="secondary" type="button" disabled>Chỉnh sửa hàng loạt</button>
             <button id="catalogBulkCoverBtn" class="secondary" type="button" disabled>Tạo bìa AI hàng loạt</button>
