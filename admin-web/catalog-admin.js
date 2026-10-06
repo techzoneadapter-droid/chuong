@@ -430,7 +430,14 @@
       })
     });
     const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.detail||data.error||'AI không tạo được bìa.');
+    if(!response.ok){
+      const raw=String(data.detail||data.error||'AI không tạo được bìa.');
+      if(raw.includes('experiential_upstream_unavailable')){
+        throw new Error('Experiential đang lỗi tuyến tạo ảnh. Hệ thống đã tự thử lại và chuyển sang model dự phòng nhưng vẫn chưa thành công. Hãy thử lại sau ít phút.');
+      }
+      const clean=raw.replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim().slice(0,320);
+      throw new Error(clean||'AI không tạo được bìa.');
+    }
     if(!data.imageBase64)throw new Error('AI không trả về ảnh.');
     const rawBlob=base64ToBlob(data.imageBase64,data.mimeType||'image/png');
     const coverBlob=await normalizeGeneratedCover(rawBlob);
