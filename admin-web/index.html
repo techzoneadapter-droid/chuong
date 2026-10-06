@@ -139,59 +139,130 @@
 
       
       <section id="catalogManageMode" class="catalog-shell hidden">
-        <div class="card catalog-toolbar">
-          <div>
-            <p class="eyebrow">TÀNG KINH CÁC · QUẢN TRỊ</p>
-            <h2>Quản lý toàn bộ kho truyện</h2>
-            <p class="muted">Tìm, lọc, sửa thông tin/nội dung, thêm bìa, tạo bìa AI và xử lý hàng loạt.</p>
+        <div class="catalog-hero">
+          <div class="catalog-hero-copy">
+            <div class="catalog-kicker">TÀNG KINH CÁC · CONTROL CENTER</div>
+            <h2>Quản trị kho truyện</h2>
+            <p>Tìm truyện, sửa nội dung, theo dõi hiệu suất và tạo bìa AI hàng loạt trong một màn hình.</p>
+            <div class="catalog-hero-badges">
+              <span>Admin only</span><span>Lọc realtime</span><span>Batch actions</span><span>AI cover studio</span>
+            </div>
           </div>
-          <button id="catalogRefreshBtn" class="secondary" type="button">Làm mới</button>
+          <div class="catalog-hero-mark" aria-hidden="true"><span>章</span></div>
+          <button id="catalogRefreshBtn" class="catalog-refresh" type="button">↻ Làm mới</button>
         </div>
 
-        <div class="card catalog-filters">
-          <label>Tìm tên truyện<input id="catalogSearch" type="search" placeholder="Nhập tên truyện..." /></label>
-          <label>Tác giả<input id="catalogAuthorFilter" type="search" placeholder="Tên tác giả..." /></label>
-          <label>Thể loại
-            <select id="catalogGenreFilter">
-              <option value="">Tất cả</option>
-              <option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option>
-              <option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option>
-              <option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option><option>Khác</option>
-            </select>
-          </label>
-          <label>Trạng thái
-            <select id="catalogStatusFilter">
-              <option value="">Tất cả</option>
-              <option value="draft">Riêng tư</option>
-              <option value="ongoing">Đang ra</option>
-              <option value="completed">Hoàn thành</option>
-              <option value="paused">Tạm dừng / Drop</option>
-            </select>
-          </label>
-          <label>Lượt xem từ<input id="catalogMinViews" type="number" min="0" step="1" placeholder="0" /></label>
-          <label>Lượt xem đến<input id="catalogMaxViews" type="number" min="0" step="1" placeholder="Không giới hạn" /></label>
-          <label>Sắp xếp
-            <select id="catalogSort">
-              <option value="views_desc">Top xem nhiều nhất</option>
-              <option value="views_asc">Lượt xem thấp nhất</option>
-              <option value="followers_desc">Theo dõi nhiều nhất</option>
-              <option value="chapters_desc">Nhiều chương nhất</option>
-              <option value="updated_desc">Mới cập nhật</option>
-              <option value="updated_asc">Cũ cập nhật</option>
-              <option value="title_asc">Tên A → Z</option>
-            </select>
-          </label>
+        <div class="catalog-overview">
+          <div class="catalog-stat stat-jade"><span class="catalog-stat-icon">▤</span><div><small>Kết quả</small><strong id="catalogStatTotal">0</strong><em>truyện phù hợp bộ lọc</em></div></div>
+          <div class="catalog-stat stat-gold"><span class="catalog-stat-icon">◉</span><div><small>Lượt xem · trang này</small><strong id="catalogStatViews">0</strong><em>tổng lượt xem đang hiển thị</em></div></div>
+          <div class="catalog-stat stat-ruby"><span class="catalog-stat-icon">◇</span><div><small>Thiếu bìa · trang này</small><strong id="catalogStatNoCover">0</strong><em>có thể tạo AI hàng loạt</em></div></div>
+          <div class="catalog-stat stat-ink"><span class="catalog-stat-icon">✓</span><div><small>Đang chọn</small><strong id="catalogStatSelected">0</strong><em>sẵn sàng thao tác hàng loạt</em></div></div>
         </div>
 
-        <div class="card ai-cover-config">
-          <div class="section-head"><span>AI</span><div><h2>Tạo bìa tự động</h2><p>API key chỉ giữ trong phiên trình duyệt, không lưu vào database hay Git.</p></div></div>
-          <div class="ai-cover-grid">
-            <label>API key<input id="coverAiKey" type="password" autocomplete="off" placeholder="sk-..." /></label>
-            <label>API Base URL<input id="coverAiBaseUrl" type="text" value="https://api.openai.com/v1" /></label>
-            <label>Model<input id="coverAiModel" type="text" value="gpt-image-1" /></label>
-            <label>Gợi ý phong cách thêm<input id="coverAiExtraPrompt" type="text" placeholder="Ví dụ: cổ phong, điện ảnh, tông huyền bí..." /></label>
+        <div class="card catalog-filter-card">
+          <div class="catalog-card-title">
+            <div><span class="catalog-section-icon">⌕</span><div><strong>Bộ lọc thư viện</strong><small>Lọc nhanh hàng nghìn truyện mà không tải toàn bộ lên trình duyệt.</small></div></div>
+            <button id="catalogResetFilters" class="ghost mini" type="button">Xóa bộ lọc</button>
           </div>
-          <label class="check-row"><input id="coverAiOverwrite" type="checkbox" /> <span><strong>Cho phép ghi đè bìa đang có</strong><small>Mặc định chỉ tạo bìa cho truyện chưa có bìa.</small></span></label>
+          <div class="catalog-filters">
+            <label class="filter-search">Tên truyện<input id="catalogSearch" type="search" placeholder="Tìm theo tên truyện..." /></label>
+            <label>Tác giả<input id="catalogAuthorFilter" type="search" placeholder="Ví dụ: Chuong" /></label>
+            <label>Thể loại
+              <select id="catalogGenreFilter">
+                <option value="">Tất cả</option>
+                <option>Tiên hiệp</option><option>Huyền huyễn</option><option>Đô thị</option><option>Kiếm hiệp</option>
+                <option>Ngôn tình</option><option>Kinh dị</option><option>Fantasy</option><option>Khoa huyễn</option>
+                <option>Hệ thống</option><option>Trinh thám</option><option>Văn học</option><option>Khác</option>
+              </select>
+            </label>
+            <label>Trạng thái
+              <select id="catalogStatusFilter">
+                <option value="">Tất cả</option>
+                <option value="draft">Riêng tư</option>
+                <option value="ongoing">Đang ra</option>
+                <option value="completed">Hoàn thành</option>
+                <option value="paused">Tạm dừng / Drop</option>
+              </select>
+            </label>
+            <label>Lượt xem từ<input id="catalogMinViews" type="number" min="0" step="1" placeholder="0" /></label>
+            <label>Lượt xem đến<input id="catalogMaxViews" type="number" min="0" step="1" placeholder="∞" /></label>
+            <label>Sắp xếp
+              <select id="catalogSort">
+                <option value="views_desc">Top xem nhiều nhất</option>
+                <option value="views_asc">Lượt xem thấp nhất</option>
+                <option value="followers_desc">Theo dõi nhiều nhất</option>
+                <option value="chapters_desc">Nhiều chương nhất</option>
+                <option value="updated_desc">Mới cập nhật</option>
+                <option value="updated_asc">Cũ cập nhật</option>
+                <option value="title_asc">Tên A → Z</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="ai-studio">
+          <div class="ai-studio-head">
+            <div class="ai-orb"><span>AI</span></div>
+            <div class="ai-studio-copy">
+              <div class="catalog-kicker">AI COVER STUDIO</div>
+              <h2>Tạo bìa tự động</h2>
+              <p>Chọn nhà cung cấp ảnh. Có thể dùng thêm DeepSeek / Gemini / xAI / OpenAI để viết prompt tốt hơn trước khi tạo ảnh.</p>
+            </div>
+            <div class="ai-security-pill">🔒 Key chỉ lưu trong phiên</div>
+          </div>
+
+          <div class="provider-layout">
+            <div class="provider-panel provider-image-panel">
+              <div class="provider-panel-title"><span>1</span><div><strong>AI tạo ảnh</strong><small>Provider thực sự sinh ảnh bìa 2:3</small></div></div>
+              <div class="provider-select-row">
+                <label>Nhà cung cấp
+                  <select id="coverImageProvider">
+                    <option value="openai">OpenAI Images</option>
+                    <option value="gemini">Google Gemini · Nano Banana</option>
+                    <option value="xai">xAI · Grok Imagine</option>
+                    <option value="custom">OpenAI-compatible khác</option>
+                  </select>
+                </label>
+                <div id="coverImageProviderBadge" class="provider-badge provider-openai">OpenAI</div>
+              </div>
+              <div class="provider-fields">
+                <label>API key<input id="coverAiKey" type="password" autocomplete="off" placeholder="Dán API key tạo ảnh..." /></label>
+                <label>Model<input id="coverAiModel" type="text" value="gpt-image-2" /></label>
+                <label class="provider-wide">API Base URL<input id="coverAiBaseUrl" type="text" value="https://api.openai.com/v1" /></label>
+              </div>
+              <p id="coverImageProviderHint" class="provider-hint">OpenAI Images · tạo bìa dọc 1024×1536.</p>
+            </div>
+
+            <div class="provider-panel provider-prompt-panel">
+              <div class="provider-panel-title"><span>2</span><div><strong>AI viết prompt · tùy chọn</strong><small>Đọc tên + thể loại + mô tả rồi viết prompt hình ảnh chi tiết</small></div></div>
+              <div class="provider-select-row">
+                <label>Nhà cung cấp prompt
+                  <select id="coverPromptProvider">
+                    <option value="none">Không dùng · nhanh nhất</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="xai">xAI Grok</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="custom">OpenAI-compatible khác</option>
+                  </select>
+                </label>
+                <div id="coverPromptProviderBadge" class="provider-badge provider-none">OFF</div>
+              </div>
+              <div id="coverPromptFields" class="provider-fields prompt-fields is-disabled">
+                <label>API key<input id="coverPromptKey" type="password" autocomplete="off" placeholder="API key AI viết prompt..." /></label>
+                <label>Model<input id="coverPromptModel" type="text" value="" /></label>
+                <label class="provider-wide">API Base URL<input id="coverPromptBaseUrl" type="text" value="" /></label>
+              </div>
+              <p id="coverPromptProviderHint" class="provider-hint">DeepSeek không tạo ảnh trực tiếp; có thể dùng DeepSeek để viết prompt rồi gửi sang AI tạo ảnh ở cột bên trái.</p>
+            </div>
+          </div>
+
+          <div class="ai-style-row">
+            <label class="ai-style-field">Phong cách bổ sung
+              <input id="coverAiExtraPrompt" type="text" placeholder="Ví dụ: cổ phong điện ảnh, nhân vật chính nổi bật, tông xanh ngọc + vàng..." />
+            </label>
+            <label class="ai-toggle-card"><input id="coverAiOverwrite" type="checkbox" /><span><b>Ghi đè bìa đã có</b><small>Tắt = chỉ tạo cho truyện chưa có bìa</small></span></label>
+          </div>
         </div>
 
         <div class="card catalog-bulkbar">
