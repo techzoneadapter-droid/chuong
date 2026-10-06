@@ -5,6 +5,7 @@ import { Database } from '../types/database';
 import { deleteOwnBookCover } from './storage';
 import { toServiceError } from './errors';
 import { getOfflineBookSnapshot, listOfflineBooks } from './offlineDownloads';
+import { normalizeBookSummary } from './contentText';
 
 type BookRow = Database['public']['Tables']['books']['Row'];
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
@@ -40,7 +41,7 @@ export function mapBook(row: BookRow, author?: AuthorRow, genres: string[] = [])
     visibility: row.visibility,
     language: row.language,
     sourceType: row.source_type,
-    description: row.description,
+    description: normalizeBookSummary(row.description),
     tags: row.tags ?? [],
     totalChapters: row.total_chapters,
     latestChapter: row.total_chapters,
