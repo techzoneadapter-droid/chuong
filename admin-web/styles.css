@@ -696,3 +696,26 @@ button,input,select,textarea{letter-spacing:0}
 #catalogManageMode .api-check-status.warn .api-check-dot{background:#cf9625}
 #catalogManageMode .api-check-status.bad{background:#fff0f1;border-color:#ebc5ca;color:#9a3544}
 #catalogManageMode .api-check-status.bad .api-check-dot{background:#d44a5e}
+
+
+/* Experiential model diagnostics */
+#catalogManageMode .api-test-buttons{display:flex;gap:7px;align-items:end}
+#catalogManageMode .cover-diagnose-model{
+  height:42px;padding:0 13px;border-radius:10px;border:1px solid #d9c79a;
+  background:#fff8e8;color:#72551d;font-size:11px;font-weight:750;white-space:nowrap;cursor:pointer
+}
+#catalogManageMode .cover-diagnose-model:hover{background:#f8edcf}
+#catalogManageMode .cover-diagnose-model:disabled{opacity:.58;cursor:wait}
+#catalogManageMode .model-diagnostic{
+  margin:-1px 0 10px;padding:10px 11px;border:1px solid #dfe3e0;border-radius:10px;background:#f8faf9;
+  color:#55625d;font-size:10px;line-height:1.45
+}
+#catalogManageMode .model-diagnostic.ok{border-color:#bcd9c7;background:#eef8f2}
+#catalogManageMode .model-diagnostic.bad{border-color:#e5c4c8;background:#fff2f3}
+#catalogManageMode .diag-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
+#catalogManageMode .diag-head strong{font-size:11px;color:#253c33}
+#catalogManageMode .diag-grid{display:grid;grid-template-columns:86px 1fr;gap:4px 8px}
+#catalogManageMode .diag-grid span{color:#7c8581}
+#catalogManageMode .diag-grid b{font-weight:650;color:#3d4944;word-break:break-word}
+#catalogManageMode .diag-request{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:9px}
+#catalogManageMode .diag-message{margin-top:8px;padding:7px 8px;border-radius:7px;background:rgba(255,255,255,.65);word-break:break-word}
