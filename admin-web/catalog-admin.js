@@ -68,6 +68,7 @@
 
     if(purchaseLocked){
       catalogState.coverModelTest={model:data.imageModel||$c('coverAiModel').value,ok:false};
+      sessionStorage.removeItem('chuong_cover_tested_model');
       box.className='model-diagnostic bad quota-lock';
       box.innerHTML=[
         '<div class="diag-head"><strong>CHƯA ĐƯỢC MỞ QUYỀN TẠO ẢNH</strong><span>'+esc(String(data.httpStatus||429))+'</span></div>',
@@ -86,6 +87,11 @@
 
     const status=data.ok?'PASS':'FAIL';
     catalogState.coverModelTest={model:data.imageModel||$c('coverAiModel').value,ok:Boolean(data.ok)};
+    if(data.ok){
+      sessionStorage.setItem('chuong_cover_tested_model',catalogState.coverModelTest.model||'');
+    }else{
+      sessionStorage.removeItem('chuong_cover_tested_model');
+    }
     const bits=[
       '<div class="diag-head"><strong>'+status+' · '+esc(data.imageModel||'')+'</strong><span>'+esc(String(data.httpStatus||''))+'</span></div>',
       '<div class="diag-grid">',
@@ -109,7 +115,7 @@
     const settings=aiSettings();persistAiSettings();
     if(!settings.apiKey){
       setApiCheckStatus('bad','Chưa nhập Experiential API key');
-      return;
+      return false;
     }
     const button=$c('coverDiagnoseModelBtn');
     button.disabled=true;button.textContent='Đang test...';
@@ -131,8 +137,10 @@
       if(data.ok)setApiCheckStatus('ok','Model tạo ảnh chạy được thực tế · có thể chạy batch.');
       else if(String(data.error?.code||'')==='insufficient_quota'||/model_requires_purchase|buy credits/i.test(String(data.error?.message||'')))setApiCheckStatus('bad','API key hợp lệ nhưng tài khoản chưa có credits để dùng model này.');
       else setApiCheckStatus('bad','Model test thất bại · xem chẩn đoán bên dưới.');
+      return Boolean(data.ok);
     }catch(error){
       renderModelDiagnostic({ok:false,stage:'browser',imageModel:settings.imageModel,error:{code:'browser_error',message:error.message||String(error)}});
+      return false;
     }finally{
       button.disabled=false;button.textContent='Test model ảnh';
     }
@@ -237,6 +245,8 @@
     $c('coverAiModel').value=restoredModel;
     $c('coverPromptProvider').value=sessionStorage.getItem('chuong_explabs_prompt_mode')||'none';
     $c('coverPromptModel').value=sessionStorage.getItem('chuong_explabs_prompt_model')||EXPERIENTIAL_PROMPT_DEFAULT;
+    const testedModel=sessionStorage.getItem('chuong_cover_tested_model')||'';
+    catalogState.coverModelTest={model:testedModel||null,ok:Boolean(testedModel&&testedModel===$c('coverAiModel').value)};
     applyPromptMode();
   }
 
@@ -315,9 +325,9 @@
     if($c('catalogStatSelected'))$c('catalogStatSelected').textContent=count.toLocaleString('vi-VN');
     $c('catalogBulkEditBtn').disabled=count===0;
     const selectedModel=$c('coverAiModel')?.value||null;
-    const modelReady=count>0&&catalogState.coverModelTest.ok&&catalogState.coverModelTest.model===selectedModel;
-    $c('catalogBulkCoverBtn').disabled=!modelReady;
-    $c('catalogBulkCoverBtn').title=modelReady?'Tạo bìa AI hàng loạt':'Hãy Test model ảnh thành công trước khi chạy batch.';
+    const modelReady=catalogState.coverModelTest.ok&&catalogState.coverModelTest.model===selectedModel;
+    $c('catalogBulkCoverBtn').disabled=count===0;
+    $c('catalogBulkCoverBtn').title=modelReady?'Tạo bìa AI hàng loạt':'Model chưa test PASS; hệ thống sẽ tự test 1 lần trước khi chạy batch.';
     $c('catalogBulkDeleteBtn').disabled=count===0;
   }
 
@@ -597,7 +607,11 @@
     const settings=aiSettings();persistAiSettings();
     if(!settings.apiKey)return showCatalogMessage('Hãy nhập Experiential Labs API key trước.','error');
     if(!catalogState.coverModelTest.ok||catalogState.coverModelTest.model!==settings.imageModel){
-      return showCatalogMessage('Hãy bấm Test model ảnh và phải PASS trước khi chạy tạo bìa hàng loạt.','warn');
+      showCatalogMessage('Model chưa được test PASS. Đang tự kiểm tra model trước khi chạy batch…','info');
+      const ok=await diagnoseExperientialModel();
+      if(!ok){
+        return showCatalogMessage('Model tạo ảnh chưa PASS nên chưa chạy batch. Xem kết quả Test model ảnh ở phía trên.','warn');
+      }
     }
     $c('catalogBulkCoverBtn').disabled=true;
     let done=0,success=0,skipped=0,failed=0,consecutiveProviderFailures=0,stoppedEarly=false;
@@ -687,8 +701,8 @@
 
   restoreAiSettings();
   $c('coverPromptProvider')?.addEventListener('change',()=>{applyPromptMode();persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');});
-  ['coverAiKey','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('input',()=>{catalogState.coverModelTest={model:null,ok:false};persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');$c('coverBuyCreditsLink')?.classList.add('hidden');updateSelectionUi();}));
-  $c('coverAiModel')?.addEventListener('change',()=>{catalogState.coverModelTest={model:null,ok:false};persistAiSettings();setApiCheckStatus('neutral','Đã đổi model tạo ảnh · hãy test model trước khi chạy batch.');$c('coverModelDiagnostic')?.classList.add('hidden');$c('coverBuyCreditsLink')?.classList.add('hidden');updateSelectionUi();});
+  ['coverAiKey','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('input',()=>{catalogState.coverModelTest={model:null,ok:false};sessionStorage.removeItem('chuong_cover_tested_model');persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');$c('coverBuyCreditsLink')?.classList.add('hidden');updateSelectionUi();}));
+  $c('coverAiModel')?.addEventListener('change',()=>{catalogState.coverModelTest={model:null,ok:false};sessionStorage.removeItem('chuong_cover_tested_model');persistAiSettings();setApiCheckStatus('neutral','Đã đổi model tạo ảnh · hệ thống sẽ tự test khi bạn bấm tạo bìa.');$c('coverModelDiagnostic')?.classList.add('hidden');$c('coverBuyCreditsLink')?.classList.add('hidden');updateSelectionUi();});
   $c('coverCheckApiBtn')?.addEventListener('click',()=>void checkExperientialApi());
   $c('coverDiagnoseModelBtn')?.addEventListener('click',()=>void diagnoseExperientialModel());
   $c('catalogRefreshBtn')?.addEventListener('click',()=>loadCatalog(true));
