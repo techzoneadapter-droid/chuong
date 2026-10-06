@@ -620,3 +620,36 @@ button,input,select,textarea{letter-spacing:0}
   line-height:1.45;
   color:#65736d;
 }
+
+
+/* Experiential Labs + cover filter refinements */
+#catalogManageMode .catalog-filters{
+  grid-template-columns:1.35fr 1fr .82fr .82fr .9fr .65fr .65fr 1.05fr;
+}
+#catalogManageMode .experiential-layout{grid-template-columns:1.05fr .95fr}
+#catalogManageMode .experiential-key-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:end;
+  gap:8px;
+  margin-bottom:9px;
+}
+#catalogManageMode .experiential-key-row label{min-width:0}
+#catalogManageMode .provider-experiential{
+  background:#e8f1ed;
+  border-color:#bdd4c9;
+  color:#174d3d;
+  min-width:96px;
+}
+#catalogManageMode #catalogSelectAllBtn{
+  background:#173f35;
+  border-color:#173f35;
+  color:#fff;
+}
+#catalogManageMode #catalogSelectAllBtn:hover{background:#215646}
+@media(max-width:1350px){
+  #catalogManageMode .catalog-filters{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:1050px){
+  #catalogManageMode .experiential-layout{grid-template-columns:1fr}
+}
