@@ -41,6 +41,7 @@
       ['author',/^(?:tác giả|tac gia|author|written by)\s*[:：]\s*(.+)$/im],
       ['status',/^(?:trạng thái|trang thai|status)\s*[:：]\s*(.+)$/im],
       ['genre',/^(?:thể loại|the loai|genre|category)\s*[:：]\s*(.+)$/im],
+      ['summary',/^(?:tóm tắt|tom tat|giới thiệu|gioi thieu|mô tả|mo ta|description|summary|synopsis)\s*[:：]\s*(.+)$/im],
     ];
     for(const [key,re] of patterns){const m=normalized.match(re);if(m)info[key]=m[1].trim();}
     return info;
@@ -58,12 +59,14 @@
           merged.author ||= metadataValue(obj,['author','author_name','tac_gia','tacGia']);
           merged.status ||= metadataValue(obj,['status','trang_thai','trangThai','completed']);
           merged.genre ||= metadataValue(obj,['genre','category','the_loai','theLoai']);
+          merged.summary ||= metadataValue(obj,['summary','description','synopsis','intro','introduction','tom_tat','tomTat','gioi_thieu','gioiThieu']);
         }else{
           const parsed=parseInfoText(text);
           merged.title ||= parsed.title||'';
           merged.author ||= parsed.author||'';
           merged.status ||= parsed.status||'';
           merged.genre ||= parsed.genre||'';
+          merged.summary ||= parsed.summary||'';
         }
       }catch{}
     }
@@ -129,6 +132,7 @@
     const inferredGenre=metadata.genre?{genre:metadata.genre,score:100,matched:['metadata']}:inferGenreFromTitle(title);
     row.genre=metadata.genre||inferredGenre.genre||el('bulkDefaultGenre').value;
     row.genreSource=metadata.genre?'metadata':(inferredGenre.genre?'title':'default');
+    row.summary=String(metadata.summary||'').trim();
     row.chapterCount=docs.length;
     row.hasCover=Boolean(cover);
     row.coverEntry=cover?.name||'';
@@ -145,6 +149,11 @@
     const hay=(row.file.name+' '+(row.title||'')+' '+(row.author||'')).toLocaleLowerCase('vi');
     if(q&&!hay.includes(q))return false;
     return true;
+  }
+  function cleanImportedChapterContent(content,number){
+    const text=String(content||'');
+    const re=new RegExp('^\\s*(?:chương|chuong|chapter|chap)\\s*(?:số\\s*)?'+number+'(?:\\s*[/]\\s*\\d+)?\\s*[:.\\-–—]?\\s+','i');
+    return text.replace(re,'').trimStart();
   }
   function selectedRows(){return bulkState.rows.filter(row=>row.selected&&row.scan==='ready');}
   function updateSummary(){
@@ -302,7 +311,11 @@
       }
       const buffer=await row.file.arrayBuffer();
       const parsed=await parseZipStory(buffer,row.file.name);
-      const chapters=parsed.chapters||[];
+      const chapters=(parsed.chapters||[]).map(chapter=>({
+        ...chapter,
+        title:cleanChapterTitle(chapter.title,chapter.chapterNumber),
+        content:cleanImportedChapterContent(chapter.content,chapter.chapterNumber)
+      }));
       const audit=auditChapters(chapters);
       if(!chapters.length)throw new Error('Không nhận diện được chương.');
       if(audit.duplicates.length)throw new Error('Trùng số chương: '+audit.duplicates.slice(0,12).join(', '));
@@ -320,7 +333,7 @@
         method:'POST',prefer:'return=representation',
         body:{
           author_id:state.ownerAuthorId,title,slug,
-          description:'Truyện được Admin nhập hàng loạt từ '+relativeName(row.file)+'.',
+          description:String(row.summary||'').trim()||'Hãy khám phá.',
           credited_author_name:author,language:'vi',source_type:el('bulkSourceType').value,
           status:'draft',visibility:'private',tags:[],is_vip:false,price_coins:0
         }
