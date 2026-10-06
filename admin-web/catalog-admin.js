@@ -52,6 +52,62 @@
   }
 
 
+  function renderModelDiagnostic(data){
+    const box=$c('coverModelDiagnostic');if(!box)return;
+    box.classList.remove('hidden');
+    if(!data){
+      box.innerHTML='<strong>Không có dữ liệu chẩn đoán.</strong>';return;
+    }
+    const status=data.ok?'PASS':'FAIL';
+    const bits=[
+      '<div class="diag-head"><strong>'+status+' · '+esc(data.imageModel||'')+'</strong><span>'+esc(String(data.httpStatus||''))+'</span></div>',
+      '<div class="diag-grid">',
+      '<span>Stage</span><b>'+esc(data.stage||'—')+'</b>',
+      '<span>Error code</span><b>'+esc(data.error?.code||'—')+'</b>',
+      '<span>Provider</span><b>'+esc(data.gatewayProvider||'—')+'</b>',
+      '<span>Route depth</span><b>'+esc(data.routeDepth||'—')+'</b>',
+      '<span>Request ID</span><b class="diag-request">'+esc(data.requestId||'—')+'</b>',
+      '</div>'
+    ];
+    if(data.error?.message)bits.push('<div class="diag-message">'+esc(data.error.message)+'</div>');
+    if(data.contentPreview)bits.push('<div class="diag-message">Response text: '+esc(data.contentPreview)+'</div>');
+    if(data.imagePayloadFound===false&&data.httpStatus===200)bits.push('<div class="diag-message">Gateway trả 200 nhưng không có payload ảnh.</div>');
+    box.innerHTML=bits.join('');
+    box.classList.toggle('ok',Boolean(data.ok));
+    box.classList.toggle('bad',!data.ok);
+  }
+  async function diagnoseExperientialModel(){
+    const settings=aiSettings();persistAiSettings();
+    if(!settings.apiKey){
+      setApiCheckStatus('bad','Chưa nhập Experiential API key');
+      return;
+    }
+    const button=$c('coverDiagnoseModelBtn');
+    button.disabled=true;button.textContent='Đang test...';
+    const box=$c('coverModelDiagnostic');
+    box.classList.remove('hidden');box.className='model-diagnostic';
+    box.textContent='Đang gửi đúng 1 request thử nghiệm tới model '+settings.imageModel+'...';
+    try{
+      const response=await fetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
+        method:'POST',
+        headers:authHeaders({'Content-Type':'application/json'}),
+        body:JSON.stringify({
+          action:'diagnose',
+          imageApiKey:settings.apiKey,
+          imageModel:settings.imageModel
+        })
+      });
+      const data=await response.json().catch(()=>({ok:false,stage:'invalid_json',error:{code:'invalid_json',message:'Không đọc được phản hồi chẩn đoán.'}}));
+      renderModelDiagnostic(data);
+      if(data.ok)setApiCheckStatus('ok','Model tạo ảnh chạy được thực tế.');
+      else setApiCheckStatus('bad','Model test thất bại · xem chẩn đoán bên dưới.');
+    }catch(error){
+      renderModelDiagnostic({ok:false,stage:'browser',imageModel:settings.imageModel,error:{code:'browser_error',message:error.message||String(error)}});
+    }finally{
+      button.disabled=false;button.textContent='Test model ảnh';
+    }
+  }
+
   async function checkExperientialApi(){
     const settings=aiSettings();
     persistAiSettings();
@@ -594,8 +650,9 @@
   restoreAiSettings();
   $c('coverPromptProvider')?.addEventListener('change',()=>{applyPromptMode();persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');});
   ['coverAiKey','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('input',()=>{persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');}));
-  $c('coverAiModel')?.addEventListener('change',()=>{persistAiSettings();setApiCheckStatus('neutral','Đã đổi model tạo ảnh · có thể tạo thử 1 bìa.');});
+  $c('coverAiModel')?.addEventListener('change',()=>{persistAiSettings();setApiCheckStatus('neutral','Đã đổi model tạo ảnh · hãy test model trước khi chạy batch.');$c('coverModelDiagnostic')?.classList.add('hidden');});
   $c('coverCheckApiBtn')?.addEventListener('click',()=>void checkExperientialApi());
+  $c('coverDiagnoseModelBtn')?.addEventListener('click',()=>void diagnoseExperientialModel());
   $c('catalogRefreshBtn')?.addEventListener('click',()=>loadCatalog(true));
   $c('catalogResetFilters')?.addEventListener('click',()=>{
     $c('catalogSearch').value='';$c('catalogAuthorFilter').value='';$c('catalogGenreFilter').value='';$c('catalogStatusFilter').value='';
