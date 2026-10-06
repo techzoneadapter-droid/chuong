@@ -309,75 +309,112 @@ function mostCommonText(values) {
 }
 
 
-function inferGenreFromTitle(title){
-  const original=String(title||'').trim();
-  if(!original)return {genre:'',score:0,matched:[]};
-  const text=original.toLocaleLowerCase('vi');
-  const plain=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
-  const rules=[
-    {genre:'Hệ thống',terms:[
-      ['hệ thống',10],['he thong',10],['ban thưởng',8],['ban thuong',8],['ký đến',8],['ky den',8],
-      ['đánh dấu',6],['danh dau',6],['rút thưởng',6],['rut thuong',6],['nhiệm vụ',5],['nhiem vu',5],
-      ['bảng thuộc tính',5],['bang thuoc tinh',5],['điểm kỹ năng',5],['diem ky nang',5],['vô hạn điểm',5],['vo han diem',5]
-    ]},
-    {genre:'Tiên hiệp',terms:[
-      ['tu tiên',10],['tu tien',10],['tu chân',9],['tu chan',9],['tiên đế',7],['tien de',7],['tiên tôn',7],['tien ton',7],
-      ['trường sinh',7],['truong sinh',7],['phi thăng',7],['phi thang',7],['độ kiếp',7],['do kiep',7],
-      ['linh căn',6],['linh can',6],['nguyên anh',6],['nguyen anh',6],['đan điền',5],['dan dien',5],
-      ['tông môn',5],['tong mon',5],['tiên môn',5],['tien mon',5],['kiếm tiên',5],['kiem tien',5],['ma tôn',4],['ma ton',4]
-    ]},
-    {genre:'Huyền huyễn',terms:[
-      ['huyền huyễn',10],['huyen huyen',10],['đấu la',9],['dau la',9],['đấu phá',9],['dau pha',9],
-      ['võ hồn',8],['vo hon',8],['dị giới',7],['di gioi',7],['thần vực',6],['than vuc',6],
-      ['đại đế',5],['dai de',5],['thần đế',5],['than de',5],['vạn cổ',4],['van co',4],
-      ['chí tôn',4],['chi ton',4],['triệu hoán',5],['trieu hoan',5],['phế vật',3],['phe vat',3]
-    ]},
-    {genre:'Đô thị',terms:[
-      ['đô thị',10],['do thi',10],['thần y',7],['than y',7],['bác sĩ',6],['bac si',6],
-      ['giáo hoa',6],['giao hoa',6],['hoa khôi',6],['hoa khoi',6],['binh vương',5],['binh vuong',5],
-      ['siêu cấp bảo tiêu',6],['sieu cap bao tieu',6],['đại thiếu',4],['dai thieu',4],['thành phố',3],['thanh pho',3]
-    ]},
-    {genre:'Ngôn tình',terms:[
-      ['ngôn tình',10],['ngon tinh',10],['tổng tài',8],['tong tai',8],['phu nhân',7],['phu nhan',7],
-      ['hào môn',6],['hao mon',6],['cưới',5],['cuoi',5],['hôn nhân',5],['hon nhan',5],
-      ['vợ',4],['vo ',4],['chồng',4],['chong',4],['bạn trai',4],['ban trai',4],['bạn gái',4],['ban gai',4],
-      ['tình yêu',4],['tinh yeu',4]
-    ]},
-    {genre:'Kiếm hiệp',terms:[
-      ['kiếm hiệp',10],['kiem hiep',10],['võ lâm',8],['vo lam',8],['giang hồ',7],['giang ho',7],
-      ['hiệp khách',6],['hiep khach',6],['minh chủ',5],['minh chu',5],['võ hiệp',8],['vo hiep',8]
-    ]},
-    {genre:'Kinh dị',terms:[
-      ['kinh dị',10],['kinh di',10],['linh dị',9],['linh di',9],['cương thi',8],['cuong thi',8],
-      ['quỷ',6],['quy',6],['âm phủ',6],['am phu',6],['ma quái',6],['ma quai',6],
-      ['kinh hoàng',6],['kinh hoang',6],['nhà ma',5],['nha ma',5]
-    ]},
-    {genre:'Khoa huyễn',terms:[
-      ['khoa huyễn',10],['khoa huyen',10],['mạt thế',9],['mat the',9],['tận thế',8],['tan the',8],
-      ['tinh tế',8],['tinh te',8],['cơ giáp',8],['co giap',8],['phi thuyền',6],['phi thuyen',6],
-      ['vũ trụ',6],['vu tru',6],['zombie',7],['người máy',5],['nguoi may',5]
-    ]},
-    {genre:'Trinh thám',terms:[
-      ['trinh thám',10],['trinh tham',10],['phá án',9],['pha an',9],['thám tử',9],['tham tu',9],
-      ['pháp y',8],['phap y',8],['vụ án',7],['vu an',7],['hung thủ',6],['hung thu',6],
-      ['cảnh sát',5],['canh sat',5]
-    ]},
-    {genre:'Fantasy',terms:[
-      ['fantasy',10],['ma pháp',9],['ma phap',9],['pháp sư',8],['phap su',8],['phù thủy',8],['phu thuy',8],
-      ['dũng giả',7],['dung gia',7],['ma vương',6],['ma vuong',6],['rồng',5],['rong',5],['phép thuật',7],['phep thuat',7]
-    ]}
-  ];
-  const scored=rules.map(rule=>{
+
+window.CHUONG_GENRES = [
+  'Xuyên không','Trọng sinh','Hệ thống','Tiên hiệp','Huyền huyễn','Mạt thế',
+  'Đam mỹ','Ngôn tình','Cổ đại','Cung đấu','Đô thị','Giới giải trí',
+  'Huyền học','Trinh thám','Kinh dị','Khoa huyễn','Esports','Kiếm hiệp',
+  'Fantasy','Điền văn','Vô hạn lưu','Niên đại','Văn học','Khác'
+];
+
+function genrePlain(value){
+  return String(value||'')
+    .toLocaleLowerCase('vi')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/đ/g,'d')
+    .replace(/[“”‘’"'~!@#$%^&*()_+=[\]{}|\\:;,.<>/?-]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function genreHas(text,term){
+  const source=' '+genrePlain(text)+' ';
+  const needle=' '+genrePlain(term)+' ';
+  return source.includes(needle);
+}
+const CHUONG_GENRE_RULES=[
+  {genre:'Xuyên không',threshold:8,terms:[['xuyên không',12],['xuyên thư',12],['xuyên thành',12],['xuyên qua',10],['xuyên về',10],['xuyên vào',10],['nhập vào truyện',9],['nhập vào sách',9],['pháo hôi',4]]},
+  {genre:'Trọng sinh',threshold:8,terms:[['trọng sinh',12],['sống lại',10],['quay về năm',9],['trở lại năm',9],['làm lại cuộc đời',8],['kiếp trước',5],['đời trước',4]]},
+  {genre:'Hệ thống',threshold:8,terms:[['hệ thống',12],['ký chủ',10],['ban thưởng',8],['rút thưởng',8],['nhiệm vụ',7],['bảng thuộc tính',8],['điểm kỹ năng',7],['vô hạn điểm',7],['ting',5],['hack',4]]},
+  {genre:'Mạt thế',threshold:8,terms:[['mạt thế',12],['tận thế',12],['zombie',12],['xác sống',10],['dị năng',8],['căn cứ sinh tồn',7],['căn cứ hy vọng',7],['thây ma',9]]},
+  {genre:'Đam mỹ',threshold:8,terms:[['đam mỹ',12],['boy love',12],['bl',10],['thụ',5],['công thụ',10],['nam nam',9],['song nam chủ',8]]},
+  {genre:'Cung đấu',threshold:8,terms:[['cung đấu',12],['hậu cung',10],['hoàng hậu',8],['quý phi',8],['phi tần',8],['sủng phi',10],['lãnh cung',8],['thái hậu',7],['cung nữ',6]]},
+  {genre:'Huyền học',threshold:8,terms:[['huyền học',12],['bói toán',11],['phong thủy',10],['xem tướng',10],['mệnh lý',9],['la bàn',7],['quẻ bói',8],['bùa chú',7]]},
+  {genre:'Trinh thám',threshold:8,terms:[['trinh thám',12],['phá án',11],['thám tử',11],['pháp y',10],['vụ án',9],['hung thủ',8],['cảnh sát',7],['điều tra viên',9],['lệnh truy nã',9],['nạn nhân',5]]},
+  {genre:'Kinh dị',threshold:8,terms:[['kinh dị',12],['linh dị',11],['cương thi',10],['ma ám',9],['âm phủ',8],['nhà ma',8],['tâm linh',6],['quỷ',6]]},
+  {genre:'Esports',threshold:8,terms:[['esports',12],['e sport',12],['thể thao điện tử',12],['đội tuyển',8],['tuyển thủ',9],['mvp',9],['chung kết',5],['thi đấu game',9],['giải đấu game',9]]},
+  {genre:'Giới giải trí',threshold:8,terms:[['giới giải trí',12],['showbiz',12],['minh tinh',9],['ảnh đế',9],['idol',8],['thần tượng',6],['diễn viên',6],['ca sĩ',6],['livestream',5]]},
+  {genre:'Tiên hiệp',threshold:8,terms:[['tu tiên',12],['tu chân',12],['tu chân giới',12],['người tu tiên',10],['tiên đế',9],['tiên tôn',9],['trường sinh',8],['phi thăng',9],['độ kiếp',9],['linh căn',8],['nguyên anh',8],['kim đan',8],['tông môn',7],['tiên môn',7],['linh kiếm',6],['kiếm tiên',7]]},
+  {genre:'Huyền huyễn',threshold:8,terms:[['huyền huyễn',12],['đấu la',12],['đấu phá',12],['võ hồn',10],['dị giới',9],['thần vực',8],['đại đế',7],['thần đế',7],['vạn cổ',6],['chí tôn',6],['huyết mạch',6],['linh thú',6],['đấu khí',7]]},
+  {genre:'Khoa huyễn',threshold:8,terms:[['khoa huyễn',12],['tinh tế',11],['cơ giáp',11],['phi thuyền',9],['vũ trụ',8],['người máy',8],['robot',8],['chiến hạm',8]]},
+  {genre:'Kiếm hiệp',threshold:8,terms:[['kiếm hiệp',12],['võ hiệp',12],['võ lâm',10],['giang hồ',9],['hiệp khách',8],['minh chủ',7],['kiếm khách',7]]},
+  {genre:'Fantasy',threshold:8,terms:[['fantasy',12],['ma pháp',11],['pháp sư',10],['phù thủy',10],['dũng giả',9],['ma vương',8],['phép thuật',9],['elf',8]]},
+  {genre:'Điền văn',threshold:8,terms:[['điền văn',12],['điền viên',10],['nông gia',10],['làm ruộng',9],['trồng trọt',8],['thôn quê',7],['nông thôn',6],['mở quán',5],['làm giàu',5]]},
+  {genre:'Vô hạn lưu',threshold:8,terms:[['vô hạn lưu',12],['phó bản',9],['chủ thần',9],['luân hồi',7],['trò chơi sinh tồn',10],['không gian vô hạn',10]]},
+  {genre:'Niên đại',threshold:8,terms:[['niên đại',12],['thập niên 50',10],['thập niên 60',10],['thập niên 70',10],['thập niên 80',10],['thời bao cấp',10],['thời kỳ đầu lập quốc',8]]},
+  {genre:'Ngôn tình',threshold:8,terms:[['ngôn tình',12],['tổng tài',10],['phu nhân',8],['hào môn',8],['hôn nhân',7],['ly hôn',7],['kết hôn',7],['vợ cũ',9],['vợ',4],['chồng',4],['bạn trai',6],['bạn gái',6],['tình yêu',6],['sủng',4]]},
+  {genre:'Cổ đại',threshold:8,terms:[['cổ đại',12],['vương gia',10],['điện hạ',8],['hoàng đế',8],['công chúa',7],['tử cấm thành',10],['thừa tướng',8],['hầu phủ',7],['vương phủ',7],['kinh thành',5],['tiểu thư',4]]},
+  {genre:'Đô thị',threshold:8,terms:[['đô thị',12],['thành phố',7],['công ty',6],['tập đoàn',6],['bệnh viện',6],['đại học',5],['trung học',5],['wechat',6],['chung cư',5],['tổng tài',6],['livestream',5]]},
+  {genre:'Văn học',threshold:10,terms:[['văn học',12],['hiện thực',8],['tản văn',10],['trưởng thành',4],['chữa lành',5]]}
+];
+
+function metadataGenres(value){
+  const raw=String(value||'').trim();
+  if(!raw)return [];
+  const pieces=raw.split(/[;,/|·]+/).map(item=>item.trim()).filter(Boolean);
+  const found=[];
+  for(const piece of pieces){
+    const plain=genrePlain(piece);
+    const exact=(window.CHUONG_GENRES||[]).find(item=>genrePlain(item)===plain);
+    if(exact&&!found.includes(exact)){found.push(exact);continue;}
+    for(const rule of CHUONG_GENRE_RULES){
+      if(rule.terms.some(([term])=>genreHas(piece,term))&&!found.includes(rule.genre)){
+        found.push(rule.genre);break;
+      }
+    }
+  }
+  return found.slice(0,3);
+}
+
+function inferGenresFromStory(input={}){
+  const title=String(input.title||'');
+  const summary=String(input.summary||'');
+  const sample=String(input.sample||'').slice(0,26000);
+  const metadata=metadataGenres(input.metadataGenre);
+  const scored=CHUONG_GENRE_RULES.map((rule,index)=>{
     let score=0;const matched=[];
     for(const [term,weight] of rule.terms){
-      const source=/[^\x00-\x7F]/.test(term)?text:plain;
-      if(source.includes(term)){score+=weight;matched.push(term);}
+      if(genreHas(title,term)){score+=weight*3;matched.push('t:'+term);continue;}
+      if(genreHas(summary,term)){score+=weight*2;matched.push('s:'+term);continue;}
+      if(genreHas(sample,term)){score+=weight;matched.push('c:'+term);}
     }
-    return {genre:rule.genre,score,matched};
-  }).sort((a,b)=>b.score-a.score);
+    if(metadata.includes(rule.genre)){score+=100;matched.unshift('metadata');}
+    return {genre:rule.genre,score,matched,index,threshold:rule.threshold||8};
+  }).sort((a,b)=>b.score-a.score||a.index-b.index);
+
   const best=scored[0];
-  if(!best||best.score<4)return {genre:'',score:best?.score||0,matched:best?.matched||[]};
-  return best;
+  const selected=[];
+  for(const item of scored){
+    if(item.score<item.threshold)continue;
+    if(selected.length&&item.score<Math.max(item.threshold,best.score*0.34)&&item.score<18)continue;
+    selected.push(item.genre);
+    if(selected.length>=3)break;
+  }
+  for(const item of metadata){
+    if(!selected.includes(item))selected.unshift(item);
+  }
+  const genres=[...new Set(selected)].slice(0,3);
+  return {
+    genre:genres[0]||'',
+    genres,
+    score:best?.score||0,
+    matched:best?.matched||[],
+    confidence:best?.score>=28?'high':best?.score>=12?'medium':'low'
+  };
+}
+
+function inferGenreFromTitle(title){
+  return inferGenresFromStory({title});
 }
 
 function findEocd(bytes){
