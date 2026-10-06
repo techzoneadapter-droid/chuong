@@ -378,6 +378,28 @@
         </div>
       </div>
 
+      <div id="catalogCleanupModal" class="admin-modal hidden">
+        <div class="admin-modal-backdrop" data-close-cleanup-preview></div>
+        <div class="admin-modal-panel cleanup-preview-panel">
+          <div class="admin-modal-head">
+            <div>
+              <p class="eyebrow">KẾT QUẢ QUÉT RÁC THỰC TẾ</p>
+              <h2>Những dòng sẽ bị xóa</h2>
+              <p id="catalogCleanupSummary" class="muted">Chưa có dữ liệu quét.</p>
+            </div>
+            <button class="ghost" type="button" data-close-cleanup-preview>Đóng</button>
+          </div>
+          <div class="cleanup-preview-note">
+            Chỉ hiển thị đúng những dòng hệ thống vừa tìm thấy trong nội dung truyện, kèm tên truyện + số chương + số dòng. Không dùng ví dụ tượng trưng và không dùng AI.
+          </div>
+          <div id="catalogCleanupList" class="cleanup-preview-list"></div>
+          <div class="cleanup-preview-footer">
+            <button id="catalogCleanupCancelBtn" class="ghost" type="button">Hủy, không xóa</button>
+            <button id="catalogCleanupConfirmBtn" class="danger-soft" type="button">Xác nhận xóa các dòng trên</button>
+          </div>
+        </div>
+      </div>
+
       <div id="singleImportMode" class="layout">
         <div class="left-col">
           <section class="card">
