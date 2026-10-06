@@ -11,7 +11,6 @@ const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 function reply(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 }
-
 function serviceRoleKey() {
   const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (legacy) return legacy;
@@ -24,7 +23,6 @@ function serviceRoleKey() {
     return null;
   }
 }
-
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
   const chunk = 0x8000;
@@ -32,6 +30,182 @@ function bytesToBase64(bytes: Uint8Array) {
     binary += String.fromCharCode(...bytes.subarray(offset, offset + chunk));
   }
   return btoa(binary);
+}
+function cleanBaseUrl(value: string, fallback: string) {
+  return (value.trim() || fallback).replace(/\/$/, "");
+}
+function findNestedImage(value: unknown): { data: string; mimeType: string } | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const mime = String(record.mime_type ?? record.mimeType ?? "");
+  const data = typeof record.data === "string" ? record.data : null;
+  if (data && mime.startsWith("image/")) return { data, mimeType: mime };
+  if (typeof record.b64_json === "string") return { data: record.b64_json, mimeType: "image/png" };
+  for (const child of Object.values(record)) {
+    if (Array.isArray(child)) {
+      for (const item of child) {
+        const found = findNestedImage(item);
+        if (found) return found;
+      }
+    } else if (child && typeof child === "object") {
+      const found = findNestedImage(child);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+async function fetchImageUrl(url: string) {
+  const imageResponse = await fetch(url);
+  if (!imageResponse.ok) throw new Error("generated_image_download_failed");
+  const bytes = new Uint8Array(await imageResponse.arrayBuffer());
+  return {
+    data: bytesToBase64(bytes),
+    mimeType: imageResponse.headers.get("content-type") || "image/png",
+  };
+}
+
+type PromptProvider = "none" | "openai" | "gemini" | "xai" | "deepseek" | "custom";
+type ImageProvider = "openai" | "gemini" | "xai" | "custom";
+
+async function improvePrompt(input: {
+  provider: PromptProvider;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  title: string;
+  genre: string;
+  description: string;
+  draft: string;
+}) {
+  if (input.provider === "none") return input.draft;
+  if (!input.apiKey) throw new Error("prompt_api_key_required");
+
+  const requestText = [
+    "Bạn là art director chuyên bìa tiểu thuyết mạng.",
+    "Hãy viết lại prompt tạo ảnh bìa dưới đây thành MỘT prompt tiếng Anh giàu hình ảnh, thương mại, bám sát tên truyện/thể loại.",
+    "Không thêm chữ/tựa/logo vào ảnh. Tỷ lệ bìa 2:3 dọc. Chỉ trả prompt cuối cùng, không giải thích.",
+    "Tên truyện: " + input.title,
+    "Thể loại: " + input.genre,
+    input.description ? "Mô tả: " + input.description.slice(0, 2500) : "",
+    "Prompt nền:",
+    input.draft,
+  ].filter(Boolean).join("\n");
+
+  if (input.provider === "gemini") {
+    const baseUrl = cleanBaseUrl(input.baseUrl, "https://generativelanguage.googleapis.com/v1beta");
+    const response = await fetch(baseUrl + "/models/" + encodeURIComponent(input.model || "gemini-3.1-flash") + ":generateContent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
+      body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: requestText }] }] }),
+    });
+    if (!response.ok) {
+      const raw = await response.text();
+      throw new Error("prompt_provider_" + response.status + ":" + raw.slice(0, 500));
+    }
+    const data = await response.json() as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n").trim();
+    if (!text) throw new Error("prompt_provider_empty");
+    return text;
+  }
+
+  const fallbackBase =
+    input.provider === "xai" ? "https://api.x.ai/v1" :
+    input.provider === "deepseek" ? "https://api.deepseek.com" :
+    "https://api.openai.com/v1";
+  const baseUrl = cleanBaseUrl(input.baseUrl, fallbackBase);
+  const response = await fetch(baseUrl + "/chat/completions", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + input.apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: input.model,
+      temperature: 0.35,
+      messages: [
+        { role: "system", content: "You are a concise commercial book-cover art director." },
+        { role: "user", content: requestText },
+      ],
+    }),
+  });
+  if (!response.ok) {
+    const raw = await response.text();
+    throw new Error("prompt_provider_" + response.status + ":" + raw.slice(0, 500));
+  }
+  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+  const text = data.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error("prompt_provider_empty");
+  return text.trim();
+}
+
+async function generateImage(input: {
+  provider: ImageProvider;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  prompt: string;
+}) {
+  if (!input.apiKey) throw new Error("image_api_key_required");
+
+  if (input.provider === "gemini") {
+    const baseUrl = cleanBaseUrl(input.baseUrl, "https://generativelanguage.googleapis.com/v1beta");
+    const response = await fetch(baseUrl + "/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
+      body: JSON.stringify({
+        model: input.model || "gemini-3.1-flash-image",
+        input: [{ type: "text", text: input.prompt }],
+        response_format: {
+          type: "image",
+          mime_type: "image/jpeg",
+          aspect_ratio: "2:3",
+          image_size: "1K",
+        },
+      }),
+    });
+    if (!response.ok) {
+      const raw = await response.text();
+      throw new Error("image_provider_" + response.status + ":" + raw.slice(0, 900));
+    }
+    const data = await response.json();
+    const found = findNestedImage(data);
+    if (!found) throw new Error("image_provider_missing_payload");
+    return { ...found, revisedPrompt: null };
+  }
+
+  const fallbackBase = input.provider === "xai" ? "https://api.x.ai/v1" : "https://api.openai.com/v1";
+  const baseUrl = cleanBaseUrl(input.baseUrl, fallbackBase);
+  const body: Record<string, unknown> = { model: input.model, prompt: input.prompt, n: 1 };
+  if (input.provider === "xai") {
+    body.aspect_ratio = "2:3";
+    body.resolution = "1k";
+  } else {
+    body.size = "1024x1536";
+  }
+
+  const response = await fetch(baseUrl + "/images/generations", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + input.apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const raw = await response.text();
+    throw new Error("image_provider_" + response.status + ":" + raw.slice(0, 900));
+  }
+  const data = await response.json() as {
+    data?: Array<{ b64_json?: string; url?: string; mime_type?: string; revised_prompt?: string }>;
+  };
+  const first = data.data?.[0];
+  if (!first) throw new Error("image_provider_empty");
+  if (first.b64_json) {
+    return { data: first.b64_json, mimeType: first.mime_type || "image/png", revisedPrompt: first.revised_prompt ?? null };
+  }
+  if (first.url) {
+    const downloaded = await fetchImageUrl(first.url);
+    return { ...downloaded, revisedPrompt: first.revised_prompt ?? null };
+  }
+  const nested = findNestedImage(data);
+  if (nested) return { ...nested, revisedPrompt: first.revised_prompt ?? null };
+  throw new Error("image_provider_missing_payload");
 }
 
 Deno.serve(async (req: Request) => {
@@ -60,19 +234,34 @@ Deno.serve(async (req: Request) => {
 
   let body: {
     bookId?: string;
+    imageProvider?: ImageProvider;
+    imageApiKey?: string;
+    imageBaseUrl?: string;
+    imageModel?: string;
+    promptProvider?: PromptProvider;
+    promptApiKey?: string;
+    promptBaseUrl?: string;
+    promptModel?: string;
+    extraPrompt?: string;
     apiKey?: string;
     baseUrl?: string;
     model?: string;
-    extraPrompt?: string;
   };
   try { body = await req.json(); } catch { return reply(400, { error: "invalid_json" }); }
 
   const bookId = body.bookId?.trim();
-  const apiKey = body.apiKey?.trim();
-  const baseUrl = (body.baseUrl?.trim() || "https://api.openai.com/v1").replace(/\/$/, "");
-  const model = body.model?.trim() || "gpt-image-1";
   if (!bookId) return reply(400, { error: "book_id_required" });
-  if (!apiKey) return reply(400, { error: "api_key_required" });
+
+  const imageProvider: ImageProvider = body.imageProvider || "openai";
+  const imageApiKey = (body.imageApiKey || body.apiKey || "").trim();
+  const imageBaseUrl = body.imageBaseUrl || body.baseUrl || "";
+  const imageModel = (
+    body.imageModel ||
+    body.model ||
+    (imageProvider === "xai" ? "grok-imagine-image-2.0" :
+      imageProvider === "gemini" ? "gemini-3.1-flash-image" : "gpt-image-2")
+  ).trim();
+  const promptProvider: PromptProvider = body.promptProvider || "none";
 
   const { data: book, error: bookError } = await admin
     .from("books")
@@ -85,65 +274,57 @@ Deno.serve(async (req: Request) => {
   const { data: genres } = await admin.from("book_genres").select("genre").eq("book_id", bookId).limit(5);
   const genre = (genres ?? []).map((row) => row.genre).filter(Boolean).join(", ") || "tiểu thuyết";
 
-  const prompt = [
+  const draftPrompt = [
     "Create a premium vertical Vietnamese web-novel cover illustration.",
-    "Aspect ratio exactly 2:3, composed for 1024x1536 mobile book cover.",
-    `Story title for visual inspiration: "${book.title}".`,
-    `Genre: ${genre}.`,
-    "Infer the imagery, atmosphere, protagonist archetype and setting from the title and genre.",
-    "Cinematic, highly detailed, polished commercial illustration, strong focal subject, dramatic depth and lighting.",
-    "Do NOT render any title, letters, typography, logo, watermark, frame, UI or readable text in the image.",
-    "Keep important faces/subjects away from extreme edges so the cover crops safely on mobile.",
-    body.extraPrompt?.trim() ? `Additional art direction: ${body.extraPrompt.trim()}` : "",
+    "Aspect ratio exactly 2:3 for a mobile book cover.",
+    "Story title for visual inspiration: \"" + book.title + "\".",
+    "Genre: " + genre + ".",
+    book.description ? "Story summary: " + book.description.slice(0, 1800) : "",
+    "Infer the strongest protagonist archetype, setting, mood, costume and symbolic visual motif from the title and genre.",
+    "Cinematic commercial illustration, strong central silhouette, atmospheric depth, dramatic lighting, polished details, clear focal hierarchy.",
+    "No title, no letters, no typography, no logo, no watermark, no UI, no frame, no readable text anywhere.",
+    "Keep face and key subject away from extreme edges so the artwork crops safely.",
+    body.extraPrompt?.trim() ? "Additional art direction: " + body.extraPrompt.trim() : "",
   ].filter(Boolean).join("\n");
 
   try {
-    const response = await fetch(`${baseUrl}/images/generations`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt, size: "1024x1536", n: 1 }),
+    const finalPrompt = await improvePrompt({
+      provider: promptProvider,
+      apiKey: body.promptApiKey?.trim() || "",
+      baseUrl: body.promptBaseUrl || "",
+      model: body.promptModel?.trim() || (
+        promptProvider === "deepseek" ? "deepseek-flash" :
+        promptProvider === "xai" ? "grok-4.7" :
+        promptProvider === "gemini" ? "gemini-3.1-flash" :
+        "gpt-6-luna"
+      ),
+      title: book.title,
+      genre,
+      description: book.description || "",
+      draft: draftPrompt,
     });
 
-    if (!response.ok) {
-      const raw = await response.text();
-      return reply(502, { error: "image_provider_error", detail: raw.slice(0, 1000), status: response.status });
-    }
+    const generated = await generateImage({
+      provider: imageProvider,
+      apiKey: imageApiKey,
+      baseUrl: imageBaseUrl,
+      model: imageModel,
+      prompt: finalPrompt,
+    });
 
-    const data = await response.json() as {
-      data?: Array<{ b64_json?: string; url?: string; revised_prompt?: string }>;
-    };
-    const first = data.data?.[0];
-    if (!first) return reply(502, { error: "image_provider_empty" });
-
-    if (first.b64_json) {
-      return reply(200, {
-        imageBase64: first.b64_json,
-        mimeType: "image/png",
-        width: 1024,
-        height: 1536,
-        prompt,
-        revisedPrompt: first.revised_prompt ?? null,
-      });
-    }
-
-    if (first.url) {
-      const imageResponse = await fetch(first.url);
-      if (!imageResponse.ok) return reply(502, { error: "generated_image_download_failed" });
-      const bytes = new Uint8Array(await imageResponse.arrayBuffer());
-      const mimeType = imageResponse.headers.get("content-type") || "image/png";
-      return reply(200, {
-        imageBase64: bytesToBase64(bytes),
-        mimeType,
-        width: 1024,
-        height: 1536,
-        prompt,
-        revisedPrompt: first.revised_prompt ?? null,
-      });
-    }
-
-    return reply(502, { error: "image_provider_missing_payload" });
+    return reply(200, {
+      imageBase64: generated.data,
+      mimeType: generated.mimeType,
+      width: 1024,
+      height: 1536,
+      prompt: finalPrompt,
+      revisedPrompt: generated.revisedPrompt,
+      provider: imageProvider,
+      model: imageModel,
+      promptProvider,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "image_generation_failed";
-    return reply(500, { error: message });
+    return reply(502, { error: message });
   }
 });
