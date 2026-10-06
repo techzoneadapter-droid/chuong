@@ -242,12 +242,28 @@ async function generateImage(input: {
             code === "deadline_exceeded";
 
           if (!retryable) {
+            console.error("CHUONG_EXPLABS_GEN_FAIL", JSON.stringify({
+              model,
+              attempt,
+              httpStatus:response.status,
+              code,
+              requestId:response.headers.get("x-request-id"),
+              provider:response.headers.get("x-gateway-provider"),
+              routeDepth:response.headers.get("x-gateway-route-depth")
+            }));
             throw new Error(
               "experiential_image_" + response.status + ":" +
               (code || raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 320))
             );
           }
 
+          console.error("CHUONG_EXPLABS_GEN_RETRY", JSON.stringify({
+            model,
+            attempt,
+            httpStatus:response.status,
+            code,
+            requestId:response.headers.get("x-request-id")
+          }));
           if (attempt < maxAttempts) {
             await new Promise((resolve) => setTimeout(resolve, 900 * Math.pow(2, attempt - 1)));
           }
@@ -364,7 +380,7 @@ Deno.serve(async (req: Request) => {
   if (profile?.role !== "admin") return reply(403, { error: "admin_required" });
 
   let body: {
-    action?: "check" | "generate";
+    action?: "check" | "diagnose" | "generate";
     bookId?: string;
     imageProvider?: ImageProvider;
     imageApiKey?: string;
@@ -383,6 +399,117 @@ Deno.serve(async (req: Request) => {
 
   const action = body.action || "generate";
   const imageApiKey = (body.imageApiKey || body.apiKey || "").trim();
+
+  if (action === "diagnose") {
+    if (!imageApiKey) return reply(400, { ok:false, error:"experiential_api_key_required" });
+    const imageModel = body.imageModel?.trim() || "gemini-2.5-flash-image";
+    const testPrompt = [
+      "Generate exactly one simple vertical book-cover illustration.",
+      "Portrait 2:3 composition.",
+      "A lone fantasy traveler standing before a distant mountain at sunrise.",
+      "No text, no logo, no watermark."
+    ].join(" ");
+
+    let providers: unknown = null;
+    try {
+      const providerRes = await fetch("https://api.experientiallabs.ai/api/models/" + encodeURIComponent(imageModel) + "/providers", {
+        method:"GET",
+        headers:{ Authorization:"Bearer " + imageApiKey }
+      });
+      const providerRaw = await providerRes.text();
+      try { providers = JSON.parse(providerRaw); } catch { providers = { raw: providerRaw.slice(0,1200) }; }
+    } catch (error) {
+      providers = { error: error instanceof Error ? error.message : String(error) };
+    }
+
+    const digestBytes = new TextEncoder().encode("diagnose|" + imageModel + "|" + testPrompt);
+    const digest = await crypto.subtle.digest("SHA-256", digestBytes);
+    const digestHex = Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,"0")).join("");
+    const idempotencyKey = "chuong-diagnose-" + digestHex.slice(0,40);
+
+    let response: Response;
+    try {
+      response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
+        method:"POST",
+        headers:{
+          Authorization:"Bearer " + imageApiKey,
+          "Content-Type":"application/json",
+          "Idempotency-Key":idempotencyKey
+        },
+        body:JSON.stringify({
+          model:imageModel,
+          messages:[{role:"user",content:testPrompt}],
+          stream:false
+        })
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("CHUONG_EXPLABS_DIAG_NETWORK", JSON.stringify({imageModel,message}));
+      return reply(200,{
+        ok:false,
+        stage:"network",
+        imageModel,
+        error:{code:"network_error",message},
+        providers
+      });
+    }
+
+    const raw = await response.text();
+    const requestId = response.headers.get("x-request-id");
+    const gatewayProvider = response.headers.get("x-gateway-provider");
+    const routeDepth = response.headers.get("x-gateway-route-depth");
+    const warning = response.headers.get("x-gateway-warning");
+
+    let parsed: Record<string, unknown> = {};
+    try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch {}
+
+    if (!response.ok) {
+      const err = parsed.error && typeof parsed.error === "object" ? parsed.error as Record<string,unknown> : {};
+      const diagnostic = {
+        ok:false,
+        stage:"upstream",
+        imageModel,
+        httpStatus:response.status,
+        requestId,
+        gatewayProvider,
+        routeDepth,
+        warning,
+        error:{
+          code:String(err.code || "unknown"),
+          type:String(err.type || ""),
+          param:err.param ?? null,
+          message:String(err.message || raw.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().slice(0,600))
+        },
+        providers
+      };
+      console.error("CHUONG_EXPLABS_DIAG_FAIL", JSON.stringify(diagnostic));
+      return reply(200,diagnostic);
+    }
+
+    const found = findNestedImage(parsed);
+    const choices = Array.isArray(parsed.choices) ? parsed.choices as Array<Record<string,unknown>> : [];
+    const firstMessage = choices?.[0]?.message && typeof choices[0].message === "object"
+      ? choices[0].message as Record<string,unknown>
+      : {};
+    const content = typeof firstMessage.content === "string" ? firstMessage.content.slice(0,500) : "";
+
+    const diagnostic = {
+      ok:Boolean(found),
+      stage:found ? "image_payload" : "response_without_image",
+      imageModel,
+      httpStatus:response.status,
+      requestId,
+      gatewayProvider,
+      routeDepth,
+      warning,
+      imagePayloadFound:Boolean(found),
+      contentPreview:content,
+      responseKeys:Object.keys(parsed).slice(0,40),
+      providers
+    };
+    console.log("CHUONG_EXPLABS_DIAG_OK", JSON.stringify({...diagnostic,providers:undefined}));
+    return reply(200,diagnostic);
+  }
 
   if (action === "check") {
     if (!imageApiKey) return reply(400, { error: "experiential_api_key_required" });
