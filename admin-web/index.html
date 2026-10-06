@@ -206,7 +206,7 @@
             <div class="ai-studio-copy">
               <div class="catalog-kicker">AI TẠO BÌA</div>
               <h2>Tạo bìa tự động</h2>
-              <p>Chọn nhà cung cấp ảnh. Có thể dùng thêm DeepSeek / Gemini / xAI / OpenAI để viết prompt tốt hơn trước khi tạo ảnh.</p>
+              <p>Ảnh bìa được khóa cứng tỷ lệ 2:3 và chuẩn hóa thành 1024×1536. Nội dung prompt chỉ lấy từ tên truyện + thể loại.</p>
             </div>
             <div class="ai-security-pill">🔒 Key chỉ lưu trong phiên</div>
           </div>
@@ -234,7 +234,7 @@
             </div>
 
             <div class="provider-panel provider-prompt-panel">
-              <div class="provider-panel-title"><span>2</span><div><strong>AI viết prompt · tùy chọn</strong><small>Đọc tên, thể loại và mô tả để viết prompt hình ảnh tốt hơn</small></div></div>
+              <div class="provider-panel-title"><span>2</span><div><strong>AI viết prompt · tùy chọn</strong><small>Chỉ dùng tên truyện + thể loại để viết prompt hình ảnh</small></div></div>
               <div class="provider-select-row">
                 <label>Nhà cung cấp prompt
                   <select id="coverPromptProvider">
@@ -257,10 +257,8 @@
             </div>
           </div>
 
-          <div class="ai-style-row">
-            <label class="ai-style-field">Phong cách bổ sung
-              <input id="coverAiExtraPrompt" type="text" placeholder="Ví dụ: cổ phong điện ảnh, nhân vật chính nổi bật, tông xanh ngọc + vàng..." />
-            </label>
+          <div class="ai-style-row ai-style-row-locked">
+            <div class="cover-lock-note"><strong>Chuẩn bìa cố định</strong><span>Prompt = Tên truyện + Thể loại · 2:3 · 1024×1536 · tự crop/resize trước khi lưu</span></div>
             <label class="ai-toggle-card"><input id="coverAiOverwrite" type="checkbox" /><span><b>Ghi đè bìa đã có</b><small>Tắt = chỉ tạo cho truyện chưa có bìa</small></span></label>
           </div>
         </div>
