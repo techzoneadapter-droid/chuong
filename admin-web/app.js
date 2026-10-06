@@ -3,6 +3,9 @@ const SUPABASE_KEY = 'sb_publishable_dItrQ5tEdt3J-peHAqauzQ_VPnRVu0l';
 
 const state = {
   token: sessionStorage.getItem('chuong_admin_token') || '',
+  refreshToken: sessionStorage.getItem('chuong_admin_refresh') || '',
+  expiresAt: Number(sessionStorage.getItem('chuong_admin_expires_at') || 0),
+  refreshPromise: null,
   userId: sessionStorage.getItem('chuong_admin_user') || '',
   ownerAuthorId: '',
   chapters: [],
@@ -28,6 +31,73 @@ function hideMessage(el) { el.className = 'message hidden'; el.textContent = '';
 function authHeaders(extra={}) {
   return { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + state.token, ...extra };
 }
+function sessionExpiryFromToken(token){
+  try{
+    const payload=token.split('.')[1];
+    if(!payload)return 0;
+    const normalized=payload.replace(/-/g,'+').replace(/_/g,'/');
+    const decoded=JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length/4)*4,'=')));
+    return Number(decoded.exp||0);
+  }catch{return 0;}
+}
+function saveAdminSession(data){
+  if(data?.access_token)state.token=data.access_token;
+  if(data?.refresh_token)state.refreshToken=data.refresh_token;
+  if(data?.user?.id)state.userId=data.user.id;
+  const tokenExp=sessionExpiryFromToken(state.token);
+  state.expiresAt=Number(data?.expires_at||tokenExp||(
+    data?.expires_in ? Math.floor(Date.now()/1000)+Number(data.expires_in) : 0
+  ));
+  sessionStorage.setItem('chuong_admin_token',state.token);
+  sessionStorage.setItem('chuong_admin_user',state.userId);
+  if(state.refreshToken)sessionStorage.setItem('chuong_admin_refresh',state.refreshToken);
+  if(state.expiresAt)sessionStorage.setItem('chuong_admin_expires_at',String(state.expiresAt));
+}
+async function refreshAdminSession(force=false){
+  if(!state.token)return false;
+  const exp=state.expiresAt||sessionExpiryFromToken(state.token);
+  const now=Math.floor(Date.now()/1000);
+  if(!force&&exp&&exp-now>120)return true;
+  if(!state.refreshToken){
+    throw new Error('Phiên Admin hiện tại chưa có refresh token. Hãy đăng xuất và đăng nhập lại một lần để bật tự gia hạn phiên.');
+  }
+  if(state.refreshPromise)return state.refreshPromise;
+  state.refreshPromise=(async()=>{
+    const res=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{
+      method:'POST',
+      headers:{apikey:SUPABASE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:state.refreshToken})
+    });
+    const text=await res.text();
+    let data=null;
+    try{data=text?JSON.parse(text):null;}catch{data=null;}
+    if(!res.ok||!data?.access_token){
+      throw new Error(data?.msg||data?.message||data?.error_description||'Không thể gia hạn phiên Admin. Hãy đăng nhập lại.');
+    }
+    saveAdminSession(data);
+    return true;
+  })();
+  try{return await state.refreshPromise;}
+  finally{state.refreshPromise=null;}
+}
+async function authenticatedFetch(url,options={}){
+  await refreshAdminSession(false);
+  const makeHeaders=()=>{
+    const headers=new Headers(options.headers||{});
+    headers.set('apikey',SUPABASE_KEY);
+    headers.set('Authorization','Bearer '+state.token);
+    return headers;
+  };
+  let res=await fetch(url,{...options,headers:makeHeaders()});
+  if(res.status===401&&state.refreshToken){
+    await refreshAdminSession(true);
+    res=await fetch(url,{...options,headers:makeHeaders()});
+  }
+  return res;
+}
+window.chuongEnsureFreshToken=refreshAdminSession;
+window.chuongAuthFetch=authenticatedFetch;
+
 async function jsonFetch(url, options={}) {
   const res = await fetch(url, options);
   const text = await res.text();
@@ -44,11 +114,21 @@ async function jsonFetch(url, options={}) {
   return data;
 }
 async function rest(path, { method='GET', body, prefer }={}) {
-  const headers = authHeaders({ 'Content-Type': 'application/json' });
-  if (prefer) headers.Prefer = prefer;
-  return jsonFetch(SUPABASE_URL + '/rest/v1/' + path, {
-    method, headers, body: body === undefined ? undefined : JSON.stringify(body),
+  const headers={ 'Content-Type':'application/json' };
+  if(prefer)headers.Prefer=prefer;
+  const res=await authenticatedFetch(SUPABASE_URL+'/rest/v1/'+path,{
+    method,headers,body:body===undefined?undefined:JSON.stringify(body)
   });
+  const text=await res.text();
+  let data=null;
+  try{data=text?JSON.parse(text):null;}catch{data=text;}
+  if(!res.ok){
+    const code=data?.code||data?.error_code||'';
+    const message=data?.message||data?.msg||data?.error_description||data?.error||('HTTP '+res.status);
+    if(res.status===401)throw new Error('Phiên Admin đã hết hạn. Hệ thống không gia hạn được; hãy đăng nhập lại.');
+    throw new Error(message+(code?' · '+code:''));
+  }
+  return data;
 }
 function slugify(value) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/đ/g,'d').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -675,7 +755,13 @@ function scheduleStartIso(){
 
 async function ensureAdmin(){
   if(!state.token||!state.userId)return false;
+  if(!state.refreshToken){
+    logout();
+    showMessage(loginMessage,'Cần đăng nhập lại một lần để bật tự gia hạn phiên cho các tác vụ chạy lâu như tạo bìa hàng loạt.','info');
+    return false;
+  }
   try{
+    await refreshAdminSession(false);
     const rows=await rest('profiles?id=eq.'+encodeURIComponent(state.userId)+'&select=role,display_name,username');
     const profile=rows?.[0];
     if(profile?.role!=='admin')throw new Error('Tài khoản không có quyền Admin.');
@@ -692,16 +778,18 @@ async function ensureAdmin(){
   }catch(err){ logout(); showMessage(loginMessage,err.message||String(err)); return false; }
 }
 function logout(){
-  state.token='';state.userId='';state.ownerAuthorId='';
-  sessionStorage.removeItem('chuong_admin_token');sessionStorage.removeItem('chuong_admin_user');
+  state.token='';state.refreshToken='';state.expiresAt=0;state.refreshPromise=null;state.userId='';state.ownerAuthorId='';
+  sessionStorage.removeItem('chuong_admin_token');
+  sessionStorage.removeItem('chuong_admin_refresh');
+  sessionStorage.removeItem('chuong_admin_expires_at');
+  sessionStorage.removeItem('chuong_admin_user');
   studioView.classList.add('hidden');loginView.classList.remove('hidden');
 }
 $('loginForm').addEventListener('submit',async(e)=>{
   e.preventDefault();hideMessage(loginMessage);
   try{
     const data=await jsonFetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
-    state.token=data.access_token;state.userId=data.user.id;
-    sessionStorage.setItem('chuong_admin_token',state.token);sessionStorage.setItem('chuong_admin_user',state.userId);
+    saveAdminSession(data);
     await ensureAdmin();
   }catch(err){showMessage(loginMessage,err.message||String(err));}
 });
@@ -780,7 +868,7 @@ async function uploadCover(bookId){
   const ext=state.coverMime==='image/png'?'png':state.coverMime==='image/webp'?'webp':'jpg';
   const path=state.userId+'/'+bookId+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,10)+'.'+ext;
   const encoded=path.split('/').map(encodeURIComponent).join('/');
-  const res=await fetch(SUPABASE_URL+'/storage/v1/object/book-covers/'+encoded,{method:'POST',headers:authHeaders({'Content-Type':state.coverMime,'x-upsert':'false'}),body:state.coverBlob});
+  const res=await authenticatedFetch(SUPABASE_URL+'/storage/v1/object/book-covers/'+encoded,{method:'POST',headers:{'Content-Type':state.coverMime,'x-upsert':'false'},body:state.coverBlob});
   if(!res.ok){const data=await res.json().catch(()=>null);throw new Error(data?.message||'Không thể tải ảnh bìa.');}
   const publicUrl=SUPABASE_URL+'/storage/v1/object/public/book-covers/'+encoded;
   await rest('books?id=eq.'+bookId,{method:'PATCH',body:{cover_url:publicUrl}});
