@@ -71,3 +71,20 @@ test('reader settings and real Vietnamese TTS controls remain interactive', asyn
   await page.getByText('1.25x', { exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('reader:tts'))).toContain('"speed":1.25');
 });
+
+
+test('mobile web keeps Vietnamese labels and disables browser re-translation', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/discover');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
+  await expect(page.locator('html')).toHaveAttribute('translate', 'no');
+  await expect(page.locator('meta[name="google"]')).toHaveAttribute('content', 'notranslate');
+  await expect(page.getByText('Tất cả', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Mọi trạng thái', { exact: true })).toBeVisible();
+  await page.goto('/reader/kiem-yen-van?chapter=1');
+  await expect(page.getByText('Mục lục', { exact: true })).toBeVisible();
+  await expect(page.getByText('Giao diện', { exact: true })).toBeVisible();
+  await expect(page.getByText('Nghe', { exact: true })).toBeVisible();
+  await expect(page.getByText('Thêm', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
