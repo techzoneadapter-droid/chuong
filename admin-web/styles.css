@@ -653,3 +653,46 @@ button,input,select,textarea{letter-spacing:0}
 @media(max-width:1050px){
   #catalogManageMode .experiential-layout{grid-template-columns:1fr}
 }
+
+
+/* Experiential API check */
+#catalogManageMode .cover-check-api{
+  height:42px;
+  padding:0 14px;
+  border-radius:10px;
+  border:1px solid #b8d0c5;
+  background:#173f35;
+  color:#fff;
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
+  cursor:pointer;
+}
+#catalogManageMode .cover-check-api:hover{background:#215646}
+#catalogManageMode .cover-check-api:disabled{opacity:.58;cursor:wait}
+#catalogManageMode .api-check-status{
+  margin:-1px 0 9px;
+  min-height:34px;
+  padding:8px 10px;
+  border-radius:9px;
+  border:1px solid #dde2df;
+  background:#f6f7f6;
+  color:#68716d;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:10px;
+  line-height:1.4;
+}
+#catalogManageMode .api-check-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:#9aa29e;flex:0 0 auto;
+}
+#catalogManageMode .api-check-status.checking{background:#f8f4e8;border-color:#eadcb3;color:#7b692f}
+#catalogManageMode .api-check-status.checking .api-check-dot{background:#c59a2e;box-shadow:0 0 0 4px rgba(197,154,46,.11)}
+#catalogManageMode .api-check-status.ok{background:#eef7f1;border-color:#c5dfce;color:#285b3b}
+#catalogManageMode .api-check-status.ok .api-check-dot{background:#319052;box-shadow:0 0 0 4px rgba(49,144,82,.1)}
+#catalogManageMode .api-check-status.warn{background:#fff7e8;border-color:#edd8aa;color:#816326}
+#catalogManageMode .api-check-status.warn .api-check-dot{background:#cf9625}
+#catalogManageMode .api-check-status.bad{background:#fff0f1;border-color:#ebc5ca;color:#9a3544}
+#catalogManageMode .api-check-status.bad .api-check-dot{background:#d44a5e}
