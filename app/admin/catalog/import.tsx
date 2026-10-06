@@ -188,7 +188,7 @@ export default function AdminBulkImportScreen() {
           ownerAuthorId,
           title: item.title,
           creditedAuthorName: creditedAuthorName.trim() || null,
-          description: `Truyện được nhập vào Tàng Kinh Các từ nguồn “${item.sourceName}”. Nội dung sẽ được biên tập và kiểm duyệt trên CHƯƠNG.`,
+          description: item.summary?.trim() || 'Hãy khám phá.',
           genre,
           tags: [],
           language,
