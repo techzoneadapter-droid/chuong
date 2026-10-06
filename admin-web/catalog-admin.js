@@ -2,7 +2,7 @@
 (() => {
   const PAGE_SIZE=100;
   const CHAPTER_PAGE_SIZE=50;
-  const GENRES=['Tiên hiệp','Huyền huyễn','Đô thị','Kiếm hiệp','Ngôn tình','Kinh dị','Fantasy','Khoa huyễn','Hệ thống','Trinh thám','Văn học','Khác'];
+  const GENRES=['Xuyên không','Trọng sinh','Hệ thống','Tiên hiệp','Huyền huyễn','Mạt thế','Đam mỹ','Ngôn tình','Cổ đại','Cung đấu','Đô thị','Giới giải trí','Huyền học','Trinh thám','Kinh dị','Khoa huyễn','Esports','Kiếm hiệp','Fantasy','Điền văn','Vô hạn lưu','Niên đại','Văn học','Khác'];
   const $c=(id)=>document.getElementById(id);
   const catalogState={
     loaded:false,loading:false,page:1,total:0,rows:[],selected:new Set(),
@@ -324,6 +324,8 @@
     $c('catalogSelectedCount').textContent=count.toLocaleString('vi-VN');
     if($c('catalogStatSelected'))$c('catalogStatSelected').textContent=count.toLocaleString('vi-VN');
     $c('catalogBulkEditBtn').disabled=count===0;
+    if($c('catalogAutoGenreBtn'))$c('catalogAutoGenreBtn').disabled=count===0;
+    if($c('catalogContentCleanupBtn'))$c('catalogContentCleanupBtn').disabled=count===0;
     const selectedModel=$c('coverAiModel')?.value||null;
     const modelReady=catalogState.coverModelTest.ok&&catalogState.coverModelTest.model===selectedModel;
     $c('catalogBulkCoverBtn').disabled=count===0;
@@ -676,6 +678,121 @@
     finally{$c('catalogApplyBulkEditBtn').disabled=false;}
   }
 
+
+  function chunkIds(ids,size=80){
+    const chunks=[];
+    for(let i=0;i<ids.length;i+=size)chunks.push(ids.slice(i,i+size));
+    return chunks;
+  }
+
+  async function autoReclassifySelected(){
+    const ids=[...catalogState.selected];
+    if(!ids.length)return;
+    if(typeof inferGenresFromStory!=='function'){
+      return showCatalogMessage('Bộ phân loại thể loại chưa được tải. Hãy tải lại trang rồi thử lại.','error');
+    }
+    if(!confirm('Phân loại lại '+ids.length+' truyện đang chọn?\n\nHệ thống sẽ đọc tên + tóm tắt + 3 chương mẫu, sau đó thay thể loại hiện tại bằng tối đa 3 thể loại phù hợp.')){
+      return;
+    }
+    const button=$c('catalogAutoGenreBtn');
+    button.disabled=true;
+    let done=0,success=0,failed=0;
+    try{
+      const batches=chunkIds(ids,80);
+      for(const batch of batches){
+        setCatalogProgress(done,ids.length,'Đang đọc nội dung để phân loại '+done+'/'+ids.length);
+        const inputs=await rest('rpc/admin_genre_scan_inputs',{method:'POST',body:{p_book_ids:batch}});
+        const updates=(inputs||[]).map(row=>{
+          const inferred=inferGenresFromStory({
+            title:row.title||'',
+            summary:row.description||'',
+            sample:row.sample_text||''
+          });
+          const genres=(inferred?.genres||[]).filter(Boolean).slice(0,3);
+          return {book_id:row.book_id,genres:genres.length?genres:['Khác']};
+        });
+        if(updates.length){
+          const result=await rest('rpc/admin_apply_book_genres',{method:'POST',body:{p_updates:updates}});
+          success+=(result||[]).filter(item=>item.success).length;
+          failed+=(result||[]).filter(item=>!item.success).length;
+        }
+        done+=batch.length;
+        setCatalogProgress(Math.min(done,ids.length),ids.length,'Đã phân loại lại '+Math.min(done,ids.length)+'/'+ids.length);
+      }
+      showCatalogMessage('Phân loại lại hoàn tất · '+success+' thành công'+(failed?' · '+failed+' lỗi':'')+'. Mỗi truyện có tối đa 3 thể loại để người đọc tìm dễ hơn.',failed?'warn':'success');
+      await loadCatalog(false);
+    }catch(error){
+      showCatalogMessage('Không thể phân loại lại: '+(error.message||String(error)),'error');
+    }finally{
+      button.disabled=catalogState.selected.size===0;
+    }
+  }
+
+  async function cleanSelectedContent(){
+    const ids=[...catalogState.selected];
+    if(!ids.length)return;
+    const button=$c('catalogContentCleanupBtn');
+    button.disabled=true;
+    try{
+      let previewDone=0,totalJunk=0,totalAffected=0,totalChapters=0;
+      const sampleSet=new Set();
+      const batches=chunkIds(ids,80);
+      for(const batch of batches){
+        setCatalogProgress(previewDone,ids.length,'Đang quét rác nội dung '+previewDone+'/'+ids.length);
+        const rows=await rest('rpc/admin_content_hygiene_preview',{method:'POST',body:{p_book_ids:batch}});
+        for(const row of rows||[]){
+          totalJunk+=Number(row.junk_lines||0);
+          totalAffected+=Number(row.affected_chapters||0);
+          totalChapters+=Number(row.total_chapters||0);
+          for(const sample of row.sample_lines||[]){
+            if(sampleSet.size<10&&sample)sampleSet.add(sample);
+          }
+        }
+        previewDone+=batch.length;
+        setCatalogProgress(Math.min(previewDone,ids.length),ids.length,'Đã quét '+Math.min(previewDone,ids.length)+'/'+ids.length+' truyện');
+      }
+
+      if(totalJunk===0){
+        showCatalogMessage('Quét xong '+ids.length+' truyện / '+totalChapters+' chương · không phát hiện STK, URL, watermark web truyện hay dòng nguồn/reup cần dọn.','success');
+        return;
+      }
+
+      const samples=[...sampleSet].slice(0,6).map(x=>'• '+x).join('\n');
+      const ok=confirm(
+        'Đã quét '+ids.length+' truyện / '+totalChapters+' chương.\n'+
+        'Phát hiện '+totalJunk+' dòng rác trong '+totalAffected+' chương.\n\n'+
+        (samples?('Ví dụ:\n'+samples+'\n\n'):'')+
+        'Tiếp tục xóa các dòng rác này?\n\n'+
+        'Hệ thống sẽ tự sao lưu nội dung gốc của mọi chương bị sửa để có thể khôi phục.'
+      );
+      if(!ok){
+        showCatalogMessage('Đã quét nhưng chưa dọn. Phát hiện '+totalJunk+' dòng rác trong '+totalAffected+' chương.','warn');
+        return;
+      }
+
+      let done=0,changed=0,removed=0,skipped=0;
+      const runIds=[];
+      for(const batch of batches){
+        setCatalogProgress(done,ids.length,'Đang dọn rác '+done+'/'+ids.length);
+        const rows=await rest('rpc/admin_clean_story_junk',{method:'POST',body:{p_book_ids:batch}});
+        const result=rows?.[0]||{};
+        changed+=Number(result.chapters_changed||0);
+        removed+=Number(result.junk_lines_removed||0);
+        skipped+=Number(result.chapters_skipped||0);
+        if(result.run_id)runIds.push(result.run_id);
+        done+=batch.length;
+        setCatalogProgress(Math.min(done,ids.length),ids.length,'Đã dọn '+Math.min(done,ids.length)+'/'+ids.length+' truyện');
+      }
+      const suffix=skipped?' · '+skipped+' chương quá ít nội dung đã được giữ nguyên để tránh xóa nhầm':'';
+      showCatalogMessage('Dọn rác hoàn tất · '+removed+' dòng đã xóa trong '+changed+' chương'+suffix+'. Bản gốc đã được sao lưu nội bộ.',skipped?'warn':'success');
+      await loadCatalog(false);
+    }catch(error){
+      showCatalogMessage('Không thể dọn rác: '+(error.message||String(error)),'error');
+    }finally{
+      button.disabled=catalogState.selected.size===0;
+    }
+  }
+
   async function deleteBooks(ids,fromEditor=false){
     if(!ids.length)return;
     const phrase='XOA '+ids.length;
@@ -722,6 +839,8 @@
   $c('catalogSelectAllBtn')?.addEventListener('click',()=>void selectAllFiltered());
   $c('catalogClearSelectionBtn')?.addEventListener('click',()=>{catalogState.selected.clear();renderCatalog();});
   $c('catalogBulkEditBtn')?.addEventListener('click',openBulkEdit);
+  $c('catalogAutoGenreBtn')?.addEventListener('click',()=>void autoReclassifySelected());
+  $c('catalogContentCleanupBtn')?.addEventListener('click',()=>void cleanSelectedContent());
   $c('catalogBulkCoverBtn')?.addEventListener('click',()=>void bulkGenerateCovers());
   $c('catalogBulkDeleteBtn')?.addEventListener('click',()=>void deleteBooks([...catalogState.selected],false));
   $c('catalogRows')?.addEventListener('change',event=>{
