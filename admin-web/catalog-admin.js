@@ -8,7 +8,8 @@
     loaded:false,loading:false,page:1,total:0,rows:[],selected:new Set(),
     editing:null,chapterPage:1,chapterTotal:0,chapterRows:[],editingChapter:null,
     coverBusy:false,
-    coverModelTest:{model:null,ok:false}
+    coverModelTest:{model:null,ok:false},
+    cleanupPreview:{ids:[],items:[]}
   };
   const EXPERIENTIAL_IMAGE_DEFAULT='gemini-2.5-flash-image';
   const EXPERIENTIAL_PROMPT_DEFAULT='deepseek-v4-flash';
@@ -729,54 +730,111 @@
   }
 
 
+
+  function closeCleanupPreview(){
+    $c('catalogCleanupModal')?.classList.add('hidden');
+  }
+
+  function renderCleanupPreview(ids,items){
+    catalogState.cleanupPreview={ids:[...ids],items:[...items]};
+    const modal=$c('catalogCleanupModal');
+    const list=$c('catalogCleanupList');
+    const summary=$c('catalogCleanupSummary');
+    if(!modal||!list||!summary)return;
+
+    const chapters=new Set(items.map(item=>item.chapter_id));
+    const books=new Set(items.map(item=>item.book_id));
+    summary.textContent=
+      'Tìm thấy '+items.length.toLocaleString('vi-VN')+' dòng rác thực tế trong '+
+      chapters.size.toLocaleString('vi-VN')+' chương / '+
+      books.size.toLocaleString('vi-VN')+' truyện.';
+
+    list.innerHTML=items.length
+      ?items.map((item,index)=>{
+        const chapterTitle=String(item.chapter_title||'').trim();
+        return '<div class="cleanup-preview-item">'+
+          '<div class="cleanup-preview-meta">'+
+            '<strong>#'+(index+1)+' · '+esc(item.book_title||'Không rõ truyện')+'</strong>'+
+            '<span>Chương '+Number(item.chapter_number||0).toLocaleString('vi-VN')+
+              (chapterTitle?' · '+esc(chapterTitle):'')+'</span>'+
+            '<span>Dòng '+Number(item.line_number||0).toLocaleString('vi-VN')+'</span>'+
+          '</div>'+
+          '<div class="cleanup-preview-text">'+esc(item.junk_text||'')+'</div>'+
+        '</div>';
+      }).join('')
+      :'<div class="cleanup-preview-empty">Không tìm thấy dòng rác nào.</div>';
+
+    const confirmBtn=$c('catalogCleanupConfirmBtn');
+    if(confirmBtn){
+      confirmBtn.disabled=!items.length;
+      confirmBtn.textContent=items.length
+        ?'Xác nhận xóa '+items.length.toLocaleString('vi-VN')+' dòng trên'
+        :'Không có gì để xóa';
+    }
+    modal.classList.remove('hidden');
+  }
+
   async function cleanSelectedContent(){
     const ids=[...catalogState.selected];
     if(!ids.length)return;
     const button=$c('catalogContentCleanupBtn');
     button.disabled=true;
     try{
-      let previewDone=0,totalJunk=0,totalAffected=0,totalChapters=0;
-      const sampleSet=new Set();
+      const items=[];
+      let done=0;
 
-      // IMPORTANT: scan one book per RPC. A single all-library SQL scan can exceed
-      // Supabase/Postgres statement_timeout (57014) when thousands of chapters are selected.
+      // Fetch exact matches one book at a time to avoid statement_timeout on a large library.
       for(const id of ids){
-        setCatalogProgress(previewDone,ids.length,'Đang quét rác nội dung '+previewDone+'/'+ids.length+' truyện');
-        const rows=await rest('rpc/admin_content_hygiene_preview',{method:'POST',body:{p_book_ids:[id]}});
-        for(const row of rows||[]){
-          totalJunk+=Number(row.junk_lines||0);
-          totalAffected+=Number(row.affected_chapters||0);
-          totalChapters+=Number(row.total_chapters||0);
-          for(const sample of row.sample_lines||[]){
-            if(sampleSet.size<12&&sample)sampleSet.add(sample);
-          }
-        }
-        previewDone++;
-        setCatalogProgress(previewDone,ids.length,'Đã quét '+previewDone+'/'+ids.length+' truyện');
-        // Yield briefly so a large library does not hammer the database.
-        if(previewDone<ids.length)await new Promise(resolve=>setTimeout(resolve,80));
+        setCatalogProgress(done,ids.length,'Đang quét và lấy văn bản rác thật '+done+'/'+ids.length+' truyện');
+        const rows=await rest('rpc/admin_content_hygiene_items',{method:'POST',body:{p_book_id:id}});
+        for(const row of rows||[])items.push(row);
+        done++;
+        setCatalogProgress(done,ids.length,'Đã quét '+done+'/'+ids.length+' truyện · tìm thấy '+items.length+' dòng rác');
+        if(done<ids.length)await new Promise(resolve=>setTimeout(resolve,70));
       }
 
-      if(totalJunk===0){
-        showCatalogMessage('Quét xong '+ids.length+' truyện / '+totalChapters+' chương · không phát hiện STK, URL, watermark web truyện, nguồn/editor/reup hoặc ký tự rác. Chức năng này không dùng AI.','success');
+      if(!items.length){
+        catalogState.cleanupPreview={ids:[],items:[]};
+        showCatalogMessage(
+          'Quét xong '+ids.length+' truyện · không phát hiện dòng rác nào. Không dùng AI.',
+          'success'
+        );
         return;
       }
 
-      const samples=[...sampleSet].slice(0,8).map(x=>'• '+x).join('\n');
-      const ok=confirm(
-        'Đã quét '+ids.length+' truyện / '+totalChapters+' chương.\n'+
-        'Phát hiện '+totalJunk+' dòng rác trong '+totalAffected+' chương.\n\n'+
-        (samples?('Ví dụ:\n'+samples+'\n\n'):'')+
-        'Tiếp tục xóa các dòng rác này?\n\n'+
-        'Không dùng AI. Mỗi chương bị sửa sẽ được sao lưu nội dung gốc để có thể khôi phục.'
+      renderCleanupPreview(ids,items);
+      showCatalogMessage(
+        'Đã quét xong. Mở bảng kết quả để kiểm tra đúng '+items.length+
+        ' dòng rác thực tế trước khi quyết định xóa. Chưa có nội dung nào bị xóa.',
+        'warn'
       );
-      if(!ok){
-        showCatalogMessage('Đã quét nhưng chưa dọn. Phát hiện '+totalJunk+' dòng rác trong '+totalAffected+' chương.','warn');
-        return;
-      }
+    }catch(error){
+      const message=error.message||String(error);
+      const timeout=/57014|statement timeout|canceling statement/i.test(message);
+      showCatalogMessage(
+        timeout
+          ?'Một truyện vẫn vượt thời gian quét. Chưa có nội dung nào bị xóa. Hãy thử chọn ít truyện hơn hoặc báo tên truyện đó để tối ưu riêng.'
+          :'Không thể quét rác: '+message,
+        'error'
+      );
+    }finally{
+      button.disabled=catalogState.selected.size===0;
+    }
+  }
 
-      let done=0,changed=0,removed=0,skipped=0,failedBooks=0;
-      const runIds=[];
+  async function runConfirmedCleanup(){
+    const ids=[...(catalogState.cleanupPreview?.ids||[])];
+    const expectedItems=[...(catalogState.cleanupPreview?.items||[])];
+    if(!ids.length||!expectedItems.length)return;
+
+    const confirmBtn=$c('catalogCleanupConfirmBtn');
+    const cancelBtn=$c('catalogCleanupCancelBtn');
+    if(confirmBtn)confirmBtn.disabled=true;
+    if(cancelBtn)cancelBtn.disabled=true;
+
+    let done=0,changed=0,removed=0,skipped=0,failedBooks=0;
+    try{
+      closeCleanupPreview();
       for(const id of ids){
         try{
           setCatalogProgress(done,ids.length,'Đang dọn rác '+done+'/'+ids.length+' truyện');
@@ -785,37 +843,30 @@
           changed+=Number(result.chapters_changed||0);
           removed+=Number(result.junk_lines_removed||0);
           skipped+=Number(result.chapters_skipped||0);
-          if(result.run_id)runIds.push(result.run_id);
         }catch(error){
           failedBooks++;
           console.warn('Story cleanup failed for book',id,error);
         }
         done++;
         setCatalogProgress(done,ids.length,'Đã dọn '+done+'/'+ids.length+' truyện');
-        if(done<ids.length)await new Promise(resolve=>setTimeout(resolve,80));
+        if(done<ids.length)await new Promise(resolve=>setTimeout(resolve,70));
       }
 
       const notes=[];
       if(skipped)notes.push(skipped+' chương được giữ nguyên để tránh xóa quá nhiều nội dung');
       if(failedBooks)notes.push(failedBooks+' truyện lỗi và được bỏ qua');
+
       showCatalogMessage(
         'Dọn rác hoàn tất · '+removed+' dòng đã xóa trong '+changed+' chương'+
         (notes.length?' · '+notes.join(' · '):'')+
-        '. Bản gốc đã được sao lưu nội bộ. Không dùng AI.',
+        '. Mọi chương đã sửa đều có bản sao lưu nội bộ. Không dùng AI.',
         failedBooks||skipped?'warn':'success'
       );
+      catalogState.cleanupPreview={ids:[],items:[]};
       await loadCatalog(false);
-    }catch(error){
-      const message=error.message||String(error);
-      const timeout=/57014|statement timeout|canceling statement/i.test(message);
-      showCatalogMessage(
-        timeout
-          ?'Quét một truyện vẫn vượt thời gian xử lý. Hệ thống đã dừng an toàn, chưa xóa nội dung của truyện đang lỗi. Hãy thử lại với ít truyện hơn hoặc báo tên truyện đó để tối ưu riêng.'
-          :'Không thể dọn rác: '+message,
-        'error'
-      );
     }finally{
-      button.disabled=catalogState.selected.size===0;
+      if(confirmBtn)confirmBtn.disabled=false;
+      if(cancelBtn)cancelBtn.disabled=false;
     }
   }
 
@@ -867,6 +918,9 @@
   $c('catalogBulkEditBtn')?.addEventListener('click',openBulkEdit);
   $c('catalogAutoGenreBtn')?.addEventListener('click',()=>void autoReclassifySelected());
   $c('catalogContentCleanupBtn')?.addEventListener('click',()=>void cleanSelectedContent());
+  $c('catalogCleanupConfirmBtn')?.addEventListener('click',()=>void runConfirmedCleanup());
+  $c('catalogCleanupCancelBtn')?.addEventListener('click',closeCleanupPreview);
+  document.querySelectorAll('[data-close-cleanup-preview]').forEach(el=>el.addEventListener('click',closeCleanupPreview));
   $c('catalogBulkCoverBtn')?.addEventListener('click',()=>void bulkGenerateCovers());
   $c('catalogBulkDeleteBtn')?.addEventListener('click',()=>void deleteBooks([...catalogState.selected],false));
   $c('catalogRows')?.addEventListener('change',event=>{
