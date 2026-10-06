@@ -173,24 +173,40 @@ async function generateImage(input: {
   if (!input.apiKey) throw new Error("image_api_key_required");
 
   if (input.provider === "experiential") {
+    // Experiential's OpenAI-compatible gateway rejects top-level "modalities".
+    // Image-capable slugs are invoked like a normal Chat Completions model.
+    // The prompt itself requests a 2:3 cover; the Admin UI then hard-normalizes
+    // the returned image to exactly 1024x1536 before upload.
     const response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: "Bearer " + input.apiKey, "Content-Type": "application/json" },
+      headers: {
+        Authorization: "Bearer " + input.apiKey,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        model: input.model || "gemini-2.5-flash-image",
+        model: input.model || "gemini-3.1-flash-lite-image",
         messages: [{ role: "user", content: input.prompt }],
-        modalities: ["image", "text"],
-        image_config: { aspect_ratio: "2:3" },
         stream: false,
       }),
     });
+    const raw = await response.text();
     if (!response.ok) {
-      const raw = await response.text();
       throw new Error("experiential_image_" + response.status + ":" + raw.slice(0, 1000));
     }
-    const data = await response.json();
+
+    let data: unknown;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error("experiential_image_invalid_json");
+    }
+
     const found = findNestedImage(data);
-    if (!found) throw new Error("experiential_image_missing_payload");
+    if (!found) {
+      // Keep a short response fragment in the error so we can diagnose a
+      // provider/profile that returned text instead of image content.
+      throw new Error("experiential_image_missing_payload:" + raw.slice(0, 700));
+    }
     return { ...found, revisedPrompt: null };
   }
 
@@ -346,7 +362,7 @@ Deno.serve(async (req: Request) => {
   const imageModel = (
     body.imageModel ||
     body.model ||
-    (imageProvider === "experiential" ? "gemini-2.5-flash-image" :
+    (imageProvider === "experiential" ? "gemini-3.1-flash-lite-image" :
       imageProvider === "xai" ? "grok-imagine-image-2.0" :
       imageProvider === "gemini" ? "gemini-3.1-flash-image" : "gpt-image-2")
   ).trim();
