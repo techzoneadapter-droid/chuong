@@ -8,6 +8,7 @@ export type ParsedImportBook = {
   id: string;
   sourceName: string;
   title: string;
+  summary?: string;
   chapters: ParsedImportChapter[];
   warnings: string[];
   coverDataUri?: string;
