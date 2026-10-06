@@ -9,20 +9,8 @@
     editing:null,chapterPage:1,chapterTotal:0,chapterRows:[],editingChapter:null,
     coverBusy:false
   };
-  const IMAGE_PRESETS={
-    openai:{label:'OpenAI',baseUrl:'https://api.openai.com/v1',model:'gpt-image-2',hint:'OpenAI Images · bìa dọc 1024×1536, phù hợp tạo ảnh thương mại.'},
-    gemini:{label:'Gemini',baseUrl:'https://generativelanguage.googleapis.com/v1beta',model:'gemini-3.1-flash-image',hint:'Google Gemini / Nano Banana · sinh ảnh trực tiếp, tỷ lệ 2:3, kích thước 1K.'},
-    xai:{label:'xAI',baseUrl:'https://api.x.ai/v1',model:'grok-imagine-image-2.0',hint:'xAI Grok Imagine · tỷ lệ 2:3, độ phân giải 1K.'},
-    custom:{label:'Custom',baseUrl:'',model:'',hint:'Nhà cung cấp OpenAI-compatible khác · tự nhập Base URL và model.'}
-  };
-  const PROMPT_PRESETS={
-    none:{label:'OFF',baseUrl:'',model:'',hint:'Không dùng AI trung gian · hệ thống tự tạo prompt từ tên truyện + thể loại + mô tả.'},
-    deepseek:{label:'DeepSeek',baseUrl:'https://api.deepseek.com',model:'deepseek-flash',hint:'DeepSeek chỉ viết/tối ưu prompt; ảnh vẫn do AI tạo ảnh ở cột bên trái sinh ra.'},
-    gemini:{label:'Gemini',baseUrl:'https://generativelanguage.googleapis.com/v1beta',model:'gemini-3.1-flash',hint:'Gemini đọc tên, thể loại và mô tả rồi viết prompt bìa chi tiết trước khi tạo ảnh.'},
-    xai:{label:'xAI',baseUrl:'https://api.x.ai/v1',model:'grok-4.7',hint:'Grok viết prompt hình ảnh chi tiết; Grok Imagine hoặc provider khác sẽ sinh ảnh.'},
-    openai:{label:'OpenAI',baseUrl:'https://api.openai.com/v1',model:'gpt-6-luna',hint:'OpenAI tối ưu prompt trước khi chuyển sang model tạo ảnh.'},
-    custom:{label:'Custom',baseUrl:'',model:'',hint:'AI viết prompt theo chuẩn OpenAI Chat Completions · tự nhập Base URL và model.'}
-  };
+  const EXPERIENTIAL_IMAGE_DEFAULT='gemini-2.5-flash-image';
+  const EXPERIENTIAL_PROMPT_DEFAULT='deepseek-v4-flash';
 
   function esc(value){
     return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
@@ -52,76 +40,51 @@
     return '<span>Chưa có</span>';
   }
   function aiSettings(){
+    const promptEnabled=$c('coverPromptProvider').value==='experiential';
     return {
-      imageProvider:$c('coverImageProvider').value||'openai',
-      imageApiKey:$c('coverAiKey').value.trim(),
-      imageBaseUrl:$c('coverAiBaseUrl').value.trim(),
-      imageModel:$c('coverAiModel').value.trim(),
-      promptProvider:$c('coverPromptProvider').value||'none',
-      promptApiKey:$c('coverPromptKey').value.trim(),
-      promptBaseUrl:$c('coverPromptBaseUrl').value.trim(),
-      promptModel:$c('coverPromptModel').value.trim(),
-      extraPrompt:'',
+      apiKey:$c('coverAiKey').value.trim(),
+      imageModel:$c('coverAiModel').value.trim()||EXPERIENTIAL_IMAGE_DEFAULT,
+      promptModel:promptEnabled?($c('coverPromptModel').value.trim()||EXPERIENTIAL_PROMPT_DEFAULT):'',
       overwrite:$c('coverAiOverwrite').checked
     };
   }
-  function providerClass(provider){
-    return 'provider-badge provider-'+String(provider||'none').replace(/[^a-z0-9_-]/gi,'');
-  }
-  function applyImageProvider(provider,applyPreset=true){
-    const preset=IMAGE_PRESETS[provider]||IMAGE_PRESETS.openai;
-    $c('coverImageProvider').value=provider;
-    if(applyPreset){
-      $c('coverAiBaseUrl').value=preset.baseUrl;
-      $c('coverAiModel').value=preset.model;
-    }
-    const badge=$c('coverImageProviderBadge');
-    badge.textContent=preset.label;
-    badge.className=providerClass(provider);
-    $c('coverImageProviderHint').textContent=preset.hint;
-  }
-  function applyPromptProvider(provider,applyPreset=true){
-    const preset=PROMPT_PRESETS[provider]||PROMPT_PRESETS.none;
-    $c('coverPromptProvider').value=provider;
-    if(applyPreset){
-      $c('coverPromptBaseUrl').value=preset.baseUrl;
-      $c('coverPromptModel').value=preset.model;
-    }
-    const disabled=provider==='none';
-    $c('coverPromptFields').classList.toggle('is-disabled',disabled);
-    for(const input of $c('coverPromptFields').querySelectorAll('input'))input.disabled=disabled;
-    const badge=$c('coverPromptProviderBadge');
-    badge.textContent=preset.label;
-    badge.className=providerClass(provider);
-    $c('coverPromptProviderHint').textContent=preset.hint;
+  function applyPromptMode(){
+    const enabled=$c('coverPromptProvider').value==='experiential';
+    $c('coverPromptFields').classList.toggle('is-disabled',!enabled);
+    for(const input of $c('coverPromptFields').querySelectorAll('input'))input.disabled=!enabled;
+    $c('coverPromptProviderHint').textContent=enabled
+      ?'Dùng chung Experiential API key. Model gợi ý: deepseek-v4-flash.'
+      :'Không dùng AI trung gian · prompt khóa cứng từ tên truyện + thể loại.';
   }
   function persistAiSettings(){
     const settings=aiSettings();
-    sessionStorage.setItem('chuong_cover_image_provider',settings.imageProvider);
-    sessionStorage.setItem('chuong_cover_image_base_url',settings.imageBaseUrl);
-    sessionStorage.setItem('chuong_cover_image_model',settings.imageModel);
-    sessionStorage.setItem('chuong_cover_prompt_provider',settings.promptProvider);
-    sessionStorage.setItem('chuong_cover_prompt_base_url',settings.promptBaseUrl);
-    sessionStorage.setItem('chuong_cover_prompt_model',settings.promptModel);
-    sessionStorage.removeItem('chuong_cover_ai_extra');
-    if(settings.imageApiKey)sessionStorage.setItem('chuong_cover_image_key',settings.imageApiKey);
-    else sessionStorage.removeItem('chuong_cover_image_key');
-    if(settings.promptApiKey)sessionStorage.setItem('chuong_cover_prompt_key',settings.promptApiKey);
-    else sessionStorage.removeItem('chuong_cover_prompt_key');
+    sessionStorage.setItem('chuong_explabs_image_model',settings.imageModel);
+    sessionStorage.setItem('chuong_explabs_prompt_mode',$c('coverPromptProvider').value);
+    sessionStorage.setItem('chuong_explabs_prompt_model',$c('coverPromptModel').value.trim());
+    if(settings.apiKey)sessionStorage.setItem('chuong_explabs_api_key',settings.apiKey);
+    else sessionStorage.removeItem('chuong_explabs_api_key');
   }
   function restoreAiSettings(){
-    const imageProvider=sessionStorage.getItem('chuong_cover_image_provider')||'openai';
-    const promptProvider=sessionStorage.getItem('chuong_cover_prompt_provider')||'none';
-    applyImageProvider(imageProvider,false);
-    applyPromptProvider(promptProvider,false);
-    $c('coverAiKey').value=sessionStorage.getItem('chuong_cover_image_key')||sessionStorage.getItem('chuong_cover_ai_key')||'';
-    $c('coverAiBaseUrl').value=sessionStorage.getItem('chuong_cover_image_base_url')||IMAGE_PRESETS[imageProvider]?.baseUrl||'';
-    $c('coverAiModel').value=sessionStorage.getItem('chuong_cover_image_model')||IMAGE_PRESETS[imageProvider]?.model||'';
-    $c('coverPromptKey').value=sessionStorage.getItem('chuong_cover_prompt_key')||'';
-    $c('coverPromptBaseUrl').value=sessionStorage.getItem('chuong_cover_prompt_base_url')||PROMPT_PRESETS[promptProvider]?.baseUrl||'';
-    $c('coverPromptModel').value=sessionStorage.getItem('chuong_cover_prompt_model')||PROMPT_PRESETS[promptProvider]?.model||'';
-    applyImageProvider(imageProvider,false);
-    applyPromptProvider(promptProvider,false);
+    $c('coverAiKey').value=sessionStorage.getItem('chuong_explabs_api_key')||sessionStorage.getItem('chuong_cover_image_key')||'';
+    $c('coverAiModel').value=sessionStorage.getItem('chuong_explabs_image_model')||EXPERIENTIAL_IMAGE_DEFAULT;
+    $c('coverPromptProvider').value=sessionStorage.getItem('chuong_explabs_prompt_mode')||'none';
+    $c('coverPromptModel').value=sessionStorage.getItem('chuong_explabs_prompt_model')||EXPERIENTIAL_PROMPT_DEFAULT;
+    applyPromptMode();
+  }
+
+  function catalogQueryBody(limit=PAGE_SIZE,offset=(catalogState.page-1)*PAGE_SIZE){
+    return {
+      p_query:$c('catalogSearch').value.trim()||null,
+      p_author:$c('catalogAuthorFilter').value.trim()||null,
+      p_genre:$c('catalogGenreFilter').value||null,
+      p_status:$c('catalogStatusFilter').value||null,
+      p_cover_state:$c('catalogCoverFilter').value||null,
+      p_sort:$c('catalogSort').value||'views_desc',
+      p_min_views:$c('catalogMinViews').value===''?null:Math.max(0,Number($c('catalogMinViews').value)||0),
+      p_max_views:$c('catalogMaxViews').value===''?null:Math.max(0,Number($c('catalogMaxViews').value)||0),
+      p_limit:limit,
+      p_offset:offset
+    };
   }
 
   async function loadCatalog(resetPage=false){
@@ -130,17 +93,7 @@
     catalogState.loading=true;
     $c('catalogRows').innerHTML='<tr><td colspan="10" class="bulk-empty">Đang tải kho truyện…</td></tr>';
     try{
-      const body={
-        p_query:$c('catalogSearch').value.trim()||null,
-        p_author:$c('catalogAuthorFilter').value.trim()||null,
-        p_genre:$c('catalogGenreFilter').value||null,
-        p_status:$c('catalogStatusFilter').value||null,
-        p_sort:$c('catalogSort').value||'views_desc',
-        p_min_views:$c('catalogMinViews').value===''?null:Math.max(0,Number($c('catalogMinViews').value)||0),
-        p_max_views:$c('catalogMaxViews').value===''?null:Math.max(0,Number($c('catalogMaxViews').value)||0),
-        p_limit:PAGE_SIZE,
-        p_offset:(catalogState.page-1)*PAGE_SIZE
-      };
+      const body=catalogQueryBody();
       const rows=await rest('rpc/admin_catalog_search',{method:'POST',body});
       catalogState.rows=rows||[];
       catalogState.total=Number(rows?.[0]?.total_count||0);
@@ -195,6 +148,33 @@
     $c('catalogBulkEditBtn').disabled=count===0;
     $c('catalogBulkCoverBtn').disabled=count===0;
     $c('catalogBulkDeleteBtn').disabled=count===0;
+  }
+
+  async function selectAllFiltered(){
+    if(catalogState.loading)return;
+    const button=$c('catalogSelectAllBtn');
+    button.disabled=true;
+    try{
+      catalogState.selected.clear();
+      const total=Math.max(0,catalogState.total);
+      if(!total){updateSelectionUi();return;}
+      let offset=0;
+      while(offset<total){
+        const rows=await rest('rpc/admin_catalog_search',{method:'POST',body:catalogQueryBody(200,offset)});
+        if(!rows?.length)break;
+        rows.forEach(row=>catalogState.selected.add(row.id));
+        offset+=rows.length;
+        setCatalogProgress(Math.min(offset,total),total,'Đang chọn tất cả kết quả · '+Math.min(offset,total)+'/'+total);
+        if(rows.length<200)break;
+      }
+      renderCatalog();
+      showCatalogMessage('Đã chọn '+catalogState.selected.size.toLocaleString('vi-VN')+' truyện theo bộ lọc hiện tại.','success');
+      setCatalogProgress(catalogState.selected.size,catalogState.selected.size,'Đã chọn toàn bộ kết quả.');
+    }catch(error){
+      showCatalogMessage(error.message||String(error),'error');
+    }finally{
+      button.disabled=false;
+    }
   }
 
   function openBook(row){
@@ -387,15 +367,18 @@
   }
   async function generateCover(bookId){
     const settings=aiSettings();persistAiSettings();
-    if(!settings.imageApiKey)throw new Error('Hãy nhập API key cho AI tạo ảnh.');
-    if(settings.promptProvider!=='none'&&!settings.promptApiKey)throw new Error('Hãy nhập API key cho AI viết prompt hoặc chọn “Không dùng”.');
+    if(!settings.apiKey)throw new Error('Hãy nhập Experiential Labs API key.');
     const response=await fetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
       method:'POST',
       headers:authHeaders({'Content-Type':'application/json'}),
       body:JSON.stringify({
         bookId,
-        imageProvider:settings.imageProvider,imageApiKey:settings.imageApiKey,imageBaseUrl:settings.imageBaseUrl,imageModel:settings.imageModel,
-        promptProvider:settings.promptProvider,promptApiKey:settings.promptApiKey,promptBaseUrl:settings.promptBaseUrl,promptModel:settings.promptModel
+        imageProvider:'experiential',
+        imageApiKey:settings.apiKey,
+        imageModel:settings.imageModel,
+        promptProvider:settings.promptModel?'experiential':'none',
+        promptApiKey:settings.apiKey,
+        promptModel:settings.promptModel
       })
     });
     const data=await response.json().catch(()=>({}));
@@ -432,8 +415,7 @@
   async function bulkGenerateCovers(){
     const ids=[...catalogState.selected];if(!ids.length)return;
     const settings=aiSettings();persistAiSettings();
-    if(!settings.imageApiKey)return showCatalogMessage('Hãy nhập API key cho AI tạo ảnh trước.','error');
-    if(settings.promptProvider!=='none'&&!settings.promptApiKey)return showCatalogMessage('AI viết prompt đang bật nhưng chưa có API key.','error');
+    if(!settings.apiKey)return showCatalogMessage('Hãy nhập Experiential Labs API key trước.','error');
     $c('catalogBulkCoverBtn').disabled=true;
     let done=0,success=0,skipped=0,failed=0;
     for(const id of ids){
@@ -502,22 +484,23 @@
   const reloadDebounced=debounce(()=>loadCatalog(true));
 
   restoreAiSettings();
-  $c('coverImageProvider')?.addEventListener('change',event=>{applyImageProvider(event.target.value,true);persistAiSettings();});
-  $c('coverPromptProvider')?.addEventListener('change',event=>{applyPromptProvider(event.target.value,true);persistAiSettings();});
-  ['coverAiKey','coverAiBaseUrl','coverAiModel','coverPromptKey','coverPromptBaseUrl','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('change',persistAiSettings));
+  $c('coverPromptProvider')?.addEventListener('change',()=>{applyPromptMode();persistAiSettings();});
+  ['coverAiKey','coverAiModel','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('change',persistAiSettings));
   $c('catalogRefreshBtn')?.addEventListener('click',()=>loadCatalog(true));
   $c('catalogResetFilters')?.addEventListener('click',()=>{
     $c('catalogSearch').value='';$c('catalogAuthorFilter').value='';$c('catalogGenreFilter').value='';$c('catalogStatusFilter').value='';
-    $c('catalogMinViews').value='';$c('catalogMaxViews').value='';$c('catalogSort').value='views_desc';loadCatalog(true);
+    $c('catalogCoverFilter').value='';$c('catalogMinViews').value='';$c('catalogMaxViews').value='';$c('catalogSort').value='views_desc';
+    catalogState.selected.clear();loadCatalog(true);
   });
   $c('catalogSearch')?.addEventListener('input',reloadDebounced);
   $c('catalogAuthorFilter')?.addEventListener('input',reloadDebounced);
   $c('catalogMinViews')?.addEventListener('input',reloadDebounced);
   $c('catalogMaxViews')?.addEventListener('input',reloadDebounced);
-  ['catalogGenreFilter','catalogStatusFilter','catalogSort'].forEach(id=>$c(id)?.addEventListener('change',()=>loadCatalog(true)));
+  ['catalogGenreFilter','catalogStatusFilter','catalogCoverFilter','catalogSort'].forEach(id=>$c(id)?.addEventListener('change',()=>{catalogState.selected.clear();loadCatalog(true);}));
   $c('catalogPrevPage')?.addEventListener('click',()=>{if(catalogState.page>1){catalogState.page--;loadCatalog(false);}});
   $c('catalogNextPage')?.addEventListener('click',()=>{catalogState.page++;loadCatalog(false);});
   $c('catalogSelectPageBtn')?.addEventListener('click',()=>{catalogState.rows.forEach(r=>catalogState.selected.add(r.id));renderCatalog();});
+  $c('catalogSelectAllBtn')?.addEventListener('click',()=>void selectAllFiltered());
   $c('catalogClearSelectionBtn')?.addEventListener('click',()=>{catalogState.selected.clear();renderCatalog();});
   $c('catalogBulkEditBtn')?.addEventListener('click',openBulkEdit);
   $c('catalogBulkCoverBtn')?.addEventListener('click',()=>void bulkGenerateCovers());
