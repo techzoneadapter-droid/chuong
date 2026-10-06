@@ -176,26 +176,27 @@ async function generateImage(input: {
     // Experiential can return transient 502/503/504 when every route for a
     // model is unavailable. Retry the selected model, then fall back to the
     // much more stable Gemini 2.5 Flash Image route on the same Experiential key.
-    const selectedModel = input.model || "gemini-3.1-flash-lite-image";
-    const fallbackModel = "gemini-2.5-flash-image";
-    const candidates = selectedModel === fallbackModel
-      ? [selectedModel]
-      : [selectedModel, fallbackModel];
+    const selectedModel = input.model || "gemini-2.5-flash-image";
+    const stableModel = "gemini-2.5-flash-image";
+    const experimentalModel = "gemini-3.1-flash-lite-image";
+    const candidates = [...new Set([stableModel, selectedModel, experimentalModel])];
 
     let lastStatus = 0;
     let lastCode = "";
     let lastModel = selectedModel;
 
     for (const model of candidates) {
-      const maxAttempts = model === selectedModel ? 3 : 3;
+      const maxAttempts = 2;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         lastModel = model;
         try {
+          const retryKey = "chuong-cover-" + model + "-" + btoa(input.prompt).replace(/[^A-Za-z0-9]/g,"").slice(0,48);
           const response = await fetch("https://api.experientiallabs.ai/v1/chat/completions", {
             method: "POST",
             headers: {
               Authorization: "Bearer " + input.apiKey,
               "Content-Type": "application/json",
+              "Idempotency-Key": retryKey,
             },
             body: JSON.stringify({
               model,
@@ -267,7 +268,7 @@ async function generateImage(input: {
 
     throw new Error(
       "experiential_upstream_unavailable:" +
-      " Không tạo được ảnh sau nhiều lần thử. Model cuối: " + lastModel +
+      " Experiential không có tuyến tạo ảnh khỏe sau khi thử Gemini 2.5 Flash Image và các model dự phòng. Model cuối: " + lastModel +
       (lastStatus ? " · HTTP " + lastStatus : "") +
       (lastCode ? " · " + lastCode : "")
     );
@@ -425,7 +426,7 @@ Deno.serve(async (req: Request) => {
   const imageModel = (
     body.imageModel ||
     body.model ||
-    (imageProvider === "experiential" ? "gemini-3.1-flash-lite-image" :
+    (imageProvider === "experiential" ? "gemini-2.5-flash-image" :
       imageProvider === "xai" ? "grok-imagine-image-2.0" :
       imageProvider === "gemini" ? "gemini-3.1-flash-image" : "gpt-image-2")
   ).trim();
