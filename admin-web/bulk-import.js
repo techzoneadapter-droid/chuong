@@ -251,7 +251,7 @@
     const ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
     const path=state.userId+'/'+bookId+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,9)+'.'+ext;
     const encoded=path.split('/').map(encodeURIComponent).join('/');
-    const res=await fetch(SUPABASE_URL+'/storage/v1/object/book-covers/'+encoded,{
+    const res=await window.chuongAuthFetch(SUPABASE_URL+'/storage/v1/object/book-covers/'+encoded,{
       method:'POST',
       headers:authHeaders({'Content-Type':mime||'image/jpeg','x-upsert':'false'}),
       body:blob
