@@ -16,6 +16,31 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    // Cloud/mobile browser previews can be opened inside Chrome/Google surfaces
+    // that otherwise guess the document language as English and translate our
+    // already-Vietnamese UI into nonsense. Lock the live DOM to Vietnamese too
+    // (in addition to app/+html.tsx, which covers static export).
+    document.documentElement.lang = 'vi';
+    document.documentElement.setAttribute('translate', 'no');
+    document.documentElement.classList.add('notranslate');
+    document.body.setAttribute('translate', 'no');
+    document.body.classList.add('notranslate');
+    let languageMeta = document.querySelector('meta[http-equiv="Content-Language"]') as HTMLMetaElement | null;
+    if (!languageMeta) {
+      languageMeta = document.createElement('meta');
+      languageMeta.httpEquiv = 'Content-Language';
+      document.head.appendChild(languageMeta);
+    }
+    languageMeta.content = 'vi';
+    let translateMeta = document.querySelector('meta[name="google"]') as HTMLMetaElement | null;
+    if (!translateMeta) {
+      translateMeta = document.createElement('meta');
+      translateMeta.name = 'google';
+      document.head.appendChild(translateMeta);
+    }
+    translateMeta.content = 'notranslate';
+
     const id = 'chuong-readable-fonts';
     let style = document.getElementById(id) as HTMLStyleElement | null;
     if (!style) {
