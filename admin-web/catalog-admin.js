@@ -635,17 +635,18 @@
   }
   async function generateCover(bookId){
     const settings=aiSettings();persistAiSettings();
-    if(!settings.apiKey)throw new Error('Hãy nhập Experiential Labs API key.');
+    if(!settings.apiKey)throw new Error('Hãy nhập '+providerLabel(settings.imageProvider)+' API key.');
     const response=await window.chuongAuthFetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
       method:'POST',
       headers:authHeaders({'Content-Type':'application/json'}),
       body:JSON.stringify({
         bookId,
-        imageProvider:'experiential',
+        imageProvider:settings.imageProvider,
         imageApiKey:settings.apiKey,
         imageModel:settings.imageModel,
-        promptProvider:settings.promptModel?'experiential':'none',
-        promptApiKey:settings.apiKey,
+        imageQuality:settings.imageQuality,
+        promptProvider:settings.promptProvider,
+        promptApiKey:settings.promptProvider==='none'?'':settings.apiKey,
         promptModel:settings.promptModel
       })
     });
@@ -655,7 +656,10 @@
       if(raw.includes('experiential_upstream_unavailable')){
         throw new Error('Experiential đang lỗi tuyến tạo ảnh. Hệ thống đã tự thử lại và chuyển sang model dự phòng nhưng vẫn chưa thành công. Hãy thử lại sau ít phút.');
       }
-      const clean=raw.replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim().slice(0,320);
+      if(/invalid_api_key|incorrect api key|invalid key|expired|revoked/i.test(raw)){
+        throw new Error(providerLabel(settings.imageProvider)+' API key không hợp lệ, đã hết hạn hoặc bị thu hồi.');
+      }
+      const clean=raw.replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim().slice(0,420);
       throw new Error(clean||'AI không tạo được bìa.');
     }
     if(!data.imageBase64)throw new Error('AI không trả về ảnh.');
@@ -667,7 +671,7 @@
     const row=catalogState.editing;if(!row||catalogState.coverBusy)return;
     try{
       catalogState.coverBusy=true;$c('catalogAiCoverBtn').disabled=true;
-      showEditMessage('AI đang đọc tên truyện và tạo bìa 2:3 1024×1536…','info');
+      showEditMessage(providerLabel(aiSettings().imageProvider)+' đang đọc tên truyện và tạo bìa 2:3 1024×1536…','info');
       const url=await generateCover(row.id);
       row.cover_url=url;renderEditCover(url);
       showEditMessage('Đã tạo và gắn bìa AI cho truyện.','success');
@@ -692,10 +696,10 @@
     try{await window.chuongEnsureFreshToken(false);}
     catch(error){return showCatalogMessage(error.message||String(error),'error');}
     const settings=aiSettings();persistAiSettings();
-    if(!settings.apiKey)return showCatalogMessage('Hãy nhập Experiential Labs API key trước.','error');
-    if(!catalogState.coverModelTest.ok||catalogState.coverModelTest.model!==settings.imageModel){
-      showCatalogMessage('Model chưa được test PASS. Đang tự kiểm tra model trước khi chạy batch…','info');
-      const ok=await diagnoseExperientialModel();
+    if(!settings.apiKey)return showCatalogMessage('Hãy nhập '+providerLabel(settings.imageProvider)+' API key trước.','error');
+    if(!catalogState.coverModelTest.ok||catalogState.coverModelTest.provider!==settings.imageProvider||catalogState.coverModelTest.model!==settings.imageModel){
+      showCatalogMessage('Model chưa được test PASS. Đang tự kiểm tra '+providerLabel(settings.imageProvider)+' trước khi chạy batch…','info');
+      const ok=await diagnoseImageModel();
       if(!ok){
         return showCatalogMessage('Model tạo ảnh chưa PASS nên chưa chạy batch. Xem kết quả Test model ảnh ở phía trên.','warn');
       }
@@ -714,20 +718,20 @@
       }catch(error){
         failed++;
         const message=error.message||String(error);
-        const providerDown=/Experiential đang lỗi tuyến tạo ảnh|experiential_upstream_unavailable|all_routes_failed|provider_internal|unavailable_route/i.test(message);
+        const providerDown=/Experiential đang lỗi tuyến tạo ảnh|experiential_upstream_unavailable|all_routes_failed|provider_internal|unavailable_route|image_provider_429|image_provider_5\\d\\d|rate.?limit|temporarily unavailable/i.test(message);
         consecutiveProviderFailures=providerDown?consecutiveProviderFailures+1:0;
         showCatalogMessage('Có lỗi khi tạo bìa: '+message,'warn');
         if(consecutiveProviderFailures>=2){
           stoppedEarly=true;
           done++;
-          setCatalogProgress(done,ids.length,'Đã dừng sớm vì Experiential lỗi liên tiếp · '+done+'/'+ids.length);
+          setCatalogProgress(done,ids.length,'Đã dừng sớm vì '+providerLabel(settings.imageProvider)+' lỗi liên tiếp · '+done+'/'+ids.length);
           break;
         }
       }
       done++;setCatalogProgress(done,ids.length,'Đã xử lý bìa '+done+'/'+ids.length);
     }
     if(stoppedEarly){
-      showCatalogMessage('Đã tự dừng batch sau 2 lỗi tuyến Experiential liên tiếp để tránh chạy hỏng cả lô. Thành công: '+success+' · lỗi: '+failed+'. Hãy kiểm tra lại tuyến tạo ảnh rồi chạy tiếp.','warn');
+      showCatalogMessage('Đã tự dừng batch sau 2 lỗi '+providerLabel(settings.imageProvider)+' liên tiếp để tránh chạy hỏng cả lô. Thành công: '+success+' · lỗi: '+failed+'. Hãy kiểm tra lại API/model rồi chạy tiếp.','warn');
     }else{
       showCatalogMessage('Tạo bìa xong · '+success+' thành công · '+skipped+' bỏ qua · '+failed+' lỗi.',failed?'warn':'success');
     }
