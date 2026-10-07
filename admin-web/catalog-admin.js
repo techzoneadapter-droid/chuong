@@ -121,18 +121,19 @@
     const purchaseLocked=code==='insufficient_quota'||/model_requires_purchase|locked on your account|buy credits/i.test(message);
 
     if(purchaseLocked){
-      catalogState.coverModelTest={model:data.imageModel||$c('coverAiModel').value,ok:false};
+      catalogState.coverModelTest={provider:$c('coverImageProvider')?.value||'experiential',model:data.imageModel||$c('coverAiModel').value,ok:false};
       sessionStorage.removeItem('chuong_cover_tested_model');
+      sessionStorage.removeItem('chuong_cover_tested_provider');
       box.className='model-diagnostic bad quota-lock';
       box.innerHTML=[
         '<div class="diag-head"><strong>CHƯA ĐƯỢC MỞ QUYỀN TẠO ẢNH</strong><span>'+esc(String(data.httpStatus||429))+'</span></div>',
-        '<div class="quota-title">API key đúng, nhưng tài khoản Experiential chưa có credits để dùng model này.</div>',
+        '<div class="quota-title">API key đúng, nhưng tài khoản '+esc(providerLabel($c('coverImageProvider')?.value||'experiential'))+' chưa có quota/credits để dùng model này.</div>',
         '<div class="diag-grid">',
         '<span>Model</span><b>'+esc(data.imageModel||'—')+'</b>',
         '<span>Error</span><b>'+esc(code||'insufficient_quota')+'</b>',
         '<span>Trạng thái</span><b>Cần mua credits</b>',
         '</div>',
-        '<div class="diag-message">Khoản xác minh thẻ $1 không mở khóa model. Bạn cần mua credits thật trên Experiential, sau đó bấm Test model ảnh lại.</div>'
+        '<div class="diag-message">'+(($c('coverImageProvider')?.value||'experiential')==='openai'?'Kiểm tra Billing/Usage của OpenAI rồi bấm Test model ảnh lại.':'Khoản xác minh thẻ $1 không mở khóa model. Bạn cần mua credits thật trên Experiential, sau đó bấm Test model ảnh lại.')+'</div>'
       ].join('');
       creditsLink?.classList.remove('hidden');
       updateSelectionUi();
@@ -140,18 +141,20 @@
     }
 
     const status=data.ok?'PASS':'FAIL';
-    catalogState.coverModelTest={model:data.imageModel||$c('coverAiModel').value,ok:Boolean(data.ok)};
+    catalogState.coverModelTest={provider:$c('coverImageProvider')?.value||'experiential',model:data.imageModel||$c('coverAiModel').value,ok:Boolean(data.ok)};
     if(data.ok){
       sessionStorage.setItem('chuong_cover_tested_model',catalogState.coverModelTest.model||'');
+      sessionStorage.setItem('chuong_cover_tested_provider',catalogState.coverModelTest.provider||'');
     }else{
       sessionStorage.removeItem('chuong_cover_tested_model');
+      sessionStorage.removeItem('chuong_cover_tested_provider');
     }
     const bits=[
       '<div class="diag-head"><strong>'+status+' · '+esc(data.imageModel||'')+'</strong><span>'+esc(String(data.httpStatus||''))+'</span></div>',
       '<div class="diag-grid">',
       '<span>Stage</span><b>'+esc(data.stage||'—')+'</b>',
       '<span>Error code</span><b>'+esc(code||'—')+'</b>',
-      '<span>Provider</span><b>'+esc(data.gatewayProvider||'—')+'</b>',
+      '<span>Provider</span><b>'+esc(data.provider||data.gatewayProvider||providerLabel($c('coverImageProvider')?.value||'experiential'))+'</b>',
       '<span>Route depth</span><b>'+esc(data.routeDepth||'—')+'</b>',
       '<span>Request ID</span><b class="diag-request">'+esc(data.requestId||'—')+'</b>',
       '</div>'
@@ -408,7 +411,8 @@
     if($c('catalogAutoGenreBtn'))$c('catalogAutoGenreBtn').disabled=count===0;
     if($c('catalogContentCleanupBtn'))$c('catalogContentCleanupBtn').disabled=count===0;
     const selectedModel=$c('coverAiModel')?.value||null;
-    const modelReady=catalogState.coverModelTest.ok&&catalogState.coverModelTest.model===selectedModel;
+    const selectedProvider=$c('coverImageProvider')?.value||'experiential';
+    const modelReady=catalogState.coverModelTest.ok&&catalogState.coverModelTest.provider===selectedProvider&&catalogState.coverModelTest.model===selectedModel;
     $c('catalogBulkCoverBtn').disabled=count===0;
     $c('catalogBulkCoverBtn').title=modelReady?'Tạo bìa AI hàng loạt':'Model chưa test PASS; hệ thống sẽ tự test 1 lần trước khi chạy batch.';
     $c('catalogBulkDeleteBtn').disabled=count===0;
