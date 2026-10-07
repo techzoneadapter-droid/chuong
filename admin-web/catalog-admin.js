@@ -135,7 +135,8 @@
         '</div>',
         '<div class="diag-message">'+(($c('coverImageProvider')?.value||'experiential')==='openai'?'Kiểm tra Billing/Usage của OpenAI rồi bấm Test model ảnh lại.':'Khoản xác minh thẻ $1 không mở khóa model. Bạn cần mua credits thật trên Experiential, sau đó bấm Test model ảnh lại.')+'</div>'
       ].join('');
-      creditsLink?.classList.remove('hidden');
+      if(($c('coverImageProvider')?.value||'experiential')==='experiential')creditsLink?.classList.remove('hidden');
+      else creditsLink?.classList.add('hidden');
       updateSelectionUi();
       return;
     }
