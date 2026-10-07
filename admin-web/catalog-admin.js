@@ -982,11 +982,35 @@
   const reloadDebounced=debounce(()=>loadCatalog(true));
 
   restoreAiSettings();
+  $c('coverImageProvider')?.addEventListener('change',()=>{
+    applyImageProviderMode(true);
+    persistAiSettings();
+    setApiCheckStatus('neutral','Đã đổi nhà cung cấp · hãy nhập/kiểm tra API key tương ứng.');
+    $c('coverModelDiagnostic')?.classList.add('hidden');
+  });
   $c('coverPromptProvider')?.addEventListener('change',()=>{applyPromptMode();persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');});
-  ['coverAiKey','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('input',()=>{catalogState.coverModelTest={model:null,ok:false};sessionStorage.removeItem('chuong_cover_tested_model');persistAiSettings();setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');$c('coverBuyCreditsLink')?.classList.add('hidden');updateSelectionUi();}));
-  $c('coverAiModel')?.addEventListener('change',()=>{catalogState.coverModelTest={model:null,ok:false};sessionStorage.removeItem('chuong_cover_tested_model');persistAiSettings();setApiCheckStatus('neutral','Đã đổi model tạo ảnh · hệ thống sẽ tự test khi bạn bấm tạo bìa.');$c('coverModelDiagnostic')?.classList.add('hidden');$c('coverBuyCreditsLink')?.classList.add('hidden');updateSelectionUi();});
-  $c('coverCheckApiBtn')?.addEventListener('click',()=>void checkExperientialApi());
-  $c('coverDiagnoseModelBtn')?.addEventListener('click',()=>void diagnoseExperientialModel());
+  ['coverAiKey','coverPromptModel'].forEach(id=>$c(id)?.addEventListener('input',()=>{
+    catalogState.coverModelTest={provider:null,model:null,ok:false};
+    sessionStorage.removeItem('chuong_cover_tested_model');
+    sessionStorage.removeItem('chuong_cover_tested_provider');
+    persistAiSettings();
+    setApiCheckStatus('neutral','Cấu hình đã thay đổi · hãy kiểm tra lại API');
+    $c('coverBuyCreditsLink')?.classList.add('hidden');
+    updateSelectionUi();
+  }));
+  $c('coverAiModel')?.addEventListener('change',()=>{
+    catalogState.coverModelTest={provider:null,model:null,ok:false};
+    sessionStorage.removeItem('chuong_cover_tested_model');
+    sessionStorage.removeItem('chuong_cover_tested_provider');
+    persistAiSettings();
+    setApiCheckStatus('neutral','Đã đổi model tạo ảnh · hệ thống sẽ tự test khi bạn bấm tạo bìa.');
+    $c('coverModelDiagnostic')?.classList.add('hidden');
+    $c('coverBuyCreditsLink')?.classList.add('hidden');
+    updateSelectionUi();
+  });
+  $c('coverImageQuality')?.addEventListener('change',()=>{persistAiSettings();setApiCheckStatus('neutral','Đã đổi chất lượng OpenAI · nên Test model ảnh trước khi chạy batch.');});
+  $c('coverCheckApiBtn')?.addEventListener('click',()=>void checkImageApi());
+  $c('coverDiagnoseModelBtn')?.addEventListener('click',()=>void diagnoseImageModel());
   $c('catalogRefreshBtn')?.addEventListener('click',()=>loadCatalog(true));
   $c('catalogResetFilters')?.addEventListener('click',()=>{
     $c('catalogSearch').value='';$c('catalogAuthorFilter').value='';$c('catalogGenreFilter').value='';$c('catalogStatusFilter').value='';
