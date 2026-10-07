@@ -46,15 +46,16 @@
       <div class="mode-switch" role="tablist" aria-label="Chế độ nhập truyện">
         <button id="singleModeBtn" class="mode-button active" type="button">Nhập 1 truyện</button>
         <button id="bulkModeBtn" class="mode-button" type="button">Nhập hàng loạt ZIP</button>
+        <button id="updateModeBtn" class="mode-button" type="button">Cập nhật ZIP</button>
         <button id="manageModeBtn" class="mode-button" type="button">Quản trị kho truyện</button>
       </div>
 
       <section id="bulkImportMode" class="bulk-shell hidden">
         <div class="bulk-toolbar card">
           <div>
-            <p class="eyebrow">NHẬP HÀNG LOẠT</p>
-            <h2>Đẩy hàng nghìn truyện ZIP</h2>
-            <p class="muted">Mỗi ZIP là một truyện. Hệ thống tự nhận tên, chương, tác giả và phân loại thể loại từ tên + nội dung mẫu; không có tác giả sẽ mặc định là <strong>Chuong</strong>; không có bìa vẫn nhập bình thường.</p>
+            <p id="bulkModeKicker" class="eyebrow">NHẬP HÀNG LOẠT</p>
+            <h2 id="bulkModeTitle">Đẩy hàng nghìn truyện ZIP</h2>
+            <p id="bulkModeDescription" class="muted">Mỗi ZIP là một truyện. Hệ thống tự nhận tên, chương, tác giả và phân loại thể loại từ tên + nội dung mẫu; không có tác giả sẽ mặc định là <strong>Chuong</strong>; không có bìa vẫn nhập bình thường.</p>
           </div>
           <div class="bulk-pickers">
             <label class="secondary file-button">Chọn nhiều ZIP<input id="bulkZipFiles" type="file" accept=".zip,application/zip" multiple /></label>
@@ -86,7 +87,8 @@
               </select>
             </label>
           </div>
-          <label class="check-row"><input id="bulkPublishNow" type="checkbox" checked /> <span><strong>Xuất bản ngay sau khi nhập</strong><small>Nếu tắt, truyện được giữ ở bản nháp riêng tư để kiểm tra sau.</small></span></label>
+          <div id="bulkUpdateStrategy" class="warning hidden"><strong>Cập nhật an toàn theo tên truyện.</strong> Chương trùng số sẽ được thay nội dung bằng ZIP; chương mới sẽ được thêm; chương cũ không có trong ZIP vẫn được giữ nguyên. Bìa, lượt xem, người theo dõi, VIP và giá chương hiện có không bị xóa.</div>
+          <label class="check-row"><input id="bulkPublishNow" type="checkbox" checked /> <span><strong>Xuất bản ngay sau khi xử lý</strong><small>Nếu tắt: truyện mới giữ ở bản nháp; với truyện cập nhật, trạng thái các chương cũ được giữ nguyên và chương mới sẽ là bản nháp.</small></span></label>
           <label class="check-row"><input id="bulkRightsConfirmed" type="checkbox" /> <span><strong>Xác nhận quyền nội dung cho cả lô</strong><small>Tôi xác nhận CHƯƠNG có quyền hợp pháp để lưu trữ và phân phối toàn bộ nội dung đã chọn.</small></span></label>
         </div>
 
