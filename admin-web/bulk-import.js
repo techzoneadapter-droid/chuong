@@ -1,7 +1,7 @@
 
 (() => {
   const PAGE_SIZE=100;
-  const bulkState={rows:[],page:1,filter:'all',query:'',running:false,paused:false,cancel:false,batchId:''};
+  const bulkState={rows:[],page:1,filter:'all',query:'',running:false,paused:false,cancel:false,batchId:'',operation:'import'};
   const el=(id)=>document.getElementById(id);
   const statusLabel=(value)=>value==='completed'?'Hoàn thành':value==='paused'?'Tạm dừng / Drop':'Đang ra';
   const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -90,6 +90,63 @@
   async function duplicateByHash(hash){
     const rows=await rest('admin_import_logs?select=id,book_id,book_title&source_sha256=eq.'+encodeURIComponent(hash)+'&status=eq.completed&limit=1');
     return rows?.[0]||null;
+  }
+
+  async function matchExistingBooksByTitle(rows){
+    const candidates=rows.filter(row=>row.scan==='ready'&&String(row.title||'').trim());
+    for(let start=0;start<candidates.length;start+=150){
+      const batch=candidates.slice(start,start+150);
+      const titles=[...new Set(batch.map(row=>String(row.title||'').trim()).filter(Boolean))];
+      if(!titles.length)continue;
+      const matches=await rest('rpc/admin_match_zip_books',{method:'POST',body:{p_titles:titles}});
+      const byInput=new Map();
+      for(const match of matches||[]){
+        const key=String(match.input_title||'');
+        const list=byInput.get(key)||[];
+        list.push(match);
+        byInput.set(key,list);
+      }
+      for(const row of batch){
+        row.updateMatchFailure=false;
+        const list=byInput.get(String(row.title||'').trim())||[];
+        if(list.length===1){
+          const match=list[0];
+          row.existingBookId=match.book_id;
+          row.existingBookTitle=match.book_title;
+          row.existingChapterCount=Number(match.chapter_count||0);
+          row.existingHasCover=Boolean(match.has_cover);
+          if(bulkState.operation==='update'){
+            row.message='Sẽ cập nhật · kho đang có '+row.existingChapterCount+' chương';
+          }
+        }else if(list.length>1){
+          row.existingBookId='';
+          row.scan='failed';
+          row.selected=false;
+          row.updateMatchFailure=true;
+          row.message='Có nhiều truyện trùng tên · cần sửa tên chính xác trước khi cập nhật';
+        }else{
+          row.existingBookId='';
+          row.existingBookTitle='';
+          row.existingChapterCount=0;
+          row.existingHasCover=false;
+          if(bulkState.operation==='update'){
+            row.scan='failed';
+            row.selected=false;
+            row.updateMatchFailure=true;
+            row.message='Không tìm thấy truyện cùng tên trong kho';
+          }
+        }
+      }
+    }
+  }
+
+  async function matchOneExistingBook(title){
+    const clean=String(title||'').trim();
+    if(!clean)return null;
+    const rows=await rest('rpc/admin_match_zip_books',{method:'POST',body:{p_titles:[clean]}});
+    if((rows||[]).length===1)return rows[0];
+    if((rows||[]).length>1)throw new Error('Có nhiều truyện trùng tên trong kho. Hãy sửa tên truyện chính xác trước khi cập nhật.');
+    return null;
   }
   async function scanRow(row){
     row.scan='scanning';row.message='Đang quét…';renderBulkRows();
@@ -190,7 +247,7 @@
     el('bulkRows').innerHTML=pageRows.map(row=>{
       const cls=row.scan==='done'?'row-done':row.scan==='duplicate'||row.scan==='skipped'?'row-skipped':row.scan==='failed'||row.scan==='import-failed'?'row-failed':'';
       const tone=row.scan==='done'||row.scan==='ready'?'ok':row.scan==='duplicate'||row.scan==='skipped'?'warn':row.scan==='failed'||row.scan==='import-failed'?'bad':'';
-      const stateText=row.scan==='waiting'?'Chưa quét':row.scan==='scanning'?'Đang quét':row.scan==='ready'?'Sẵn sàng':row.scan==='duplicate'?'Đã nhập / trùng':row.scan==='importing'?'Đang nhập':row.scan==='done'?'Thành công':row.scan==='skipped'?'Bỏ qua':row.scan==='import-failed'||row.scan==='failed'?'Lỗi':row.scan;
+      const stateText=row.scan==='waiting'?'Chưa quét':row.scan==='scanning'?'Đang quét':row.scan==='ready'?(bulkState.operation==='update'&&row.existingBookId?'Sẵn sàng cập nhật':'Sẵn sàng'):row.scan==='duplicate'?'Đã nhập / trùng':row.scan==='importing'?'Đang nhập':row.scan==='done'?'Thành công':row.scan==='skipped'?'Bỏ qua':row.scan==='import-failed'||row.scan==='failed'?'Lỗi':row.scan;
       return '<tr class="'+cls+'" data-row-id="'+row.id+'">'+
         '<td><input type="checkbox" data-bulk-select="'+row.id+'" '+(row.selected?'checked':'')+' '+(row.scan==='duplicate'||row.scan==='done'?'disabled':'')+' /></td>'+
         '<td class="zip-name"><strong>'+escapeAttr(relativeName(row.file))+'</strong><div class="tiny">'+(row.file.size/1024).toFixed(0)+' KB</div></td>'+
@@ -258,11 +315,20 @@
       }
     };
     await Promise.all([worker(),worker()]);
+    if(bulkState.operation==='update'){
+      setProgress(done,targets.length,'Đang đối chiếu tên truyện với kho hiện tại…');
+      await matchExistingBooksByTitle(targets);
+    }
     bulkState.running=false;
     el('bulkScanBtn').disabled=false;
     setProgress(done,targets.length,'Quét xong '+done+'/'+targets.length+' ZIP · '+selectedRows().length+' truyện sẵn sàng');
     renderBulkRows();
-    showBulkMessage('Quét hoàn tất. Không có tác giả sẽ dùng “'+(el('bulkDefaultAuthor').value||'Chuong')+'”. ZIP không có bìa vẫn được phép nhập.','success');
+    showBulkMessage(
+      bulkState.operation==='update'
+        ?'Quét hoàn tất. Truyện trùng tên chính xác sẽ được cập nhật; chương trùng số thay nội dung, chương mới được bổ sung, chương cũ không có trong ZIP vẫn giữ nguyên.'
+        :'Quét hoàn tất. Không có tác giả sẽ dùng “'+(el('bulkDefaultAuthor').value||'Chuong')+'”. ZIP không có bìa vẫn được phép nhập.',
+      'success'
+    );
   }
   async function uploadBulkCover(bookId,blob,mime){
     if(!blob)return null;
@@ -291,7 +357,7 @@
         chapter_count:chapters.length,
         word_count:audit.totalWords,
         status:'started',
-        detail:'Nhập hàng loạt ZIP.',
+        detail:bulkState.operation==='update'?'Cập nhật truyện bằng ZIP.':'Nhập hàng loạt ZIP.',
         source_sha256:row.sha256,
         source_size_bytes:row.file.size,
         batch_id:bulkState.batchId,
@@ -307,17 +373,22 @@
       body:{status,book_id:bookId||null,detail:String(detail||'').slice(0,2000),completed_at:new Date().toISOString()}
     }).catch(()=>{});
   }
+
   async function importOne(row,publishNow){
     row.scan='importing';
-    row.message='Đang đọc đầy đủ ZIP…';
+    row.message=bulkState.operation==='update'?'Đang đọc ZIP để cập nhật…':'Đang đọc đầy đủ ZIP…';
     renderBulkRows();
-    let bookId='',logId='';
+    let bookId='',logId='',createdNew=false;
     try{
       const duplicate=await duplicateByHash(row.sha256);
       if(duplicate){
-        row.scan='skipped';row.selected=false;row.message='ZIP đã được nhập trước đó';
+        row.scan='skipped';row.selected=false;
+        row.message=bulkState.operation==='update'
+          ?'ZIP này đã được xử lý trước đó · không có gì mới'
+          :'ZIP đã được nhập trước đó';
         return 'skipped';
       }
+
       const buffer=await row.file.arrayBuffer();
       const parsed=await parseZipStory(buffer,row.file.name);
       const chapters=(parsed.chapters||[]).map(chapter=>({
@@ -329,13 +400,78 @@
       if(!chapters.length)throw new Error('Không nhận diện được chương.');
       if(audit.duplicates.length)throw new Error('Trùng số chương: '+audit.duplicates.slice(0,12).join(', '));
       if(audit.empty.length)throw new Error('Có '+audit.empty.length+' chương rỗng.');
+
       const title=String(row.title||parsed.title||cleanTitle(row.file.name)).trim();
       const author=String(row.author||el('bulkDefaultAuthor').value||'Chuong').trim()||'Chuong';
+      const genres=[...new Set((row.genres?.length?row.genres:[row.genre||el('bulkDefaultGenre').value||'Khác']).filter(Boolean))].slice(0,3);
+
+      if(bulkState.operation==='update'){
+        const existing=await matchOneExistingBook(title);
+        if(!existing)throw new Error('Không tìm thấy truyện cùng tên trong kho. Hãy kiểm tra lại tên truyện trong ZIP.');
+        bookId=existing.book_id;
+        logId=await createBulkLog(row,title,author,chapters);
+        await rest('admin_import_logs?id=eq.'+encodeURIComponent(logId),{method:'PATCH',body:{book_id:bookId}}).catch(()=>{});
+
+        row.message='Đang đồng bộ '+chapters.length+' chương vào truyện hiện có…';
+        renderBulkRows();
+
+        const payload=chapters.map(chapter=>({
+          chapterNumber:chapter.chapterNumber,
+          title:String(chapter.title||''),
+          content:String(chapter.content||'')
+        }));
+        const merged=await rest('rpc/admin_merge_zip_book',{
+          method:'POST',
+          body:{
+            p_book_id:bookId,
+            p_title:title,
+            p_author:author,
+            p_summary:String(row.summary||'').trim(),
+            p_genres:genres,
+            p_status:row.status||el('bulkDefaultStatus').value,
+            p_source_type:el('bulkSourceType').value,
+            p_publish_now:Boolean(publishNow),
+            p_chapters:payload
+          }
+        });
+        const result=merged?.[0]||{};
+        const replaced=Number(result.replaced_chapters||0);
+        const added=Number(result.added_chapters||0);
+        const total=Number(result.total_chapters||existing.chapter_count||chapters.length);
+
+        let coverNote='';
+        if(parsed.coverBlob&&!existing.has_cover){
+          try{
+            await uploadBulkCover(bookId,parsed.coverBlob,parsed.coverMime);
+            coverNote=' · đã bổ sung bìa';
+            row.hasCover=true;
+          }catch{
+            coverNote=' · bìa chưa cập nhật';
+          }
+        }else{
+          row.hasCover=Boolean(existing.has_cover||parsed.coverBlob);
+        }
+
+        await finishBulkLog(
+          logId,'completed',bookId,
+          'Cập nhật ZIP: thay '+replaced+' chương · thêm '+added+' chương · tổng '+total+' chương'+coverNote+'.'
+        );
+
+        row.bookId=bookId;
+        row.scan='done';
+        row.selected=false;
+        row.chapterCount=total;
+        row.existingChapterCount=total;
+        row.message='Đã cập nhật · thay '+replaced+' · thêm '+added+' · tổng '+total+' chương'+coverNote;
+        return 'done';
+      }
+
       const duplicates=await findDuplicateBooks(title,author);
       if(duplicates.length){
-        row.scan='skipped';row.selected=false;row.message='Truyện đã tồn tại trong kho';
+        row.scan='skipped';row.selected=false;row.message='Truyện đã tồn tại trong kho · dùng tab “Cập nhật ZIP” để bổ sung chương';
         return 'skipped';
       }
+
       logId=await createBulkLog(row,title,author,chapters);
       const slug=(slugify(title)||'truyen')+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
       const books=await rest('books?select=id',{
@@ -348,8 +484,8 @@
         }
       });
       bookId=books[0].id;
+      createdNew=true;
       await rest('admin_import_logs?id=eq.'+encodeURIComponent(logId),{method:'PATCH',body:{book_id:bookId}}).catch(()=>{});
-      const genres=[...new Set((row.genres?.length?row.genres:[row.genre||el('bulkDefaultGenre').value||'Khác']).filter(Boolean))].slice(0,3);
       await rest('book_genres',{method:'POST',prefer:'return=minimal',body:genres.map(genre=>({book_id:bookId,genre}))});
       row.message='Đang ghi '+chapters.length+' chương…';
       renderBulkRows();
@@ -374,13 +510,14 @@
       row.message='Đã nhập '+chapters.length+' chương'+(parsed.coverBlob?'':' · thêm bìa sau');
       return 'done';
     }catch(error){
-      if(bookId)await deleteDraftBook(bookId);
+      if(createdNew&&bookId)await deleteDraftBook(bookId);
       await finishBulkLog(logId,'failed',bookId,error.message||String(error));
       row.scan='import-failed';
       row.message=error.message||String(error);
       return 'failed';
     }
   }
+
   async function importSelected(){
     if(bulkState.running)return;
     if(!el('bulkRightsConfirmed').checked)return showBulkMessage('Cần xác nhận quyền nội dung cho cả lô trước khi nhập.','error');
@@ -399,7 +536,7 @@
     for(const row of targets){
       while(bulkState.paused&&!bulkState.cancel)await wait(250);
       if(bulkState.cancel)break;
-      setProgress(done,targets.length,'Đang nhập '+(done+1)+'/'+targets.length+' · '+(row.title||row.file.name));
+      setProgress(done,targets.length,(bulkState.operation==='update'?'Đang cập nhật ':'Đang nhập ')+(done+1)+'/'+targets.length+' · '+(row.title||row.file.name));
       await importOne(row,publishNow);
       done++;
       renderBulkRows();
@@ -415,24 +552,74 @@
     const ok=bulkState.rows.filter(r=>r.scan==='done').length;
     const skipped=bulkState.rows.filter(r=>r.scan==='skipped'||r.scan==='duplicate').length;
     const failed=bulkState.rows.filter(r=>r.scan==='import-failed'||r.scan==='failed').length;
-    showBulkMessage('Hoàn tất lô. Thành công: '+ok+' · Bỏ qua/trùng: '+skipped+' · Lỗi: '+failed+'.','success');
+    showBulkMessage((bulkState.operation==='update'?'Cập nhật hoàn tất. ':'Nhập lô hoàn tất. ')+'Thành công: '+ok+' · Bỏ qua/trùng: '+skipped+' · Lỗi: '+failed+'.','success');
   }
+
+  function updateBulkModeCopy(){
+    const updating=bulkState.operation==='update';
+    const kicker=el('bulkModeKicker');
+    const title=el('bulkModeTitle');
+    const description=el('bulkModeDescription');
+    const strategy=el('bulkUpdateStrategy');
+    const action=el('bulkImportBtn');
+    if(kicker)kicker.textContent=updating?'CẬP NHẬT TRUYỆN':'NHẬP HÀNG LOẠT';
+    if(title)title.textContent=updating?'Cập nhật truyện bằng file ZIP':'Đẩy hàng nghìn truyện ZIP';
+    if(description)description.innerHTML=updating
+      ?'Mỗi ZIP được đọc tên truyện rồi đối chiếu với kho hiện có. <strong>Chương trùng số sẽ được thay nội dung, chương mới sẽ được thêm</strong>; chương cũ không có trong ZIP vẫn giữ nguyên.'
+      :'Mỗi ZIP là một truyện. Hệ thống tự nhận tên, chương, tác giả và phân loại thể loại từ tên + nội dung mẫu; không có tác giả sẽ mặc định là <strong>Chuong</strong>; không có bìa vẫn nhập bình thường.';
+    strategy?.classList.toggle('hidden',!updating);
+    if(action)action.textContent=updating?'Cập nhật các truyện đã chọn':'Nhập các truyện đã chọn';
+  }
+
+  async function setBulkOperation(operation){
+    if(bulkState.running)return;
+    if(operation===bulkState.operation){
+      updateBulkModeCopy();
+      return;
+    }
+    bulkState.operation=operation;
+
+    // Rows that only failed because update mode could not find a same-title book
+    // become valid again when returning to new-import mode.
+    for(const row of bulkState.rows){
+      if(row.updateMatchFailure){
+        row.scan='ready';
+        row.selected=true;
+        row.updateMatchFailure=false;
+        row.message=row.warning||'Sẵn sàng';
+      }
+    }
+
+    updateBulkModeCopy();
+    if(operation==='update'){
+      const ready=bulkState.rows.filter(row=>row.scan==='ready');
+      if(ready.length){
+        setProgress(0,ready.length,'Đang đối chiếu tên truyện với kho hiện tại…');
+        try{await matchExistingBooksByTitle(ready);}
+        catch(error){showBulkMessage('Không thể đối chiếu kho truyện: '+(error.message||String(error)),'error');}
+      }
+    }
+    renderBulkRows();
+  }
+
   function switchMode(mode){
     const single=mode==='single';
-    const bulk=mode==='bulk';
+    const bulk=mode==='bulk'||mode==='update';
     const manage=mode==='manage';
     el('singleImportMode').classList.toggle('hidden',!single);
     el('bulkImportMode').classList.toggle('hidden',!bulk);
     el('catalogManageMode')?.classList.toggle('hidden',!manage);
     el('singleModeBtn').classList.toggle('active',single);
-    el('bulkModeBtn').classList.toggle('active',bulk);
+    el('bulkModeBtn').classList.toggle('active',mode==='bulk');
+    el('updateModeBtn')?.classList.toggle('active',mode==='update');
     el('manageModeBtn')?.classList.toggle('active',manage);
+    if(mode==='bulk'||mode==='update')void setBulkOperation(mode==='update'?'update':'import');
     if(manage)window.chuongLoadCatalog?.();
   }
-  window.chuongAdminSwitchMode=switchMode;
 
   el('singleModeBtn')?.addEventListener('click',()=>switchMode('single'));
   el('bulkModeBtn')?.addEventListener('click',()=>switchMode('bulk'));
+  el('updateModeBtn')?.addEventListener('click',()=>switchMode('update'));
   el('manageModeBtn')?.addEventListener('click',()=>switchMode('manage'));
   el('bulkZipFiles')?.addEventListener('change',event=>{addFiles(event.target.files||[]);event.target.value='';});
   el('bulkZipFolder')?.addEventListener('change',event=>{addFiles(event.target.files||[]);event.target.value='';});
@@ -461,7 +648,16 @@
     const row=bulkState.rows.find(item=>item.id===rowId);
     if(!row)return;
     if(target.dataset.bulkSelect)row.selected=target.checked;
-    if(target.dataset.bulkTitle)row.title=target.value.trim();
+    if(target.dataset.bulkTitle){
+      row.title=target.value.trim();
+      row.existingBookId='';
+      row.existingBookTitle='';
+      row.existingChapterCount=0;
+      if(bulkState.operation==='update'){
+        row.scan='waiting';
+        row.message='Tên đã đổi · bấm Quét ZIP để đối chiếu lại';
+      }
+    }
     if(target.dataset.bulkAuthor)row.author=target.value.trim()||'Chuong';
     if(target.dataset.bulkGenre){row.genre=target.value;row.genres=[target.value];row.genreSource='manual';row.genreConfidence='manual';}
     if(target.dataset.bulkStatus)row.status=target.value;
