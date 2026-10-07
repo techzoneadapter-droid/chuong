@@ -169,6 +169,7 @@ async function generateImage(input: {
   baseUrl: string;
   model: string;
   prompt: string;
+  quality?: string;
 }) {
   if (!input.apiKey) throw new Error("image_api_key_required");
 
@@ -413,6 +414,11 @@ async function generateImage(input: {
     body.resolution = "1k";
   } else {
     body.size = "1024x1536";
+    if (input.provider === "openai") {
+      body.quality = input.quality || "high";
+      body.output_format = "png";
+      body.background = "opaque";
+    }
   }
 
   const response = await fetch(baseUrl + "/images/generations", {
@@ -472,6 +478,7 @@ Deno.serve(async (req: Request) => {
     imageApiKey?: string;
     imageBaseUrl?: string;
     imageModel?: string;
+    imageQuality?: string;
     promptProvider?: PromptProvider;
     promptApiKey?: string;
     promptBaseUrl?: string;
@@ -759,6 +766,7 @@ Deno.serve(async (req: Request) => {
       baseUrl: imageBaseUrl,
       model: imageModel,
       prompt: finalPrompt,
+      quality: body.imageQuality?.trim() || (imageProvider === "openai" ? "high" : "auto"),
     });
 
     return reply(200, {
