@@ -8,11 +8,17 @@
     loaded:false,loading:false,page:1,total:0,rows:[],selected:new Set(),
     editing:null,chapterPage:1,chapterTotal:0,chapterRows:[],editingChapter:null,
     coverBusy:false,
-    coverModelTest:{model:null,ok:false},
+    coverModelTest:{provider:null,model:null,ok:false},
     cleanupPreview:{ids:[],items:[]}
   };
   const EXPERIENTIAL_IMAGE_DEFAULT='gemini-2.5-flash-image';
   const EXPERIENTIAL_PROMPT_DEFAULT='deepseek-v4-flash';
+  const OPENAI_IMAGE_DEFAULT='gpt-image-2.5-sunburst';
+  const OPENAI_IMAGE_MODELS=[
+    {id:'gpt-image-2.5-sunburst',name:'GPT Image 2.5 Sunburst · đẹp nhất'},
+    {id:'gpt-image-2.5-flare',name:'GPT Image 2.5 Flare · nhanh, chất lượng cao'},
+    {id:'gpt-image-2',name:'GPT Image 2'}
+  ];
 
   function esc(value){
     return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
@@ -27,30 +33,77 @@
     const label=box.querySelector('span:last-child');
     if(label)label.textContent=text;
   }
-  function populateExperientialImageModels(models,preferred){
+  function populateImageModels(models,preferred,provider){
     const select=$c('coverAiModel');if(!select)return;
     const rows=Array.isArray(models)?models.filter(item=>item&&item.id):[];
-    const current=preferred||select.value||EXPERIENTIAL_IMAGE_DEFAULT;
+    const fallback=provider==='openai'?OPENAI_IMAGE_DEFAULT:EXPERIENTIAL_IMAGE_DEFAULT;
+    const current=preferred||select.value||fallback;
     select.innerHTML='';
-    if(!rows.length){
+    const source=rows.length?rows:(provider==='openai'?OPENAI_IMAGE_MODELS:[]);
+    if(!source.length){
       const option=document.createElement('option');
       option.value=current;option.textContent=current;
       select.appendChild(option);
-      $c('coverImageModelHint').textContent='Không đọc được danh sách model ảnh từ catalog. Bạn vẫn có thể thử model đang chọn.';
+      $c('coverImageModelHint').textContent='Không đọc được danh sách model ảnh. Bạn vẫn có thể thử model đang chọn.';
       return;
     }
-    for(const item of rows){
+    for(const item of source){
       const option=document.createElement('option');
       option.value=item.id;
       option.textContent=item.name&&item.name!==item.id?item.name+' · '+item.id:item.id;
       select.appendChild(option);
     }
-    const found=rows.some(item=>item.id===current);
+    const found=source.some(item=>item.id===current);
     if(found)select.value=current;
-    else if(rows.some(item=>item.id===EXPERIENTIAL_IMAGE_DEFAULT))select.value=EXPERIENTIAL_IMAGE_DEFAULT;
+    else if(source.some(item=>item.id===fallback))select.value=fallback;
     else select.selectedIndex=0;
-    $c('coverImageModelHint').textContent='Đã tải '+rows.length.toLocaleString('vi-VN')+' model tạo ảnh khả dụng. Chọn model rồi bấm tạo bìa.';
+    $c('coverImageModelHint').textContent=provider==='openai'
+      ?'OpenAI đã sẵn sàng. Sunburst ưu tiên chất lượng; Flare nhanh hơn cho batch lớn.'
+      :'Đã tải '+source.length.toLocaleString('vi-VN')+' model tạo ảnh khả dụng. Chọn model rồi bấm tạo bìa.';
     persistAiSettings();
+  }
+
+  function providerLabel(provider){
+    return provider==='openai'?'OpenAI':'Experiential Labs';
+  }
+
+  function applyImageProviderMode(loadStored=true){
+    const provider=$c('coverImageProvider')?.value||'experiential';
+    const isOpenAI=provider==='openai';
+    const providerTitle=$c('coverImageProviderTitle');
+    const providerSubtitle=$c('coverImageProviderSubtitle');
+    const keyLabel=$c('coverApiKeyLabel');
+    const key=$c('coverAiKey');
+    if(providerTitle)providerTitle.textContent='AI tạo ảnh · '+providerLabel(provider);
+    if(providerSubtitle)providerSubtitle.textContent=isOpenAI
+      ?'Dùng OpenAI API key trực tiếp; key chỉ lưu trong phiên trình duyệt.'
+      :'Dùng API key mua tại platform.experientiallabs.ai';
+    if(keyLabel)keyLabel.textContent=isOpenAI?'OpenAI API key':'Experiential API key';
+    if(key)key.placeholder=isOpenAI?'sk-...':'xpl_...';
+    $c('coverImageQualityField')?.classList.toggle('hidden',!isOpenAI);
+    $c('coverBuyCreditsLink')?.classList.toggle('hidden',true);
+
+    if(loadStored&&key){
+      key.value=sessionStorage.getItem(isOpenAI?'chuong_openai_api_key':'chuong_explabs_api_key')||'';
+    }
+
+    const storedModel=sessionStorage.getItem(isOpenAI?'chuong_openai_image_model':'chuong_explabs_image_model')||(isOpenAI?OPENAI_IMAGE_DEFAULT:EXPERIENTIAL_IMAGE_DEFAULT);
+    if(isOpenAI){
+      populateImageModels(OPENAI_IMAGE_MODELS,storedModel,'openai');
+    }else{
+      const current=storedModel==='gemini-3.1-flash-lite-image'?EXPERIENTIAL_IMAGE_DEFAULT:storedModel;
+      populateImageModels([],current,'experiential');
+    }
+
+    const promptSelect=$c('coverPromptProvider');
+    if(promptSelect&&promptSelect.value!=='none'&&promptSelect.value!==provider){
+      promptSelect.value=provider;
+    }
+    catalogState.coverModelTest={provider:null,model:null,ok:false};
+    sessionStorage.removeItem('chuong_cover_tested_model');
+    sessionStorage.removeItem('chuong_cover_tested_provider');
+    applyPromptMode();
+    updateSelectionUi();
   }
 
 
