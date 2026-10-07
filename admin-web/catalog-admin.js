@@ -165,58 +165,61 @@
     updateSelectionUi();
   }
 
-  async function diagnoseExperientialModel(){
+  async function diagnoseImageModel(){
     const settings=aiSettings();persistAiSettings();
     if(!settings.apiKey){
-      setApiCheckStatus('bad','Chưa nhập Experiential API key');
+      setApiCheckStatus('bad','Chưa nhập '+providerLabel(settings.imageProvider)+' API key');
       return false;
     }
     const button=$c('coverDiagnoseModelBtn');
     button.disabled=true;button.textContent='Đang test...';
     const box=$c('coverModelDiagnostic');
     box.classList.remove('hidden');box.className='model-diagnostic';
-    box.textContent='Đang gửi đúng 1 request thử nghiệm tới model '+settings.imageModel+'...';
+    box.textContent='Đang gửi đúng 1 request thử nghiệm tới '+providerLabel(settings.imageProvider)+' · '+settings.imageModel+'...';
     try{
       const response=await window.chuongAuthFetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
         method:'POST',
         headers:authHeaders({'Content-Type':'application/json'}),
         body:JSON.stringify({
           action:'diagnose',
+          imageProvider:settings.imageProvider,
           imageApiKey:settings.apiKey,
-          imageModel:settings.imageModel
+          imageModel:settings.imageModel,
+          imageQuality:settings.imageQuality
         })
       });
       const data=await response.json().catch(()=>({ok:false,stage:'invalid_json',error:{code:'invalid_json',message:'Không đọc được phản hồi chẩn đoán.'}}));
-      renderModelDiagnostic(data);
-      if(data.ok)setApiCheckStatus('ok','Model tạo ảnh chạy được thực tế · có thể chạy batch.');
-      else if(String(data.error?.code||'')==='insufficient_quota'||/model_requires_purchase|buy credits/i.test(String(data.error?.message||'')))setApiCheckStatus('bad','API key hợp lệ nhưng tài khoản chưa có credits để dùng model này.');
+      renderModelDiagnostic({...data,provider:data.provider||providerLabel(settings.imageProvider)});
+      if(data.ok)setApiCheckStatus('ok',providerLabel(settings.imageProvider)+' · model tạo ảnh chạy được thực tế · có thể chạy batch.');
+      else if(String(data.error?.code||'')==='insufficient_quota'||/model_requires_purchase|buy credits|billing|quota/i.test(String(data.error?.message||'')))setApiCheckStatus('bad','API key hợp lệ nhưng tài khoản chưa có quota/credits cho model này.');
       else setApiCheckStatus('bad','Model test thất bại · xem chẩn đoán bên dưới.');
       return Boolean(data.ok);
     }catch(error){
-      renderModelDiagnostic({ok:false,stage:'browser',imageModel:settings.imageModel,error:{code:'browser_error',message:error.message||String(error)}});
+      renderModelDiagnostic({ok:false,provider:providerLabel(settings.imageProvider),stage:'browser',imageModel:settings.imageModel,error:{code:'browser_error',message:error.message||String(error)}});
       return false;
     }finally{
       button.disabled=false;button.textContent='Test model ảnh';
     }
   }
 
-  async function checkExperientialApi(){
+  async function checkImageApi(){
     const settings=aiSettings();
     persistAiSettings();
     if(!settings.apiKey){
-      setApiCheckStatus('bad','Chưa nhập Experiential API key');
+      setApiCheckStatus('bad','Chưa nhập '+providerLabel(settings.imageProvider)+' API key');
       return;
     }
     const button=$c('coverCheckApiBtn');
     button.disabled=true;
     button.textContent='Đang kiểm tra...';
-    setApiCheckStatus('checking','Đang xác thực khóa và kiểm tra model...');
+    setApiCheckStatus('checking','Đang xác thực '+providerLabel(settings.imageProvider)+' API key và kiểm tra model...');
     try{
       const response=await window.chuongAuthFetch(SUPABASE_URL+'/functions/v1/ai-generate-cover',{
         method:'POST',
         headers:authHeaders({'Content-Type':'application/json'}),
         body:JSON.stringify({
           action:'check',
+          imageProvider:settings.imageProvider,
           imageApiKey:settings.apiKey,
           imageModel:settings.imageModel,
           promptModel:settings.promptModel
@@ -224,16 +227,18 @@
       });
       const data=await response.json().catch(()=>({}));
       if(!response.ok||!data.ok){
-        throw new Error(data.detail||data.error||'API key không hợp lệ.');
+        const detail=String(data.detail||data.error||'API key không hợp lệ.');
+        if(/invalid_api_key|incorrect api key|invalid key|expired|revoked/i.test(detail)){
+          throw new Error('API key không hợp lệ, đã hết hạn hoặc bị thu hồi. Hãy tạo key mới rồi thử lại.');
+        }
+        throw new Error(detail);
       }
-      populateExperientialImageModels(data.imageModels,settings.imageModel);
-      const parts=['API key hợp lệ'];
+      populateImageModels(data.imageModels,settings.imageModel,settings.imageProvider);
+      const parts=[providerLabel(settings.imageProvider)+' API key hợp lệ'];
       if(Number.isFinite(Number(data.modelCount)))parts.push(Number(data.modelCount).toLocaleString('vi-VN')+' model truy cập được');
       if(Array.isArray(data.imageModels))parts.push(data.imageModels.length.toLocaleString('vi-VN')+' model tạo ảnh');
-      if(data.imageModelAvailable===false&&data.imageModels?.length)parts.push('đã tự chọn model có trong catalog');
-      else if(data.imageModelAvailable===true)parts.push('model có trong catalog · cần Test model ảnh');
-      if(data.promptModel&&data.promptModelAvailable===false)parts.push('model viết prompt chưa khả dụng');
-      else if(data.promptModel&&data.promptModelAvailable===true)parts.push('model prompt OK');
+      if(data.imageModelAvailable===false&&data.imageModels?.length)parts.push('đã tự chọn model ảnh khả dụng');
+      else if(data.imageModelAvailable===true)parts.push('model có quyền truy cập · cần Test model ảnh');
       setApiCheckStatus(data.imageModels?.length?'ok':'warn',parts.join(' · '));
     }catch(error){
       setApiCheckStatus('bad','Kiểm tra thất bại: '+(error.message||String(error)));
@@ -242,7 +247,6 @@
       button.textContent='Kiểm tra API';
     }
   }
-
 
   function showEditMessage(text,type='info'){
     const box=$c('catalogEditMessage');if(!box)return;
@@ -265,42 +269,65 @@
     return '<span>Chưa có</span>';
   }
   function aiSettings(){
-    const promptEnabled=$c('coverPromptProvider').value==='experiential';
+    const imageProvider=$c('coverImageProvider')?.value||'experiential';
+    const promptProvider=$c('coverPromptProvider')?.value||'none';
+    const fallback=imageProvider==='openai'?OPENAI_IMAGE_DEFAULT:EXPERIENTIAL_IMAGE_DEFAULT;
+    const promptFallback=promptProvider==='openai'?'gpt-6-luna':EXPERIENTIAL_PROMPT_DEFAULT;
     return {
+      imageProvider,
       apiKey:$c('coverAiKey').value.trim(),
-      imageModel:$c('coverAiModel').value.trim()||EXPERIENTIAL_IMAGE_DEFAULT,
-      promptModel:promptEnabled?($c('coverPromptModel').value.trim()||EXPERIENTIAL_PROMPT_DEFAULT):'',
+      imageModel:$c('coverAiModel').value.trim()||fallback,
+      imageQuality:imageProvider==='openai'?($c('coverImageQuality')?.value||'high'):'auto',
+      promptProvider,
+      promptModel:promptProvider!=='none'?($c('coverPromptModel').value.trim()||promptFallback):'',
       overwrite:$c('coverAiOverwrite').checked
     };
   }
+
   function applyPromptMode(){
-    const enabled=$c('coverPromptProvider').value==='experiential';
+    const provider=$c('coverPromptProvider').value||'none';
+    const enabled=provider!=='none';
     $c('coverPromptFields').classList.toggle('is-disabled',!enabled);
     for(const input of $c('coverPromptFields').querySelectorAll('input'))input.disabled=!enabled;
-    $c('coverPromptProviderHint').textContent=enabled
-      ?'Dùng chung Experiential API key. Model gợi ý: deepseek-v4-flash.'
-      :'Không dùng AI trung gian · prompt khóa cứng từ tên truyện + thể loại.';
+    if(enabled){
+      const sameProvider=$c('coverImageProvider')?.value||'experiential';
+      if(provider!==sameProvider)$c('coverPromptProvider').value=sameProvider;
+      const finalProvider=$c('coverPromptProvider').value;
+      const input=$c('coverPromptModel');
+      if(finalProvider==='openai'&&(!input.value.trim()||input.value===EXPERIENTIAL_PROMPT_DEFAULT))input.value='gpt-6-luna';
+      if(finalProvider==='experiential'&&(!input.value.trim()||input.value==='gpt-6-luna'))input.value=EXPERIENTIAL_PROMPT_DEFAULT;
+      $c('coverPromptProviderHint').textContent='Dùng chung '+providerLabel(finalProvider)+' API key ở bên trái để tối ưu prompt trước khi tạo bìa.';
+    }else{
+      $c('coverPromptProviderHint').textContent='Không dùng AI trung gian · prompt khóa cứng từ tên truyện + thể loại.';
+    }
   }
+
   function persistAiSettings(){
     const settings=aiSettings();
-    sessionStorage.setItem('chuong_explabs_image_model',settings.imageModel);
-    sessionStorage.setItem('chuong_explabs_prompt_mode',$c('coverPromptProvider').value);
-    sessionStorage.setItem('chuong_explabs_prompt_model',$c('coverPromptModel').value.trim());
-    if(settings.apiKey)sessionStorage.setItem('chuong_explabs_api_key',settings.apiKey);
-    else sessionStorage.removeItem('chuong_explabs_api_key');
+    sessionStorage.setItem('chuong_cover_image_provider',settings.imageProvider);
+    sessionStorage.setItem(settings.imageProvider==='openai'?'chuong_openai_image_model':'chuong_explabs_image_model',settings.imageModel);
+    sessionStorage.setItem('chuong_openai_image_quality',$c('coverImageQuality')?.value||'high');
+    sessionStorage.setItem('chuong_cover_prompt_mode',$c('coverPromptProvider').value);
+    sessionStorage.setItem('chuong_cover_prompt_model',$c('coverPromptModel').value.trim());
+    const keyName=settings.imageProvider==='openai'?'chuong_openai_api_key':'chuong_explabs_api_key';
+    if(settings.apiKey)sessionStorage.setItem(keyName,settings.apiKey);
+    else sessionStorage.removeItem(keyName);
   }
+
   function restoreAiSettings(){
-    $c('coverAiKey').value=sessionStorage.getItem('chuong_explabs_api_key')||sessionStorage.getItem('chuong_cover_image_key')||'';
-    const storedImageModel=sessionStorage.getItem('chuong_explabs_image_model')||EXPERIENTIAL_IMAGE_DEFAULT;
-    const restoredModel=storedImageModel==='gemini-3.1-flash-lite-image'?EXPERIENTIAL_IMAGE_DEFAULT:storedImageModel;
-    if(!$c('coverAiModel').querySelector('option[value="'+CSS.escape(restoredModel)+'"]')){
-      const option=document.createElement('option');option.value=restoredModel;option.textContent=restoredModel;$c('coverAiModel').appendChild(option);
-    }
-    $c('coverAiModel').value=restoredModel;
-    $c('coverPromptProvider').value=sessionStorage.getItem('chuong_explabs_prompt_mode')||'none';
-    $c('coverPromptModel').value=sessionStorage.getItem('chuong_explabs_prompt_model')||EXPERIENTIAL_PROMPT_DEFAULT;
+    const provider=sessionStorage.getItem('chuong_cover_image_provider')||'experiential';
+    if($c('coverImageProvider'))$c('coverImageProvider').value=provider==='openai'?'openai':'experiential';
+    if($c('coverImageQuality'))$c('coverImageQuality').value=sessionStorage.getItem('chuong_openai_image_quality')||'high';
+    $c('coverPromptProvider').value=sessionStorage.getItem('chuong_cover_prompt_mode')||sessionStorage.getItem('chuong_explabs_prompt_mode')||'none';
+    $c('coverPromptModel').value=sessionStorage.getItem('chuong_cover_prompt_model')||sessionStorage.getItem('chuong_explabs_prompt_model')||EXPERIENTIAL_PROMPT_DEFAULT;
+    applyImageProviderMode(true);
     const testedModel=sessionStorage.getItem('chuong_cover_tested_model')||'';
-    catalogState.coverModelTest={model:testedModel||null,ok:Boolean(testedModel&&testedModel===$c('coverAiModel').value)};
+    const testedProvider=sessionStorage.getItem('chuong_cover_tested_provider')||'';
+    catalogState.coverModelTest={
+      provider:testedProvider||null,
+      model:testedModel||null,
+      ok:Boolean(testedModel&&testedProvider===($c('coverImageProvider')?.value||'experiential')&&testedModel===$c('coverAiModel').value)
+    };
     applyPromptMode();
   }
 
