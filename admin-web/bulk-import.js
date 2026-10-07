@@ -420,24 +420,32 @@
           title:String(chapter.title||''),
           content:String(chapter.content||'')
         }));
-        const merged=await rest('rpc/admin_merge_zip_book',{
-          method:'POST',
-          body:{
-            p_book_id:bookId,
-            p_title:title,
-            p_author:author,
-            p_summary:String(row.summary||'').trim(),
-            p_genres:genres,
-            p_status:row.status||el('bulkDefaultStatus').value,
-            p_source_type:el('bulkSourceType').value,
-            p_publish_now:Boolean(publishNow),
-            p_chapters:payload
-          }
-        });
-        const result=merged?.[0]||{};
-        const replaced=Number(result.replaced_chapters||0);
-        const added=Number(result.added_chapters||0);
-        const total=Number(result.total_chapters||existing.chapter_count||chapters.length);
+        let replaced=0,added=0,total=Number(existing.chapter_count||0);
+        const chapterChunks=[];
+        for(let i=0;i<payload.length;i+=120)chapterChunks.push(payload.slice(i,i+120));
+        for(let i=0;i<chapterChunks.length;i++){
+          row.message='Đang cập nhật chương '+(i*120+1)+'–'+Math.min((i+1)*120,payload.length)+' / '+payload.length+'…';
+          renderBulkRows();
+          const merged=await rest('rpc/admin_merge_zip_book',{
+            method:'POST',
+            body:{
+              p_book_id:bookId,
+              p_title:title,
+              p_author:author,
+              p_summary:String(row.summary||'').trim(),
+              p_genres:genres,
+              p_status:row.status||el('bulkDefaultStatus').value,
+              p_source_type:el('bulkSourceType').value,
+              p_publish_now:Boolean(publishNow),
+              p_chapters:chapterChunks[i]
+            }
+          });
+          const result=merged?.[0]||{};
+          replaced+=Number(result.replaced_chapters||0);
+          added+=Number(result.added_chapters||0);
+          total=Number(result.total_chapters||total);
+          await wait(0);
+        }
 
         let coverNote='';
         if(parsed.coverBlob&&!existing.has_cover){
