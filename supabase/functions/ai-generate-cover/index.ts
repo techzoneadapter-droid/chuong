@@ -492,6 +492,117 @@ Deno.serve(async (req: Request) => {
 
   const action = body.action || "generate";
   const imageApiKey = (body.imageApiKey || body.apiKey || "").trim();
+  const actionImageProvider: ImageProvider = body.imageProvider || "experiential";
+
+  if (action === "diagnose" && actionImageProvider === "openai") {
+    if (!imageApiKey) return reply(400, { ok:false, error:"openai_api_key_required" });
+    const imageModel = body.imageModel?.trim() || "gpt-image-2.5-sunburst";
+    const testPrompt = [
+      "Generate exactly one simple vertical book-cover illustration.",
+      "Portrait 2:3 composition.",
+      "A lone fantasy traveler standing before a distant mountain at sunrise.",
+      "No text, no logo, no watermark."
+    ].join(" ");
+    try {
+      await generateImage({
+        provider: "openai",
+        apiKey: imageApiKey,
+        baseUrl: "https://api.openai.com/v1",
+        model: imageModel,
+        prompt: testPrompt,
+        quality: body.imageQuality?.trim() || "low",
+      });
+      return reply(200, {
+        ok: true,
+        provider: "OpenAI",
+        stage: "image_payload",
+        imageModel,
+        httpStatus: 200,
+        imagePayloadFound: true,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const match = message.match(/^image_provider_(\d{3}):(.*)$/s);
+      const httpStatus = match ? Number(match[1]) : 502;
+      const raw = match?.[2] || message;
+      let code = "openai_image_error";
+      let providerMessage = raw;
+      try {
+        const parsed = JSON.parse(raw) as { error?: { code?: string; message?: string; type?: string } };
+        code = parsed.error?.code || parsed.error?.type || code;
+        providerMessage = parsed.error?.message || raw;
+      } catch {}
+      return reply(200, {
+        ok: false,
+        provider: "OpenAI",
+        stage: "upstream",
+        imageModel,
+        httpStatus,
+        error: { code, message: providerMessage.slice(0, 900) },
+      });
+    }
+  }
+
+  if (action === "check" && actionImageProvider === "openai") {
+    if (!imageApiKey) return reply(400, { ok:false, error:"openai_api_key_required" });
+    try {
+      const response = await fetch("https://api.openai.com/v1/models", {
+        method: "GET",
+        headers: { Authorization: "Bearer " + imageApiKey },
+      });
+      const raw = await response.text();
+      if (!response.ok) {
+        return reply(response.status === 401 || response.status === 403 ? response.status : 502, {
+          ok: false,
+          error: "openai_api_check_failed",
+          detail: raw.slice(0, 1200),
+          status: response.status,
+        });
+      }
+      let parsed: { data?: Array<{ id?: string }> } = {};
+      try { parsed = JSON.parse(raw) as { data?: Array<{ id?: string }> }; } catch {}
+      const ids = (parsed.data || []).map((item) => String(item.id || "")).filter(Boolean);
+      const names: Record<string,string> = {
+        "gpt-image-2.5-sunburst": "GPT Image 2.5 Sunburst · đẹp nhất",
+        "gpt-image-2.5-flare": "GPT Image 2.5 Flare · nhanh, chất lượng cao",
+        "gpt-image-2": "GPT Image 2",
+        "gpt-image-1.5": "GPT Image 1.5",
+        "gpt-image-1": "GPT Image 1",
+        "gpt-image-1-mini": "GPT Image 1 Mini",
+        "chatgpt-image-latest": "ChatGPT Image Latest",
+      };
+      const preferred = [
+        "gpt-image-2.5-sunburst",
+        "gpt-image-2.5-flare",
+        "gpt-image-2",
+        "gpt-image-1.5",
+        "gpt-image-1",
+        "gpt-image-1-mini",
+        "chatgpt-image-latest",
+      ];
+      const granted = new Set(ids);
+      const imageModels = preferred
+        .filter((id) => granted.has(id))
+        .map((id) => ({ id, name: names[id] || id, provider: "OpenAI", category: "image" }));
+      for (const id of ids) {
+        if (!/^(?:gpt-image-|chatgpt-image-latest$)/i.test(id)) continue;
+        if (imageModels.some((item) => item.id === id)) continue;
+        imageModels.push({ id, name: names[id] || id, provider: "OpenAI", category: "image" });
+      }
+      const imageModel = body.imageModel?.trim() || "gpt-image-2.5-sunburst";
+      return reply(200, {
+        ok: true,
+        provider: "OpenAI",
+        modelCount: ids.length,
+        imageModels: imageModels.slice(0, 40),
+        imageModel,
+        imageModelAvailable: imageModels.some((item) => item.id === imageModel),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "openai_api_check_failed";
+      return reply(502, { ok:false, error:message });
+    }
+  }
 
   if (action === "diagnose") {
     if (!imageApiKey) return reply(400, { ok:false, error:"experiential_api_key_required" });
