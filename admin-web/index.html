@@ -218,9 +218,15 @@
 
           <div class="provider-layout experiential-layout">
             <div class="provider-panel provider-image-panel">
-              <div class="provider-panel-title"><span>1</span><div><strong>Experiential Labs · AI tạo ảnh</strong><small>Dùng đúng API key mua tại platform.experientiallabs.ai</small></div></div>
+              <div class="provider-panel-title"><span>1</span><div><strong id="coverImageProviderTitle">AI tạo ảnh · Experiential Labs</strong><small id="coverImageProviderSubtitle">Dùng API key mua tại platform.experientiallabs.ai</small></div></div>
+              <label>Nhà cung cấp tạo ảnh
+                <select id="coverImageProvider">
+                  <option value="experiential">Experiential Labs</option>
+                  <option value="openai">OpenAI</option>
+                </select>
+              </label>
               <div class="experiential-key-row">
-                <label>Experiential API key
+                <label><span id="coverApiKeyLabel">Experiential API key</span>
                   <input id="coverAiKey" type="password" autocomplete="off" placeholder="xpl_..." />
                 </label>
                 <div class="api-test-buttons">
@@ -239,6 +245,14 @@
                   <option value="gemini-2.5-flash-image">gemini-2.5-flash-image</option>
                 </select>
               </label>
+              <label id="coverImageQualityField" class="hidden">Chất lượng OpenAI
+                <select id="coverImageQuality">
+                  <option value="high">Cao · ưu tiên bìa đẹp</option>
+                  <option value="auto">Tự động</option>
+                  <option value="medium">Trung bình</option>
+                  <option value="low">Tiết kiệm</option>
+                </select>
+              </label>
               <p id="coverImageModelHint" class="provider-hint">Bấm <strong>Kiểm tra API</strong> để tải danh sách model tạo ảnh mà khóa của bạn đang truy cập được, sau đó chọn model tại ô phía trên.</p>
             </div>
 
@@ -248,6 +262,7 @@
                 <select id="coverPromptProvider">
                   <option value="none">Không dùng · nhanh nhất</option>
                   <option value="experiential">Dùng model Experiential Labs</option>
+                  <option value="openai">Dùng model OpenAI</option>
                 </select>
               </label>
               <div id="coverPromptFields" class="provider-fields prompt-fields is-disabled">
