@@ -360,12 +360,46 @@
                 <div><strong>Nội dung chương</strong><span id="catalogChapterCount" class="tiny">0 chương</span></div>
                 <div class="catalog-chapter-head-actions">
                   <button id="catalogAddChapterBtn" class="secondary mini" type="button">+ Thêm chương</button>
+                  <button id="catalogAddBulkChapterBtn" class="secondary mini" type="button">+ Thêm hàng loạt</button>
                   <button id="catalogChapterPrev" class="ghost mini" type="button">←</button>
                   <span id="catalogChapterPage" class="tiny">1/1</span>
                   <button id="catalogChapterNext" class="ghost mini" type="button">→</button>
                 </div>
               </div>
               <div id="catalogChapterList" class="catalog-chapter-list"></div>
+
+              <div id="catalogBulkChapterEditor" class="catalog-bulk-chapter-editor hidden">
+                <div class="catalog-bulk-chapter-head">
+                  <div>
+                    <strong>Thêm chương hàng loạt</strong>
+                    <span class="tiny">Dán nguyên văn nhiều chương. Hệ thống tự nhận diện dòng “Chương 1…”, “Chapter 1…”, “Hồi 1…”, “Phần 1…” và 第1章.</span>
+                  </div>
+                  <button id="catalogCloseBulkChapterBtn" class="ghost mini" type="button">Đóng</button>
+                </div>
+                <label>Dán nội dung nhiều chương
+                  <textarea id="catalogBulkChapterText" rows="12" placeholder="Chương 1: Khởi đầu&#10;&#10;Nội dung chương 1...&#10;&#10;Chương 2: Gặp gỡ&#10;&#10;Nội dung chương 2..."></textarea>
+                </label>
+                <div class="catalog-bulk-chapter-options">
+                  <label>Trạng thái chương
+                    <select id="catalogBulkChapterStatus">
+                      <option value="draft">Bản nháp</option>
+                      <option value="published">Đã xuất bản</option>
+                    </select>
+                  </label>
+                  <label class="check-row catalog-bulk-overwrite">
+                    <input id="catalogBulkChapterOverwrite" type="checkbox" />
+                    <span><strong>Ghi đè chương trùng số</strong><small>Mặc định tắt để không làm mất nội dung chương đang có.</small></span>
+                  </label>
+                </div>
+                <div id="catalogBulkChapterSummary" class="audit">Dán văn bản để hệ thống tự nhận diện chương.</div>
+                <div id="catalogBulkChapterPreview" class="catalog-bulk-chapter-preview"></div>
+                <div class="catalog-chapter-editor-actions">
+                  <button id="catalogParseBulkChapterBtn" class="secondary" type="button">Nhận diện lại</button>
+                  <button id="catalogSaveBulkChapterBtn" class="primary inline-primary" type="button" disabled>Lưu chương hàng loạt</button>
+                  <button id="catalogCancelBulkChapterBtn" class="ghost" type="button">Hủy</button>
+                </div>
+              </div>
+
               <div id="catalogChapterEditor" class="catalog-chapter-editor hidden">
                 <div class="grid-2">
                   <label>Số chương<input id="catalogChapterNumber" type="number" readonly /></label>
