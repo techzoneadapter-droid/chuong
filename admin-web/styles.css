@@ -752,3 +752,29 @@ button,input,select,textarea{letter-spacing:0}
 .cleanup-preview-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .cleanup-preview-footer .danger-soft{min-width:220px}
 .cleanup-preview-empty{padding:24px;border:1px dashed var(--line);border-radius:12px;text-align:center;color:var(--muted);background:#faf7f1}
+
+
+/* Catalog chapter tools — single edit + bulk paste import */
+.catalog-bulk-chapter-editor{margin-top:10px;padding:12px;border:1px solid #d9cdbd;border-radius:13px;background:#fffaf2;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+.catalog-bulk-chapter-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.catalog-bulk-chapter-head>div{display:flex;flex-direction:column;gap:3px}
+.catalog-bulk-chapter-head strong{font-size:10px;color:var(--ink)}
+.catalog-bulk-chapter-editor textarea{min-height:240px;font-family:Georgia,serif;line-height:1.58;resize:vertical}
+.catalog-bulk-chapter-options{display:grid;grid-template-columns:minmax(150px,.7fr) minmax(260px,1.3fr);gap:10px;align-items:end;margin-top:8px}
+.catalog-bulk-overwrite{margin:0;min-height:42px;padding:7px 9px;border:1px dashed #d8cab8;border-radius:10px;background:#fffdf9}
+.catalog-bulk-overwrite span{display:flex;flex-direction:column;gap:2px}
+.catalog-bulk-overwrite small{font-size:7px;color:var(--muted);font-weight:600}
+.catalog-bulk-chapter-preview{max-height:190px;overflow:auto;margin-top:8px;border:1px solid var(--line);border-radius:11px;background:#fffdf9}
+.catalog-bulk-chapter-row{display:grid;grid-template-columns:68px minmax(0,1fr) 84px;gap:8px;align-items:center;padding:7px 9px;border-bottom:1px solid #eee6da}
+.catalog-bulk-chapter-row:last-child{border-bottom:0}
+.catalog-bulk-chapter-row b{font-size:8px;color:var(--jade)}
+.catalog-bulk-chapter-row span{font-size:8.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.catalog-bulk-chapter-row small{font-size:7px;color:var(--muted);text-align:right}
+.catalog-bulk-chapter-more{padding:8px;text-align:center;color:var(--muted);font-size:8px}
+#catalogBulkChapterSummary{margin-top:10px}
+@media(max-width:720px){
+  .catalog-bulk-chapter-head{flex-direction:column}
+  .catalog-bulk-chapter-options{grid-template-columns:1fr}
+  .catalog-bulk-chapter-row{grid-template-columns:60px minmax(0,1fr)}
+  .catalog-bulk-chapter-row small{grid-column:2;text-align:left}
+}
