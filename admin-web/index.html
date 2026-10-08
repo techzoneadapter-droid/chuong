@@ -322,8 +322,11 @@
         <div class="admin-modal-backdrop" data-close-catalog-modal></div>
         <div class="admin-modal-panel catalog-editor-panel">
           <div class="admin-modal-head">
-            <div><p class="eyebrow">CHỈNH SỬA TRUYỆN</p><h2 id="catalogEditHeading">Hồ sơ truyện</h2></div>
-            <button class="ghost" type="button" data-close-catalog-modal>Đóng</button>
+            <div><p id="catalogEditKicker" class="eyebrow">CHỈNH SỬA TRUYỆN</p><h2 id="catalogEditHeading">Hồ sơ truyện</h2></div>
+            <div class="catalog-modal-head-actions">
+              <button id="catalogNewBookBtn" class="secondary" type="button">+ Thêm truyện</button>
+              <button class="ghost" type="button" data-close-catalog-modal>Đóng</button>
+            </div>
           </div>
           <div id="catalogEditMessage" class="message hidden"></div>
           <div class="catalog-editor-grid">
@@ -355,7 +358,8 @@
             <div class="catalog-chapters-panel">
               <div class="catalog-chapter-head">
                 <div><strong>Nội dung chương</strong><span id="catalogChapterCount" class="tiny">0 chương</span></div>
-                <div>
+                <div class="catalog-chapter-head-actions">
+                  <button id="catalogAddChapterBtn" class="secondary mini" type="button">+ Thêm chương</button>
                   <button id="catalogChapterPrev" class="ghost mini" type="button">←</button>
                   <span id="catalogChapterPage" class="tiny">1/1</span>
                   <button id="catalogChapterNext" class="ghost mini" type="button">→</button>
@@ -371,7 +375,10 @@
                 </div>
                 <label>Tiêu đề chương<input id="catalogChapterTitle" type="text" /></label>
                 <label>Nội dung<textarea id="catalogChapterContent" rows="14"></textarea></label>
-                <button id="catalogSaveChapterBtn" class="primary inline-primary" type="button">Lưu chương</button>
+                <div class="catalog-chapter-editor-actions">
+                  <button id="catalogSaveChapterBtn" class="primary inline-primary" type="button">Lưu chương</button>
+                  <button id="catalogCancelChapterBtn" class="ghost" type="button">Hủy</button>
+                </div>
               </div>
             </div>
           </div>
