@@ -7,7 +7,7 @@
   const catalogState={
     loaded:false,loading:false,page:1,total:0,rows:[],selected:new Set(),
     editing:null,creatingBook:false,chapterPage:1,chapterTotal:0,chapterRows:[],editingChapter:null,
-    bulkChapterRows:[],bulkChapterTimer:null,
+    bulkChapterRows:[],bulkChapterTimer:null,bulkChapterLargePaste:false,
     coverBusy:false,
     coverModelTest:{provider:null,model:null,ok:false},
     cleanupPreview:{ids:[],items:[]}
@@ -719,22 +719,48 @@
   }
 
   function parseBulkChapterText(raw){
-    const text=normalizeBulkChapterText(raw);
-    if(!text)return[];
-    const re=/^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?:\s*\/\s*\d{1,6})?|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
-    const matches=[...text.matchAll(re)];
-    if(!matches.length)return[];
-    const rows=[];
-    for(let i=0;i<matches.length;i++){
-      const match=matches[i],next=matches[i+1];
+    // PERF: avoid normalizing/copying the whole multi-megabyte novel several times.
+    // Only normalize CRLF once; each chapter body is normalized after slicing.
+    const text=String(raw||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+    if(!text.trim())return[];
+
+    // IMPORTANT: a Roman chapter number must end before whitespace/separator/end.
+    // Without this boundary, prose such as "Phan Dực..." was parsed as:
+    // "Phan" + Roman D (=500), and "Phần còn..." as Roman C (=100).
+    const re=/^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?=\s|[:.\-–—/]|$)(?:\s*\/\s*\d{1,6})?|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
+
+    const rawMatches=[...text.matchAll(re)];
+    if(!rawMatches.length)return[];
+
+    // Some source files contain the same chapter heading twice in a row
+    // (often plain heading + Markdown heading) with only blank lines between.
+    // Treat that as one heading and keep the later/real heading.
+    const matches=[];
+    for(const match of rawMatches){
       const chapterNumber=parseBulkChapterNumber(match[1]||match[2]);
       if(!Number.isInteger(chapterNumber)||chapterNumber<1)continue;
+      const previous=matches[matches.length-1];
+      if(previous&&previous.chapterNumber===chapterNumber){
+        const previousEnd=(previous.match.index||0)+previous.match[0].length;
+        const gap=text.slice(previousEnd,match.index||0);
+        if(!gap.trim()){
+          matches[matches.length-1]={match,chapterNumber};
+          continue;
+        }
+      }
+      matches.push({match,chapterNumber});
+    }
+
+    const rows=[];
+    for(let i=0;i<matches.length;i++){
+      const current=matches[i],next=matches[i+1];
+      const match=current.match;
       const tail=(match[3]||'').replace(/[*_#]+\s*$/g,'').trim();
       const start=(match.index||0)+match[0].length;
-      const end=next?.index??text.length;
+      const end=next?.match?.index??text.length;
       rows.push({
-        chapterNumber,
-        title:tail||('Chương '+chapterNumber),
+        chapterNumber:current.chapterNumber,
+        title:tail||('Chương '+current.chapterNumber),
         content:normalizeBulkChapterText(text.slice(start,end))
       });
     }
@@ -780,28 +806,75 @@
       summary.textContent='✓ Nhận diện '+rows.length.toLocaleString('vi-VN')+' chương · khoảng '+first+' → '+last+'. Chương trùng với dữ liệu đang có sẽ '+($c('catalogBulkChapterOverwrite').checked?'được ghi đè.':'được bỏ qua.');
       save.disabled=false;
     }
-    preview.innerHTML=rows.slice(0,120).map(row=>{
+    // Keep the DOM preview small. Rendering hundreds of rows makes the modal janky.
+    preview.innerHTML=rows.slice(0,40).map(row=>{
       const chars=String(row.content||'').length;
       return '<div class="catalog-bulk-chapter-row"><b>Ch. '+row.chapterNumber+'</b><span>'+esc(row.title)+'</span><small>'+chars.toLocaleString('vi-VN')+' ký tự</small></div>';
-    }).join('')+(rows.length>120?'<div class="catalog-bulk-chapter-more">… còn '+(rows.length-120).toLocaleString('vi-VN')+' chương</div>':'');
+    }).join('')+(rows.length>40?'<div class="catalog-bulk-chapter-more">… còn '+(rows.length-40).toLocaleString('vi-VN')+' chương (đã nhận diện, không cần render hết)</div>':'');
   }
 
-  function parseBulkChapterInput(){
-    catalogState.bulkChapterRows=parseBulkChapterText($c('catalogBulkChapterText').value);
+  function parseBulkChapterInput(rawOverride){
+    const field=$c('catalogBulkChapterText');
+    const raw=typeof rawOverride==='string'?rawOverride:field.value;
+    catalogState.bulkChapterRows=parseBulkChapterText(raw);
     renderBulkChapterPreview();
+    return catalogState.bulkChapterRows;
   }
 
   function scheduleBulkChapterParse(){
+    catalogState.bulkChapterLargePaste=false;
     clearTimeout(catalogState.bulkChapterTimer);
-    catalogState.bulkChapterTimer=setTimeout(parseBulkChapterInput,260);
+    // Large chapter text should not be reparsed on every keystroke.
+    catalogState.bulkChapterTimer=setTimeout(parseBulkChapterInput,700);
+  }
+
+  function handleBulkChapterPaste(event){
+    const pasted=event.clipboardData?.getData('text/plain')||'';
+    if(pasted.length<300000)return;
+
+    // Do not place multi-megabyte text inside the textarea: Chromium becomes very
+    // slow painting/caret-scrolling it. Parse clipboard text directly instead.
+    event.preventDefault();
+    clearTimeout(catalogState.bulkChapterTimer);
+    catalogState.bulkChapterTimer=null;
+    catalogState.bulkChapterLargePaste=true;
+
+    const field=$c('catalogBulkChapterText');
+    field.value='';
+    field.placeholder='Đang nhận diện văn bản lớn…';
+    const summary=$c('catalogBulkChapterSummary');
+    summary.className='audit';
+    summary.textContent='Đang nhận diện '+(pasted.length/1024/1024).toFixed(1)+' MB văn bản…';
+    $c('catalogSaveBulkChapterBtn').disabled=true;
+
+    setTimeout(()=>{
+      try{
+        const rows=parseBulkChapterInput(pasted);
+        field.placeholder=rows.length
+          ?'Đã nạp '+(pasted.length/1024/1024).toFixed(1)+' MB vào bộ nhớ · '+rows.length.toLocaleString('vi-VN')+' chương. Dán nội dung khác để thay thế.'
+          :'Không nhận diện được chương. Hãy dán lại hoặc kiểm tra định dạng tiêu đề chương.';
+        if(rows.length){
+          showEditMessage('Đã nhận diện '+rows.length.toLocaleString('vi-VN')+' chương mà không giữ toàn bộ văn bản trong ô nhập, giúp trang nhẹ hơn.','success');
+        }
+      }catch(error){
+        catalogState.bulkChapterRows=[];
+        field.placeholder='Dán nội dung nhiều chương';
+        showEditMessage(error.message||String(error),'error');
+        renderBulkChapterPreview();
+      }
+    },30);
   }
 
   function closeBulkChapterEditor(){
     clearTimeout(catalogState.bulkChapterTimer);
     catalogState.bulkChapterTimer=null;
     catalogState.bulkChapterRows=[];
+    catalogState.bulkChapterLargePaste=false;
     if($c('catalogBulkChapterEditor'))$c('catalogBulkChapterEditor').classList.add('hidden');
-    if($c('catalogBulkChapterText'))$c('catalogBulkChapterText').value='';
+    if($c('catalogBulkChapterText')){
+      $c('catalogBulkChapterText').value='';
+      $c('catalogBulkChapterText').placeholder='Chương 1: Khởi đầu\n\nNội dung chương 1...\n\nChương 2: Gặp gỡ\n\nNội dung chương 2...';
+    }
     if($c('catalogBulkChapterPreview'))$c('catalogBulkChapterPreview').innerHTML='';
     if($c('catalogBulkChapterSummary')){
       $c('catalogBulkChapterSummary').className='audit';
@@ -817,7 +890,9 @@
     }
     closeChapterEditor();
     catalogState.bulkChapterRows=[];
+    catalogState.bulkChapterLargePaste=false;
     $c('catalogBulkChapterText').value='';
+    $c('catalogBulkChapterText').placeholder='Chương 1: Khởi đầu\n\nNội dung chương 1...\n\nChương 2: Gặp gỡ\n\nNội dung chương 2...';
     $c('catalogBulkChapterOverwrite').checked=false;
     $c('catalogBulkChapterStatus').value='draft';
     $c('catalogBulkChapterPreview').innerHTML='';
@@ -847,7 +922,9 @@
   async function saveBulkChapters(){
     const row=catalogState.editing;
     if(!row?.id||catalogState.creatingBook)return showEditMessage('Hãy tạo truyện trước khi thêm chương.','warn');
-    parseBulkChapterInput();
+    // Large paste is parsed directly from clipboard and the textarea is kept empty
+    // for performance. Reparse only when the user has actual text in the field.
+    if($c('catalogBulkChapterText').value.trim())parseBulkChapterInput();
     const chapters=catalogState.bulkChapterRows||[];
     const audit=analyzeBulkChapterRows(chapters);
     if(!chapters.length)return showEditMessage('Chưa nhận diện được chương nào từ văn bản dán.','error');
@@ -1541,9 +1618,13 @@
   $c('catalogManualCover')?.addEventListener('change',event=>{const file=event.target.files?.[0];if(file)void manualCover(file);event.target.value='';});
   $c('catalogAddChapterBtn')?.addEventListener('click',()=>void openNewChapter());
   $c('catalogAddBulkChapterBtn')?.addEventListener('click',openBulkChapterEditor);
+  $c('catalogBulkChapterText')?.addEventListener('paste',handleBulkChapterPaste);
   $c('catalogBulkChapterText')?.addEventListener('input',scheduleBulkChapterParse);
   $c('catalogBulkChapterOverwrite')?.addEventListener('change',renderBulkChapterPreview);
-  $c('catalogParseBulkChapterBtn')?.addEventListener('click',parseBulkChapterInput);
+  $c('catalogParseBulkChapterBtn')?.addEventListener('click',()=>{
+    if($c('catalogBulkChapterText').value.trim())parseBulkChapterInput();
+    else renderBulkChapterPreview();
+  });
   $c('catalogSaveBulkChapterBtn')?.addEventListener('click',()=>void saveBulkChapters());
   $c('catalogCancelBulkChapterBtn')?.addEventListener('click',closeBulkChapterEditor);
   $c('catalogCloseBulkChapterBtn')?.addEventListener('click',closeBulkChapterEditor);
