@@ -87,6 +87,16 @@
 .admin-modal-backdrop{position:absolute;inset:0;background:rgba(24,28,26,.58);backdrop-filter:blur(3px)}
 .admin-modal-panel{position:relative;z-index:1;width:min(96vw,1380px);max-height:92vh;overflow:auto;border-radius:20px;border:1px solid var(--line);background:#fbf7ef;box-shadow:0 24px 80px rgba(0,0,0,.28);padding:17px}
 .admin-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.catalog-modal-head-actions,.catalog-chapter-head-actions,.catalog-chapter-editor-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.catalog-chapter-editor-actions{margin-top:9px}
+.catalog-chapter-head-actions .mini{white-space:nowrap}
+@media(max-width:720px){
+  .admin-modal-head{align-items:stretch;flex-direction:column}
+  .catalog-modal-head-actions{width:100%}
+  .catalog-modal-head-actions button{flex:1}
+  .catalog-chapter-head{align-items:flex-start;flex-direction:column}
+  .catalog-chapter-head-actions{width:100%}
+}
 .catalog-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(480px,.9fr);gap:16px}
 .catalog-editor-main,.catalog-chapters-panel{min-width:0}
 .catalog-cover-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
