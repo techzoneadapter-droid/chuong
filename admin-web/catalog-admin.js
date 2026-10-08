@@ -7,6 +7,7 @@
   const catalogState={
     loaded:false,loading:false,page:1,total:0,rows:[],selected:new Set(),
     editing:null,creatingBook:false,chapterPage:1,chapterTotal:0,chapterRows:[],editingChapter:null,
+    bulkChapterRows:[],bulkChapterTimer:null,
     coverBusy:false,
     coverModelTest:{provider:null,model:null,ok:false},
     cleanupPreview:{ids:[],items:[]}
@@ -461,6 +462,7 @@
     $c('catalogAiCoverBtn').disabled=creating;
     $c('catalogManualCover').disabled=creating;
     $c('catalogAddChapterBtn').disabled=creating;
+    $c('catalogAddBulkChapterBtn').disabled=creating;
     $c('catalogChapterPrev').disabled=creating;
     $c('catalogChapterNext').disabled=creating;
     if(creating){
@@ -468,6 +470,7 @@
       $c('catalogChapterPage').textContent='1/1';
       $c('catalogChapterList').innerHTML='<div class="bulk-empty">Hãy tạo truyện trước, sau đó bạn có thể thêm chương ngay tại đây.</div>';
       $c('catalogChapterEditor').classList.add('hidden');
+      $c('catalogBulkChapterEditor').classList.add('hidden');
     }
   }
 
@@ -487,6 +490,8 @@
     $c('catalogEditDescription').value=row.description||'';
     renderEditCover(row.cover_url);
     $c('catalogChapterEditor').classList.add('hidden');
+    $c('catalogBulkChapterEditor').classList.add('hidden');
+    catalogState.bulkChapterRows=[];
     showEditMessage('');
     loadChapterPage();
   }
@@ -514,7 +519,9 @@
     $c('catalogEditStatus').value='draft';
     $c('catalogEditDescription').value='';
     renderEditCover('');
-    showEditMessage('Nhập thông tin truyện rồi bấm “Tạo truyện”. Sau khi tạo xong, nút “+ Thêm chương” sẽ bật ngay.','info');
+    $c('catalogBulkChapterEditor').classList.add('hidden');
+    catalogState.bulkChapterRows=[];
+    showEditMessage('Nhập thông tin truyện rồi bấm “Tạo truyện”. Sau khi tạo xong, bạn có thể thêm 1 chương hoặc dán nhiều chương để nhập hàng loạt.','info');
   }
 
   function closeBook(){
@@ -522,6 +529,8 @@
     catalogState.editing=null;
     catalogState.creatingBook=false;
     catalogState.editingChapter=null;
+    catalogState.bulkChapterRows=[];
+    if($c('catalogBulkChapterEditor'))$c('catalogBulkChapterEditor').classList.add('hidden');
   }
 
   function renderEditCover(url){
@@ -647,7 +656,7 @@
       '<button type="button" class="catalog-chapter-item" data-edit-chapter="'+ch.id+'">'+
         '<b>Chương '+ch.chapter_number+'</b>'+
         '<span>'+esc(ch.title||('Chương '+ch.chapter_number))+'</span>'+
-        '<small>'+esc(ch.status==='published'?'Đã xuất bản · Bấm để sửa':'Bản nháp · Bấm để sửa')+'</small>'+
+        '<small>'+esc(ch.status==='published'?'Đã xuất bản · Sửa chương':'Bản nháp · Sửa chương')+'</small>'+
       '</button>'
     ).join('');
   }
@@ -658,11 +667,277 @@
     $c('catalogChapterNumber').readOnly=true;
   }
 
+
+
+  function normalizeBulkChapterText(value){
+    return String(value||'')
+      .replace(/^\uFEFF/,'')
+      .replace(/\r\n?/g,'\n')
+      .replace(/[ \t]+\n/g,'\n')
+      .replace(/\n{4,}/g,'\n\n\n')
+      .trim();
+  }
+
+  function bulkRomanToNumber(value){
+    const map={I:1,V:5,X:10,L:50,C:100,D:500,M:1000};
+    let total=0,prev=0;
+    for(const ch of String(value||'').toUpperCase().split('').reverse()){
+      const n=map[ch]||0;
+      total+=n<prev?-n:n;
+      prev=Math.max(prev,n);
+    }
+    return total||0;
+  }
+
+  function bulkChineseToNumber(value){
+    if(/^\d+$/.test(String(value||'')))return Number(value);
+    const digit={零:0,〇:0,一:1,二:2,两:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9};
+    const unit={十:10,百:100,千:1000,万:10000};
+    let total=0,section=0,num=0;
+    for(const ch of String(value||'')){
+      if(ch in digit){num=digit[ch];continue;}
+      const u=unit[ch];
+      if(!u)continue;
+      if(u===10000){
+        section=(section+(num||0))*u;
+        total+=section;
+        section=0;
+        num=0;
+      }else{
+        section+=(num||1)*u;
+        num=0;
+      }
+    }
+    return total+section+num;
+  }
+
+  function parseBulkChapterNumber(value){
+    const raw=String(value||'').trim();
+    if(/^\d+$/.test(raw))return Number(raw);
+    if(/^[ivxlcdm]+$/i.test(raw))return bulkRomanToNumber(raw);
+    return bulkChineseToNumber(raw);
+  }
+
+  function parseBulkChapterText(raw){
+    const text=normalizeBulkChapterText(raw);
+    if(!text)return[];
+    const re=/^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?:\s*\/\s*\d{1,6})?|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
+    const matches=[...text.matchAll(re)];
+    if(!matches.length)return[];
+    const rows=[];
+    for(let i=0;i<matches.length;i++){
+      const match=matches[i],next=matches[i+1];
+      const chapterNumber=parseBulkChapterNumber(match[1]||match[2]);
+      if(!Number.isInteger(chapterNumber)||chapterNumber<1)continue;
+      const tail=(match[3]||'').replace(/[*_#]+\s*$/g,'').trim();
+      const start=(match.index||0)+match[0].length;
+      const end=next?.index??text.length;
+      rows.push({
+        chapterNumber,
+        title:tail||('Chương '+chapterNumber),
+        content:normalizeBulkChapterText(text.slice(start,end))
+      });
+    }
+    return rows.sort((a,b)=>a.chapterNumber-b.chapterNumber);
+  }
+
+  function analyzeBulkChapterRows(rows){
+    const seen=new Set(),duplicates=new Set(),empty=[];
+    for(let i=0;i<rows.length;i++){
+      const number=Number(rows[i].chapterNumber);
+      if(seen.has(number))duplicates.add(number);
+      seen.add(number);
+      if(!String(rows[i].content||'').trim())empty.push(number);
+    }
+    return {duplicates:[...duplicates].sort((a,b)=>a-b),empty};
+  }
+
+  function renderBulkChapterPreview(){
+    const rows=catalogState.bulkChapterRows||[];
+    const summary=$c('catalogBulkChapterSummary');
+    const preview=$c('catalogBulkChapterPreview');
+    const save=$c('catalogSaveBulkChapterBtn');
+    if(!rows.length){
+      summary.className='audit warn';
+      summary.textContent=$c('catalogBulkChapterText').value.trim()
+        ?'Chưa nhận diện được chương. Hãy đặt tiêu đề trên dòng riêng, ví dụ “Chương 1: Khởi đầu”.'
+        :'Dán văn bản để hệ thống tự nhận diện chương.';
+      preview.innerHTML='';
+      save.disabled=true;
+      return;
+    }
+    const audit=analyzeBulkChapterRows(rows);
+    const first=rows[0].chapterNumber,last=rows[rows.length-1].chapterNumber;
+    if(audit.duplicates.length||audit.empty.length){
+      summary.className='audit bad';
+      const notes=[];
+      if(audit.duplicates.length)notes.push('Trùng số chương: '+audit.duplicates.slice(0,20).join(', ')+(audit.duplicates.length>20?'…':''));
+      if(audit.empty.length)notes.push('Chương rỗng: '+audit.empty.slice(0,20).join(', ')+(audit.empty.length>20?'…':''));
+      summary.textContent='Nhận diện '+rows.length+' chương ('+first+' → '+last+'). '+notes.join(' · ')+' — cần sửa trước khi lưu.';
+      save.disabled=true;
+    }else{
+      summary.className='audit';
+      summary.textContent='✓ Nhận diện '+rows.length.toLocaleString('vi-VN')+' chương · khoảng '+first+' → '+last+'. Chương trùng với dữ liệu đang có sẽ '+($c('catalogBulkChapterOverwrite').checked?'được ghi đè.':'được bỏ qua.');
+      save.disabled=false;
+    }
+    preview.innerHTML=rows.slice(0,120).map(row=>{
+      const chars=String(row.content||'').length;
+      return '<div class="catalog-bulk-chapter-row"><b>Ch. '+row.chapterNumber+'</b><span>'+esc(row.title)+'</span><small>'+chars.toLocaleString('vi-VN')+' ký tự</small></div>';
+    }).join('')+(rows.length>120?'<div class="catalog-bulk-chapter-more">… còn '+(rows.length-120).toLocaleString('vi-VN')+' chương</div>':'');
+  }
+
+  function parseBulkChapterInput(){
+    catalogState.bulkChapterRows=parseBulkChapterText($c('catalogBulkChapterText').value);
+    renderBulkChapterPreview();
+  }
+
+  function scheduleBulkChapterParse(){
+    clearTimeout(catalogState.bulkChapterTimer);
+    catalogState.bulkChapterTimer=setTimeout(parseBulkChapterInput,260);
+  }
+
+  function closeBulkChapterEditor(){
+    clearTimeout(catalogState.bulkChapterTimer);
+    catalogState.bulkChapterTimer=null;
+    catalogState.bulkChapterRows=[];
+    if($c('catalogBulkChapterEditor'))$c('catalogBulkChapterEditor').classList.add('hidden');
+    if($c('catalogBulkChapterText'))$c('catalogBulkChapterText').value='';
+    if($c('catalogBulkChapterPreview'))$c('catalogBulkChapterPreview').innerHTML='';
+    if($c('catalogBulkChapterSummary')){
+      $c('catalogBulkChapterSummary').className='audit';
+      $c('catalogBulkChapterSummary').textContent='Dán văn bản để hệ thống tự nhận diện chương.';
+    }
+    if($c('catalogSaveBulkChapterBtn'))$c('catalogSaveBulkChapterBtn').disabled=true;
+  }
+
+  function openBulkChapterEditor(){
+    const row=catalogState.editing;
+    if(!row?.id||catalogState.creatingBook){
+      return showEditMessage('Hãy tạo truyện trước khi thêm chương hàng loạt.','warn');
+    }
+    closeChapterEditor();
+    catalogState.bulkChapterRows=[];
+    $c('catalogBulkChapterText').value='';
+    $c('catalogBulkChapterOverwrite').checked=false;
+    $c('catalogBulkChapterStatus').value='draft';
+    $c('catalogBulkChapterPreview').innerHTML='';
+    $c('catalogBulkChapterSummary').className='audit';
+    $c('catalogBulkChapterSummary').textContent='Dán văn bản để hệ thống tự nhận diện chương.';
+    $c('catalogSaveBulkChapterBtn').disabled=true;
+    $c('catalogBulkChapterEditor').classList.remove('hidden');
+    $c('catalogBulkChapterText').focus();
+    showEditMessage('Dán nhiều chương vào ô bên dưới. Hệ thống sẽ tự nhận diện sau khi bạn dán.','info');
+  }
+
+  async function findExistingBulkChapters(bookId,numbers){
+    const byNumber=new Map();
+    const unique=[...new Set(numbers)].sort((a,b)=>a-b);
+    for(let offset=0;offset<unique.length;offset+=100){
+      const slice=unique.slice(offset,offset+100);
+      const found=await rest(
+        'chapters?book_id=eq.'+encodeURIComponent(bookId)+
+        '&chapter_number=in.('+slice.join(',')+')'+
+        '&select=id,chapter_number,status,published_at'
+      );
+      for(const item of found||[])byNumber.set(Number(item.chapter_number),item);
+    }
+    return byNumber;
+  }
+
+  async function saveBulkChapters(){
+    const row=catalogState.editing;
+    if(!row?.id||catalogState.creatingBook)return showEditMessage('Hãy tạo truyện trước khi thêm chương.','warn');
+    parseBulkChapterInput();
+    const chapters=catalogState.bulkChapterRows||[];
+    const audit=analyzeBulkChapterRows(chapters);
+    if(!chapters.length)return showEditMessage('Chưa nhận diện được chương nào từ văn bản dán.','error');
+    if(audit.duplicates.length)return showEditMessage('Văn bản dán đang trùng số chương: '+audit.duplicates.slice(0,20).join(', ')+'.','error');
+    if(audit.empty.length)return showEditMessage('Có chương chưa có nội dung: '+audit.empty.slice(0,20).join(', ')+'.','error');
+
+    const status=$c('catalogBulkChapterStatus').value;
+    const overwrite=$c('catalogBulkChapterOverwrite').checked;
+    const saveBtn=$c('catalogSaveBulkChapterBtn');
+    saveBtn.disabled=true;
+    saveBtn.textContent='Đang lưu…';
+
+    try{
+      const existing=await findExistingBulkChapters(row.id,chapters.map(item=>item.chapterNumber));
+      const now=new Date().toISOString();
+      const inserts=[];
+      const updates=[];
+      let skipped=0;
+
+      for(const chapter of chapters){
+        const old=existing.get(Number(chapter.chapterNumber));
+        if(old){
+          if(!overwrite){skipped++;continue;}
+          updates.push({old,chapter});
+        }else{
+          inserts.push({
+            book_id:row.id,
+            chapter_number:chapter.chapterNumber,
+            title:chapter.title.trim()||('Chương '+chapter.chapterNumber),
+            content:chapter.content.trim(),
+            status,
+            published_at:status==='published'?now:null,
+            is_vip:false,
+            price_coins:0
+          });
+        }
+      }
+
+      for(let offset=0;offset<inserts.length;offset+=25){
+        await rest('chapters',{method:'POST',body:inserts.slice(offset,offset+25),prefer:'return=minimal'});
+      }
+
+      for(let offset=0;offset<updates.length;offset+=8){
+        const batch=updates.slice(offset,offset+8);
+        await Promise.all(batch.map(({old,chapter})=>rest(
+          'chapters?id=eq.'+encodeURIComponent(old.id)+'&book_id=eq.'+encodeURIComponent(row.id),
+          {
+            method:'PATCH',
+            body:{
+              title:chapter.title.trim()||('Chương '+chapter.chapterNumber),
+              content:chapter.content.trim(),
+              status,
+              published_at:status==='published'?(old.published_at||now):null,
+              updated_at:now
+            }
+          }
+        )));
+      }
+
+      if(!inserts.length&&!updates.length){
+        showEditMessage('Không có chương mới để thêm. '+skipped+' chương đã tồn tại và được bỏ qua.','warn');
+        return;
+      }
+
+      const estimatedTotal=Math.max(0,catalogState.chapterTotal)+inserts.length;
+      catalogState.chapterPage=Math.max(1,Math.ceil(estimatedTotal/CHAPTER_PAGE_SIZE));
+      await loadChapterPage();
+      await loadCatalog(false);
+      closeBulkChapterEditor();
+
+      const parts=[];
+      if(inserts.length)parts.push('thêm mới '+inserts.length.toLocaleString('vi-VN')+' chương');
+      if(updates.length)parts.push('cập nhật '+updates.length.toLocaleString('vi-VN')+' chương');
+      if(skipped)parts.push('bỏ qua '+skipped.toLocaleString('vi-VN')+' chương đã có');
+      showEditMessage('Đã '+parts.join(' · ')+'.','success');
+    }catch(error){
+      showEditMessage(error.message||String(error),'error');
+    }finally{
+      saveBtn.disabled=false;
+      saveBtn.textContent='Lưu chương hàng loạt';
+      if(!$c('catalogBulkChapterEditor').classList.contains('hidden'))renderBulkChapterPreview();
+    }
+  }
+
   async function openNewChapter(){
     const row=catalogState.editing;
     if(!row?.id||catalogState.creatingBook){
       return showEditMessage('Hãy tạo truyện trước khi thêm chương.','warn');
     }
+    closeBulkChapterEditor();
     try{
       const latest=await rest(
         'chapters?book_id=eq.'+encodeURIComponent(row.id)+'&select=chapter_number&order=chapter_number.desc&limit=1'
@@ -692,6 +967,7 @@
 
   async function openChapter(id){
     const row=catalogState.editing;if(!row?.id)return;
+    closeBulkChapterEditor();
     try{
       const items=await rest('chapters?id=eq.'+encodeURIComponent(id)+'&book_id=eq.'+encodeURIComponent(row.id)+'&select=id,chapter_number,title,content,status&limit=1');
       const chapter=items?.[0];if(!chapter)throw new Error('Không tìm thấy chương.');
@@ -1264,6 +1540,13 @@
   $c('catalogAiCoverBtn')?.addEventListener('click',()=>void generateSingleCover());
   $c('catalogManualCover')?.addEventListener('change',event=>{const file=event.target.files?.[0];if(file)void manualCover(file);event.target.value='';});
   $c('catalogAddChapterBtn')?.addEventListener('click',()=>void openNewChapter());
+  $c('catalogAddBulkChapterBtn')?.addEventListener('click',openBulkChapterEditor);
+  $c('catalogBulkChapterText')?.addEventListener('input',scheduleBulkChapterParse);
+  $c('catalogBulkChapterOverwrite')?.addEventListener('change',renderBulkChapterPreview);
+  $c('catalogParseBulkChapterBtn')?.addEventListener('click',parseBulkChapterInput);
+  $c('catalogSaveBulkChapterBtn')?.addEventListener('click',()=>void saveBulkChapters());
+  $c('catalogCancelBulkChapterBtn')?.addEventListener('click',closeBulkChapterEditor);
+  $c('catalogCloseBulkChapterBtn')?.addEventListener('click',closeBulkChapterEditor);
   $c('catalogChapterPrev')?.addEventListener('click',()=>{if(catalogState.chapterPage>1){catalogState.chapterPage--;void loadChapterPage();}});
   $c('catalogChapterNext')?.addEventListener('click',()=>{catalogState.chapterPage++;void loadChapterPage();});
   $c('catalogChapterList')?.addEventListener('click',event=>{const id=event.target.closest?.('[data-edit-chapter]')?.dataset.editChapter;if(id)void openChapter(id);});
