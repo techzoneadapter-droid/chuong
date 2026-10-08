@@ -1258,13 +1258,16 @@
   });
   document.querySelectorAll('[data-close-catalog-modal]').forEach(el=>el.addEventListener('click',closeBook));
   document.querySelectorAll('[data-close-bulk-edit]').forEach(el=>el.addEventListener('click',closeBulkEdit));
+  $c('catalogNewBookBtn')?.addEventListener('click',openCreateBook);
   $c('catalogSaveBookBtn')?.addEventListener('click',()=>void saveBook());
-  $c('catalogDeleteBookBtn')?.addEventListener('click',()=>catalogState.editing&&void deleteBooks([catalogState.editing.id],true));
+  $c('catalogDeleteBookBtn')?.addEventListener('click',()=>catalogState.editing?.id&&void deleteBooks([catalogState.editing.id],true));
   $c('catalogAiCoverBtn')?.addEventListener('click',()=>void generateSingleCover());
   $c('catalogManualCover')?.addEventListener('change',event=>{const file=event.target.files?.[0];if(file)void manualCover(file);event.target.value='';});
+  $c('catalogAddChapterBtn')?.addEventListener('click',()=>void openNewChapter());
   $c('catalogChapterPrev')?.addEventListener('click',()=>{if(catalogState.chapterPage>1){catalogState.chapterPage--;void loadChapterPage();}});
   $c('catalogChapterNext')?.addEventListener('click',()=>{catalogState.chapterPage++;void loadChapterPage();});
   $c('catalogChapterList')?.addEventListener('click',event=>{const id=event.target.closest?.('[data-edit-chapter]')?.dataset.editChapter;if(id)void openChapter(id);});
   $c('catalogSaveChapterBtn')?.addEventListener('click',()=>void saveChapter());
+  $c('catalogCancelChapterBtn')?.addEventListener('click',closeChapterEditor);
   $c('catalogApplyBulkEditBtn')?.addEventListener('click',()=>void applyBulkEdit());
 })();
