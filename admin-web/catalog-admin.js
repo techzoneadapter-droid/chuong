@@ -615,7 +615,7 @@
   }
 
   async function loadChapterPage(){
-    const row=catalogState.editing;if(!row)return;
+    const row=catalogState.editing;if(!row?.id||catalogState.creatingBook)return;
     $c('catalogChapterList').innerHTML='<div class="tiny">Đang tải chương…</div>';
     const offset=(catalogState.chapterPage-1)*CHAPTER_PAGE_SIZE;
     try{
@@ -631,6 +631,7 @@
       showEditMessage(error.message||String(error),'error');
     }
   }
+
   function renderChapters(){
     const pages=Math.max(1,Math.ceil(catalogState.chapterTotal/CHAPTER_PAGE_SIZE));
     catalogState.chapterPage=Math.min(Math.max(1,catalogState.chapterPage),pages);
@@ -639,45 +640,143 @@
     $c('catalogChapterPrev').disabled=catalogState.chapterPage<=1;
     $c('catalogChapterNext').disabled=catalogState.chapterPage>=pages;
     if(!catalogState.chapterRows.length){
-      $c('catalogChapterList').innerHTML='<div class="bulk-empty">Chưa có chương.</div>';return;
+      $c('catalogChapterList').innerHTML='<div class="bulk-empty">Chưa có chương. Bấm “+ Thêm chương” để nhập chương đầu tiên.</div>';
+      return;
     }
     $c('catalogChapterList').innerHTML=catalogState.chapterRows.map(ch=>
       '<button type="button" class="catalog-chapter-item" data-edit-chapter="'+ch.id+'">'+
-        '<b>Chương '+ch.chapter_number+'</b><span>'+esc(ch.title)+'</span><small>'+esc(ch.status==='published'?'Đã xuất bản':'Bản nháp')+'</small>'+
+        '<b>Chương '+ch.chapter_number+'</b>'+
+        '<span>'+esc(ch.title||('Chương '+ch.chapter_number))+'</span>'+
+        '<small>'+esc(ch.status==='published'?'Đã xuất bản · Bấm để sửa':'Bản nháp · Bấm để sửa')+'</small>'+
       '</button>'
     ).join('');
   }
+
+  function closeChapterEditor(){
+    catalogState.editingChapter=null;
+    $c('catalogChapterEditor').classList.add('hidden');
+    $c('catalogChapterNumber').readOnly=true;
+  }
+
+  async function openNewChapter(){
+    const row=catalogState.editing;
+    if(!row?.id||catalogState.creatingBook){
+      return showEditMessage('Hãy tạo truyện trước khi thêm chương.','warn');
+    }
+    try{
+      const latest=await rest(
+        'chapters?book_id=eq.'+encodeURIComponent(row.id)+'&select=chapter_number&order=chapter_number.desc&limit=1'
+      );
+      const next=Math.max(1,Number(latest?.[0]?.chapter_number||0)+1);
+      catalogState.editingChapter={
+        id:null,
+        chapter_number:next,
+        title:'Chương '+next,
+        content:'',
+        status:'draft',
+        isNew:true
+      };
+      $c('catalogChapterNumber').readOnly=false;
+      $c('catalogChapterNumber').value=next;
+      $c('catalogChapterTitle').value='Chương '+next;
+      $c('catalogChapterContent').value='';
+      $c('catalogChapterStatus').value='draft';
+      $c('catalogSaveChapterBtn').textContent='Thêm chương';
+      $c('catalogChapterEditor').classList.remove('hidden');
+      $c('catalogChapterTitle').focus();
+      showEditMessage('Đang thêm chương mới. Số chương có thể chỉnh trước khi lưu.','info');
+    }catch(error){
+      showEditMessage(error.message||String(error),'error');
+    }
+  }
+
   async function openChapter(id){
-    const row=catalogState.editing;if(!row)return;
+    const row=catalogState.editing;if(!row?.id)return;
     try{
       const items=await rest('chapters?id=eq.'+encodeURIComponent(id)+'&book_id=eq.'+encodeURIComponent(row.id)+'&select=id,chapter_number,title,content,status&limit=1');
       const chapter=items?.[0];if(!chapter)throw new Error('Không tìm thấy chương.');
-      catalogState.editingChapter=chapter;
+      catalogState.editingChapter={...chapter,isNew:false};
+      $c('catalogChapterNumber').readOnly=false;
       $c('catalogChapterNumber').value=chapter.chapter_number;
       $c('catalogChapterTitle').value=chapter.title||'';
       $c('catalogChapterContent').value=chapter.content||'';
       $c('catalogChapterStatus').value=chapter.status||'draft';
+      $c('catalogSaveChapterBtn').textContent='Lưu thay đổi';
       $c('catalogChapterEditor').classList.remove('hidden');
-    }catch(error){showEditMessage(error.message||String(error),'error');}
+      showEditMessage('Bạn đang sửa chương '+chapter.chapter_number+'.','info');
+    }catch(error){
+      showEditMessage(error.message||String(error),'error');
+    }
   }
+
   async function saveChapter(){
-    const row=catalogState.editing,chapter=catalogState.editingChapter;if(!row||!chapter)return;
-    const title=$c('catalogChapterTitle').value.trim();
+    const row=catalogState.editing,chapter=catalogState.editingChapter;
+    if(!row?.id||!chapter)return;
+    const chapterNumber=Number($c('catalogChapterNumber').value);
+    const title=$c('catalogChapterTitle').value.trim()||('Chương '+chapterNumber);
     const content=$c('catalogChapterContent').value.trim();
     const status=$c('catalogChapterStatus').value;
-    if(title.length<2)return showEditMessage('Tiêu đề chương quá ngắn.','error');
+
+    if(!Number.isInteger(chapterNumber)||chapterNumber<1)return showEditMessage('Số chương phải là số nguyên từ 1 trở lên.','error');
     if(status==='published'&&content.length<50)return showEditMessage('Chương đã xuất bản cần ít nhất 50 ký tự.','error');
+
     try{
       $c('catalogSaveChapterBtn').disabled=true;
-      await rest('chapters?id=eq.'+encodeURIComponent(chapter.id)+'&book_id=eq.'+encodeURIComponent(row.id),{
-        method:'PATCH',
-        body:{title,content,status,published_at:status==='published'?(chapter.status==='published'?undefined:new Date().toISOString()):null,updated_at:new Date().toISOString()}
-      });
-      chapter.title=title;chapter.content=content;chapter.status=status;
-      showEditMessage('Đã lưu nội dung chương '+chapter.chapter_number+'.','success');
+
+      const duplicate=await rest(
+        'chapters?book_id=eq.'+encodeURIComponent(row.id)+
+        '&chapter_number=eq.'+encodeURIComponent(chapterNumber)+
+        '&select=id,chapter_number&limit=2'
+      );
+      const collision=(duplicate||[]).some(item=>item.id!==chapter.id);
+      if(collision)throw new Error('Chương '+chapterNumber+' đã tồn tại trong truyện này. Hãy chọn số chương khác.');
+
+      if(chapter.isNew||!chapter.id){
+        const created=await rest('chapters?select=id,chapter_number,title,status',{
+          method:'POST',
+          prefer:'return=representation',
+          body:{
+            book_id:row.id,
+            chapter_number:chapterNumber,
+            title,
+            content,
+            status,
+            published_at:status==='published'?new Date().toISOString():null,
+            is_vip:false,
+            price_coins:0
+          }
+        });
+        const saved=created?.[0];
+        if(!saved?.id)throw new Error('Database không trả về chương vừa tạo.');
+        catalogState.editingChapter={...saved,content,isNew:false};
+        showEditMessage('Đã thêm chương '+chapterNumber+' thành công.','success');
+      }else{
+        await rest('chapters?id=eq.'+encodeURIComponent(chapter.id)+'&book_id=eq.'+encodeURIComponent(row.id),{
+          method:'PATCH',
+          body:{
+            chapter_number:chapterNumber,
+            title,
+            content,
+            status,
+            published_at:status==='published'?(chapter.status==='published'?undefined:new Date().toISOString()):null,
+            updated_at:new Date().toISOString()
+          }
+        });
+        chapter.chapter_number=chapterNumber;
+        chapter.title=title;
+        chapter.content=content;
+        chapter.status=status;
+        showEditMessage('Đã lưu thay đổi chương '+chapterNumber+'.','success');
+      }
+
       await loadChapterPage();
-    }catch(error){showEditMessage(error.message||String(error),'error');}
-    finally{$c('catalogSaveChapterBtn').disabled=false;}
+      await loadCatalog(false);
+      closeChapterEditor();
+    }catch(error){
+      showEditMessage(error.message||String(error),'error');
+    }finally{
+      $c('catalogSaveChapterBtn').disabled=false;
+    }
   }
 
   function base64ToBlob(base64,mime){
