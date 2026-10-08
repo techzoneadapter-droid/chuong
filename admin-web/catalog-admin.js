@@ -724,10 +724,13 @@
     const text=String(raw||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
     if(!text.trim())return[];
 
-    // IMPORTANT: a Roman chapter number must end before whitespace/separator/end.
-    // Without this boundary, prose such as "Phan Dực..." was parsed as:
-    // "Phan" + Roman D (=500), and "Phần còn..." as Roman C (=100).
-    const re=/^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?=\s|[:.\-–—/]|$)(?:\s*\/\s*\d{1,6})?|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
+    // IMPORTANT:
+    // - Arabic numbers are accepted for all chapter keywords.
+    // - Roman numerals are NOT accepted after "phần/phan/part/tiết/tiet".
+    //   Otherwise normal prose such as "Phan Dực..." or "Phần còn lại..."
+    //   is misread as chapter D/C/M/L, which inflated a 500-chapter novel to 800+ matches.
+    // - Consecutive duplicate headings are deduped below (plain heading + Markdown heading).
+    const re=/^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6})(?:\s*\/\s*\d{1,6})?)|(?:(?:chương|chuong|chapter|chap|hồi|hoi|quyển|quyen|volume)\s*(?:số\s*)?([ivxlcdm]{1,12})(?=(?:[ \t]*[:.\-–—])|[ \t]*$|[ \t]+\S))|(?:第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇]))(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
 
     const rawMatches=[...text.matchAll(re)];
     if(!rawMatches.length)return[];
@@ -737,7 +740,7 @@
     // Treat that as one heading and keep the later/real heading.
     const matches=[];
     for(const match of rawMatches){
-      const chapterNumber=parseBulkChapterNumber(match[1]||match[2]);
+      const chapterNumber=parseBulkChapterNumber(match[1]||match[2]||match[3]);
       if(!Number.isInteger(chapterNumber)||chapterNumber<1)continue;
       const previous=matches[matches.length-1];
       if(previous&&previous.chapterNumber===chapterNumber){
@@ -755,7 +758,7 @@
     for(let i=0;i<matches.length;i++){
       const current=matches[i],next=matches[i+1];
       const match=current.match;
-      const tail=(match[3]||'').replace(/[*_#]+\s*$/g,'').trim();
+      const tail=(match[4]||'').replace(/[*_#]+\s*$/g,'').trim();
       const start=(match.index||0)+match[0].length;
       const end=next?.match?.index??text.length;
       rows.push({
@@ -822,9 +825,23 @@
   }
 
   function scheduleBulkChapterParse(){
-    catalogState.bulkChapterLargePaste=false;
     clearTimeout(catalogState.bulkChapterTimer);
-    // Large chapter text should not be reparsed on every keystroke.
+    const field=$c('catalogBulkChapterText');
+    const size=field?.value?.length||0;
+
+    // Small text: keep live detection.
+    // Large text: never rescan on every input event; Chromium can freeze for seconds
+    // when multi-megabyte novels are repeatedly copied + regex scanned.
+    if(size>200000){
+      catalogState.bulkChapterLargePaste=true;
+      catalogState.bulkChapterTimer=null;
+      $c('catalogBulkChapterSummary').className='audit';
+      $c('catalogBulkChapterSummary').textContent='Văn bản lớn ('+(size/1024/1024).toFixed(1)+' MB). Bấm “Nhận diện lại” để quét một lần, tránh lag khi đang chỉnh/dán.';
+      $c('catalogSaveBulkChapterBtn').disabled=true;
+      return;
+    }
+
+    catalogState.bulkChapterLargePaste=false;
     catalogState.bulkChapterTimer=setTimeout(parseBulkChapterInput,700);
   }
 
