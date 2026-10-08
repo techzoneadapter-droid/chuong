@@ -6,7 +6,7 @@
   const $c=(id)=>document.getElementById(id);
   const catalogState={
     loaded:false,loading:false,page:1,total:0,rows:[],selected:new Set(),
-    editing:null,chapterPage:1,chapterTotal:0,chapterRows:[],editingChapter:null,
+    editing:null,creatingBook:false,chapterPage:1,chapterTotal:0,chapterRows:[],editingChapter:null,
     coverBusy:false,
     coverModelTest:{provider:null,model:null,ok:false},
     cleanupPreview:{ids:[],items:[]}
@@ -446,10 +446,38 @@
     }
   }
 
+  function catalogSlugify(value){
+    return String(value||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/đ/g,'d').replace(/Đ/g,'D')
+      .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80);
+  }
+
+  function setBookEditorMode(creating){
+    catalogState.creatingBook=Boolean(creating);
+    if($c('catalogEditKicker'))$c('catalogEditKicker').textContent=creating?'THÊM TRUYỆN MỚI':'CHỈNH SỬA TRUYỆN';
+    $c('catalogSaveBookBtn').textContent=creating?'Tạo truyện':'Lưu thông tin';
+    $c('catalogDeleteBookBtn').disabled=creating;
+    $c('catalogAiCoverBtn').disabled=creating;
+    $c('catalogManualCover').disabled=creating;
+    $c('catalogAddChapterBtn').disabled=creating;
+    $c('catalogChapterPrev').disabled=creating;
+    $c('catalogChapterNext').disabled=creating;
+    if(creating){
+      $c('catalogChapterCount').textContent='0 chương';
+      $c('catalogChapterPage').textContent='1/1';
+      $c('catalogChapterList').innerHTML='<div class="bulk-empty">Hãy tạo truyện trước, sau đó bạn có thể thêm chương ngay tại đây.</div>';
+      $c('catalogChapterEditor').classList.add('hidden');
+    }
+  }
+
   function openBook(row){
     catalogState.editing={...row};
     catalogState.chapterPage=1;
+    catalogState.chapterTotal=0;
+    catalogState.chapterRows=[];
     catalogState.editingChapter=null;
+    setBookEditorMode(false);
     $c('catalogEditModal').classList.remove('hidden');
     $c('catalogEditHeading').textContent=row.title;
     $c('catalogEditTitle').value=row.title||'';
@@ -462,10 +490,40 @@
     showEditMessage('');
     loadChapterPage();
   }
+
+  function openCreateBook(){
+    catalogState.editing={
+      id:'',
+      title:'',
+      author_name:'Chuong',
+      genres:['Khác'],
+      status:'draft',
+      description:'',
+      cover_url:null
+    };
+    catalogState.chapterPage=1;
+    catalogState.chapterTotal=0;
+    catalogState.chapterRows=[];
+    catalogState.editingChapter=null;
+    setBookEditorMode(true);
+    $c('catalogEditModal').classList.remove('hidden');
+    $c('catalogEditHeading').textContent='Truyện mới';
+    $c('catalogEditTitle').value='';
+    $c('catalogEditAuthor').value='Chuong';
+    $c('catalogEditGenre').value='Khác';
+    $c('catalogEditStatus').value='draft';
+    $c('catalogEditDescription').value='';
+    renderEditCover('');
+    showEditMessage('Nhập thông tin truyện rồi bấm “Tạo truyện”. Sau khi tạo xong, nút “+ Thêm chương” sẽ bật ngay.','info');
+  }
+
   function closeBook(){
     $c('catalogEditModal').classList.add('hidden');
-    catalogState.editing=null;catalogState.editingChapter=null;
+    catalogState.editing=null;
+    catalogState.creatingBook=false;
+    catalogState.editingChapter=null;
   }
+
   function renderEditCover(url){
     $c('catalogEditCoverPreview').innerHTML=url?
       '<img src="'+esc(url)+'" alt="Bìa truyện" />':
@@ -478,10 +536,60 @@
     const author=$c('catalogEditAuthor').value.trim()||'Chuong';
     const genre=$c('catalogEditGenre').value;
     const status=$c('catalogEditStatus').value;
-    const description=$c('catalogEditDescription').value.trim();
+    const description=$c('catalogEditDescription').value.trim()||'Hãy khám phá.';
     if(title.length<2)return showEditMessage('Tên truyện quá ngắn.','error');
+
     try{
       $c('catalogSaveBookBtn').disabled=true;
+
+      if(catalogState.creatingBook){
+        if(!state?.ownerAuthorId)throw new Error('Chưa xác định được tác giả nội bộ Admin. Hãy đăng nhập lại trang quản trị.');
+        const duplicateRows=await rest(
+          'books?select=id,title&title=eq.'+encodeURIComponent(title)+'&limit=3'
+        );
+        if(duplicateRows?.length){
+          throw new Error('Đã có truyện cùng tên trong kho. Hãy mở truyện cũ để sửa hoặc dùng chức năng cập nhật ZIP.');
+        }
+        const slug=(catalogSlugify(title)||'truyen')+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+        const created=await rest('books?select=id,title,status,description,cover_url,total_chapters',{
+          method:'POST',
+          prefer:'return=representation',
+          body:{
+            author_id:state.ownerAuthorId,
+            title,
+            slug,
+            description,
+            credited_author_name:author,
+            language:'vi',
+            source_type:'authorized',
+            status,
+            visibility:status==='draft'?'private':'public',
+            tags:[],
+            is_vip:false,
+            price_coins:0
+          }
+        });
+        const book=created?.[0];
+        if(!book?.id)throw new Error('Database không trả về ID truyện mới.');
+        await rest('book_genres',{method:'POST',prefer:'return=minimal',body:{book_id:book.id,genre}});
+        catalogState.editing={
+          ...row,
+          ...book,
+          id:book.id,
+          title,
+          author_name:author,
+          description,
+          genres:[genre],
+          status
+        };
+        setBookEditorMode(false);
+        $c('catalogEditHeading').textContent=title;
+        showEditMessage('Đã tạo truyện mới. Bạn có thể bấm “+ Thêm chương” để nhập chương đầu tiên.','success');
+        await loadCatalog(true);
+        await loadChapterPage();
+        return;
+      }
+
       await rest('books?id=eq.'+encodeURIComponent(row.id),{
         method:'PATCH',
         body:{title,credited_author_name:author,description,updated_at:new Date().toISOString()}
@@ -499,8 +607,11 @@
       $c('catalogEditHeading').textContent=title;
       showEditMessage('Đã lưu thông tin truyện.','success');
       await loadCatalog(false);
-    }catch(error){showEditMessage(error.message||String(error),'error');}
-    finally{$c('catalogSaveBookBtn').disabled=false;}
+    }catch(error){
+      showEditMessage(error.message||String(error),'error');
+    }finally{
+      $c('catalogSaveBookBtn').disabled=false;
+    }
   }
 
   async function loadChapterPage(){
