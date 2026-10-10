@@ -40,6 +40,8 @@ jobs:
         run: npm run test:release
       - name: Database regression
         run: npm run test:db
+      - name: Reader and preview policy regression
+        run: npm run test:free-preview && node tests/performance-phase3-reader.mjs && node tests/reader-gestures.mjs
       - name: Web export
         run: npm run build
 

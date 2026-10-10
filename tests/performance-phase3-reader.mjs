@@ -67,6 +67,7 @@ console.log('PASS: exact text/TTS parity, sparse-compatible metadata TTL, pendin
 let connected = true; let rpcCalls = 0; let removed = 0; let locked = false; let expired = false;
 class OfflineLicenseExpiredError extends Error {}
 const chapterService = load('../services/chapters.ts', {
+  '../lib/freeChapterPreview': load('../lib/freeChapterPreview.ts'),
   '../data/books': { getBook: () => ({ chapters: [] }) }, '../data/readerContent': { getChapterContent: () => [] },
   '../lib/supabase': { supabase: { rpc: async () => {
     rpcCalls++;

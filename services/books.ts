@@ -6,6 +6,7 @@ import { deleteOwnBookCover } from './storage';
 import { toServiceError } from './errors';
 import { getOfflineBookSnapshot, listOfflineBooks } from './offlineDownloads';
 import { normalizeBookSummary } from './contentText';
+import { normalizeFreePreviewCount, validateFreePreviewCount } from '../lib/freeChapterPreview';
 
 type BookRow = Database['public']['Tables']['books']['Row'];
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
@@ -46,6 +47,7 @@ export function mapBook(row: BookRow, author?: AuthorRow, genres: string[] = [])
     totalChapters: row.total_chapters,
     latestChapter: row.total_chapters,
     isVip: row.is_vip,
+    freePreviewChapters: normalizeFreePreviewCount(row.free_preview_chapters),
     price: row.price_coins,
     progress: 0,
     chapters: []
@@ -173,7 +175,7 @@ export async function createBook(authorId: string, input: AuthorBookInput): Prom
     const { data, error } = await client.from('books').insert({
       author_id: authorId, title: input.title.trim(), slug, description: input.description.trim(), cover_url: input.coverUrl,
       language: input.language, source_type: input.sourceType, status: 'draft', visibility: 'private', tags: input.tags, credited_author_name: input.creditedAuthorName?.trim() || null,
-      is_vip: isVip, price_coins: priceCoins
+      is_vip: isVip, price_coins: priceCoins, free_preview_chapters: validateFreePreviewCount(input.freePreviewChapters ?? 0)
     }).select('*').single();
     if (error) throw error;
     if (input.genre.trim()) {
@@ -204,7 +206,8 @@ export async function getPopularBooks(): Promise<ServiceResult<Book[]>> {
   const result = await getBooks();
   return { ...result, data: [...result.data].sort((a, b) => (b.viewsCount ?? 0) - (a.viewsCount ?? 0)) };
 }
-export async function updateBook(id: string, updates: Partial<Pick<BookRow, 'title' | 'description' | 'cover_url' | 'language' | 'source_type' | 'status' | 'visibility' | 'tags' | 'is_vip' | 'price_coins'>>) {
+export async function updateBook(id: string, updates: Partial<Pick<BookRow, 'title' | 'description' | 'cover_url' | 'language' | 'source_type' | 'status' | 'visibility' | 'tags' | 'is_vip' | 'price_coins' | 'free_preview_chapters'>>) {
+  if (updates.free_preview_chapters !== undefined) validateFreePreviewCount(updates.free_preview_chapters);
   const { data, error } = await requireSupabase().from('books').update(updates).eq('id', id).select('*').single();
   if (error) throw toServiceError(error, 'Không thể cập nhật truyện.');
   return (await hydrateBooks([data]))[0];

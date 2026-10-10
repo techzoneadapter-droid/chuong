@@ -347,6 +347,9 @@
                 </label>
               </div>
               <label>Mô tả<textarea id="catalogEditDescription" rows="5"></textarea></label>
+              <label>Số chương đọc thử miễn phí<input id="catalogFreePreview" type="number" min="0" max="100000" step="1" value="0" /></label>
+              <div class="catalog-cover-actions"><button type="button" class="secondary mini" data-free-preview-for="catalogFreePreview" data-free-preview-value="0">0</button><button type="button" class="secondary mini" data-free-preview-for="catalogFreePreview" data-free-preview-value="5">5</button><button type="button" class="secondary mini" data-free-preview-for="catalogFreePreview" data-free-preview-value="10">10</button><button type="button" class="secondary mini" data-free-preview-for="catalogFreePreview" data-free-preview-value="50">50</button></div>
+              <p class="tiny">Chương 1..N miễn phí khi đã xuất bản và được phép hiển thị. Từ N+1 áp dụng chính sách VIP hiện có. Giảm N không thu hồi quyền đã mua.</p>
               <div class="catalog-cover-actions">
                 <label class="secondary file-button">Thêm / thay bìa<input id="catalogManualCover" type="file" accept="image/jpeg,image/png,image/webp" /></label>
                 <button id="catalogAiCoverBtn" class="secondary" type="button">Tạo bìa bằng AI</button>
@@ -526,6 +529,9 @@
             </div>
 
             <div class="vip-box">
+              <label>Số chương đọc thử miễn phí<input id="bookFreePreview" type="number" min="0" max="100000" step="1" value="0" /></label>
+              <div class="catalog-cover-actions"><button type="button" class="secondary mini" data-free-preview-for="bookFreePreview" data-free-preview-value="0">0</button><button type="button" class="secondary mini" data-free-preview-for="bookFreePreview" data-free-preview-value="5">5</button><button type="button" class="secondary mini" data-free-preview-for="bookFreePreview" data-free-preview-value="10">10</button><button type="button" class="secondary mini" data-free-preview-for="bookFreePreview" data-free-preview-value="50">50</button></div>
+              <p class="tiny">Chương 1..N đọc thử miễn phí; từ N+1 áp dụng chính sách VIP. Chương nháp hoặc bị kiểm duyệt vẫn được bảo vệ.</p>
               <label class="check-row vip-row"><input id="bookVip" type="checkbox" /> <span><strong>Truyện VIP</strong><small>Bật nếu muốn độc giả dùng Hạ Phẩm Linh Thạch để mở khóa toàn bộ truyện.</small></span></label>
               <div id="vipPriceWrap" class="vip-price hidden">
                 <label>Giá Hạ Phẩm Linh Thạch
@@ -594,6 +600,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="./app.js"></script>
+  <script src="./free-preview.js"></script>
   <script src="./bulk-import.js"></script>
   <script src="./catalog-admin.js"></script>
 </body>

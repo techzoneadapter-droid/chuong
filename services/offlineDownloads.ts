@@ -190,8 +190,7 @@ async function deletePayload(key: string) {
 
 function expired(record: OfflineChapterRecord) {
   return Boolean(
-    record.access === 'vip'
-    && record.licenseValidUntil
+    record.licenseValidUntil
     && Date.parse(record.licenseValidUntil) <= Date.now(),
   );
 }
@@ -265,7 +264,7 @@ async function saveOfflineChapterImpl(
     bytes,
     downloadedAt: existing?.downloadedAt ?? now.toISOString(),
     lastAccessedAt: now.toISOString(),
-    licenseValidUntil: chapter.access === 'vip'
+    licenseValidUntil: chapter.access === 'vip' || chapter.requiresOfflineLicense
       ? new Date(now.getTime() + VIP_OFFLINE_LICENSE_MS).toISOString()
       : null,
     checksum,

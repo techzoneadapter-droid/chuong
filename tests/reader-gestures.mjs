@@ -43,11 +43,12 @@ for (const sensitivity of ['low', 'medium', 'high']) {
 let now = 0;
 let feedback = null;
 const effects = [];
+const native = { Platform: { OS: 'android' }, PanResponder: { create: callbacks => ({ panHandlers: callbacks }) } };
 const hook = load('../hooks/useReaderGestures.ts', {
   react: { useCallback: fn => fn, useRef: current => ({ current }), useMemo: fn => fn(), useState: value => [value, next => { feedback = typeof next === 'function' ? next(feedback) : next; }], useEffect: fn => effects.push(fn) },
-  'react-native': { Platform: { OS: 'android' }, PanResponder: { create: callbacks => ({ panHandlers: callbacks }) } },
+  'react-native': native,
   '../lib/readerGestures': math,
-}, { Date: { now: () => now } });
+}, { Date: { now: () => now }, window: { getSelection: () => null } });
 const navigations = [];
 const options = { enabled: true, horizontal: true, vertical: true, sensitivity: 'medium', chapterKey: '1', start: () => start, navigate: value => navigations.push(value) };
 const { handlers } = hook.useReaderGestures(options);
@@ -87,4 +88,15 @@ now += 150;
 handlers.onPanResponderRelease(event, gesture(-120, 0, 0));
 assert.equal(navigations.length, 2); // A briefly added second finger cancels even without a move.
 for (const effect of effects) effect()?.();
+native.Platform.OS = 'web';
+const web = hook.useReaderGestures({ ...options, vertical: false });
+let listener, prevented = 0, removed = 0;
+web.bindWeb({ addEventListener: (_, fn) => { listener = fn; }, removeEventListener: () => { removed++; } });
+now += 2000; web.handlers.onStartShouldSetPanResponderCapture(event); now += 80;
+listener({ touches: [{ pageX: 90, pageY: 300 }], cancelable: true, preventDefault: () => { prevented++; } });
+assert.equal(prevented, 1, 'Recognized horizontal swipe keeps browser from cancelling delivery');
+web.handlers.onStartShouldSetPanResponderCapture(event);
+listener({ touches: [{ pageX: 190, pageY: 400 }], cancelable: true, preventDefault: () => { prevented++; } });
+assert.equal(prevented, 1, 'Ordinary vertical scroll is not prevented');
+web.bindWeb(null); assert.equal(removed, 1);
 console.log('PASS: direction, boundary, edge exclusion, sensitivity, long press, multi-touch, diagonal rejection, single release and cleanup');

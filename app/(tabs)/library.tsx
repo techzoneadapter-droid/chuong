@@ -54,7 +54,7 @@ export default function LibraryScreen() {
         if (request !== requestId.current) return;
         const book = map[entry.bookId];
         if (book) {
-          const chapters = await getChaptersByBook(book.id);
+          const chapters = await getChaptersByBook(book.id, book);
           ordinals[book.id] = Math.max(0, chapters.data.findIndex((chapter) => chapter.number === progress[book.id]?.chapterNumber));
           map[book.id] = { ...book, chapters: [], totalChapters: chapters.data.length };
         }

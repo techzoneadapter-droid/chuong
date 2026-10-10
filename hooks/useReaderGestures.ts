@@ -15,7 +15,7 @@ export function useReaderGestures(options: Options) {
   const [feedback, setFeedback] = useState<{ direction: ChapterDirection; armed: boolean } | null>(null);
   const removeWebListener = useRef<(() => void) | null>(null);
   // Browser panning otherwise cancels touch delivery before the JS responder can finish a pull.
-  // Prevent only an outward boundary pull, never ordinary inward scrolling or selection.
+  // Prevent only a recognized chapter swipe/pull, never ordinary scrolling or selection.
   const bindWeb = useCallback((view: View | null) => {
     removeWebListener.current?.();
     removeWebListener.current = null;
@@ -23,10 +23,10 @@ export function useReaderGestures(options: Options) {
     const node = view as unknown as HTMLElement;
     const onMove = (event: TouchEvent) => {
       const current = session.current;
-      if (!current || current.rejected || !latest.current.enabled || !latest.current.vertical || event.touches.length !== 1
+      if (!current || current.rejected || !latest.current.enabled || event.touches.length !== 1
         || (!current.direction && Date.now() - current.time > 350) || window.getSelection()?.toString()) return;
       const touch = event.touches[0];
-      const direction = chapterGestureDirection(current.start, touch.pageX - current.start.x, touch.pageY - current.start.y, false, true);
+      const direction = chapterGestureDirection(current.start, touch.pageX - current.start.x, touch.pageY - current.start.y, latest.current.horizontal, latest.current.vertical);
       if (direction && event.cancelable) event.preventDefault();
     };
     node.addEventListener('touchmove', onMove, { passive: false });

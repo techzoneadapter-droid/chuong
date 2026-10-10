@@ -3,12 +3,14 @@ export { AuthorRouteError as ErrorBoundary } from '../../../../../components/Aut
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../../../../components/States';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../../../../contexts/AuthContext';
-import { deleteDraftBook, setAuthorBookStatus } from '../../../../../services/books';
+import { deleteDraftBook, setAuthorBookStatus, updateBook } from '../../../../../services/books';
+import { FreePreviewField } from '../../../../../components/FreePreviewField';
+import { validateFreePreviewCount } from '../../../../../lib/freeChapterPreview';
 import { removeBookCover, replaceBookCover } from '../../../../../services/storage';
 import { messageForError } from '../../../../../services/errors';
 import { getAuthorChapters, getOwnedAuthorBook } from '../../../../../services/authors';
@@ -18,6 +20,7 @@ export default function AuthorChapterListScreen() {
   const router = useRouter(); const params = useLocalSearchParams<{ bookId?: string | string[] }>(); const bookId = routeParam(params.bookId); const [chapters, setChapters] = useState<Chapter[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
   const { user, loading: authLoading } = useAuth();
   const [book, setBook] = useState<Book | null>(null); const [busy, setBusy] = useState(false);
+  const [freePreview, setFreePreview] = useState('0');
   const loadGeneration = useRef(0);
   const load = useCallback(async () => {
     const generation = ++loadGeneration.current;
@@ -27,9 +30,9 @@ export default function AuthorChapterListScreen() {
       if (!user) { if (!authLoading) router.replace('/auth/login'); return; }
       const owned = await getOwnedAuthorBook(user.id, bookId);
       if (!owned) throw new Error('Không tìm thấy truyện hoặc bạn không có quyền chỉnh sửa.');
-      const nextChapters = await getAuthorChapters(bookId);
+      const nextChapters = await getAuthorChapters(bookId, owned);
       if (generation !== loadGeneration.current) return;
-      setBook(owned); setChapters(nextChapters);
+      setBook(owned); setChapters(nextChapters); setFreePreview(String(owned.freePreviewChapters ?? 0));
     } catch (cause) {
       if (generation === loadGeneration.current) setError(messageForError(cause, 'Không thể tải bản thảo.'));
     } finally {
@@ -67,6 +70,21 @@ export default function AuthorChapterListScreen() {
     finally { setBusy(false); }
   };
   const drafts = chapters.filter((chapter) => chapter.status === 'draft').length;
+  const savePreview = () => {
+    if (!book || busy) return;
+    let count: number;
+    try { count = validateFreePreviewCount(freePreview); } catch (cause) { setError(messageForError(cause)); return; }
+    const persist = async () => {
+      setBusy(true); setError('');
+      try { await updateBook(book.id, { free_preview_chapters: count }); await load(); }
+      catch (cause) { setError(messageForError(cause)); } finally { setBusy(false); }
+    };
+    const warning = 'Giảm chương đọc thử có thể khiến các chương từng miễn phí yêu cầu mở khóa. Quyền đã mua vẫn giữ nguyên. Tiếp tục lưu?';
+    if (count < (book.freePreviewChapters ?? 0)) {
+      if (Platform.OS === 'web') { if (window.confirm(warning)) void persist(); }
+      else Alert.alert('Giảm chương đọc thử', warning, [{ text: 'Hủy', style: 'cancel' }, { text: 'Lưu', onPress: () => { void persist(); } }]);
+    } else void persist();
+  };
   const scheduled = chapters.filter((chapter) => chapter.scheduledPublishAt).length;
   return <SafeAreaView style={styles.safe}><View style={styles.header}><Pressable style={styles.back} accessibilityLabel="Quay lại" onPress={() => router.canGoBack() ? router.back() : router.replace('/write')}><Ionicons name="arrow-back" size={22} color="#2D2327" /></Pressable><View style={styles.headCopy}><Text style={styles.title}>Quản lý chương</Text><Text style={styles.subtitle}>{drafts} bản nháp · {chapters.length - drafts} đã xuất bản</Text></View><Pressable accessibilityLabel="Tạo chương" disabled={!book || loading || busy} style={styles.add} onPress={() => router.push({ pathname: '/author/books/[bookId]/chapters/[chapterId]', params: { bookId, chapterId: 'new' } })}><Ionicons name="add" size={20} color="#FFFFFF" /></Pressable></View>
     <ScrollView contentContainerStyle={styles.page}>
@@ -78,6 +96,8 @@ export default function AuthorChapterListScreen() {
         </View>
         <View style={styles.coverGuide}><Text style={styles.coverGuideTitle}>Bìa đẹp nhất</Text><Text style={styles.coverGuideText}>Tỷ lệ 2:3 · 1200 × 1800 px · tối thiểu 800 × 1200 px · 300 KB – 1.5 MB là lý tưởng · tối đa 5 MB · ưu tiên WebP/JPG.</Text></View>
         <View style={styles.statusPanel}>
+          <FreePreviewField value={freePreview} onChange={setFreePreview} disabled={busy} previous={book.freePreviewChapters ?? 0} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Lưu số chương đọc thử" disabled={busy} onPress={savePreview} style={styles.coverSelect}><Text style={styles.coverSelectText}>{busy ? 'Đang lưu…' : 'Lưu số chương đọc thử'}</Text></Pressable>
           <Text style={styles.statusTitle}>Trạng thái truyện</Text>
           <Text style={styles.statusHelp}>Bạn có thể đổi trạng thái truyện của mình bất cứ lúc nào. Muốn công khai cần có ít nhất 1 chương đã xuất bản.</Text>
           <View style={styles.statusRow}>
@@ -108,7 +128,7 @@ export default function AuthorChapterListScreen() {
         {book.backendStatus === 'draft' ? <Pressable disabled={busy} onPress={async () => { setBusy(true); try { await deleteDraftBook(book.id); router.replace('/write'); } catch (cause) { setError(messageForError(cause)); setBusy(false); } }}><Text style={styles.meta}>Xóa truyện nháp</Text></Pressable> : null}
       </View> : null}{loading ? <LoadingState label="Đang tải bản thảo…" /> : error ? <RetryState title="Không tải được chương" detail={error} onRetry={load} /> : chapters.length === 0 ? <EmptyState title="Chưa có chương" detail="Tạo bản nháp đầu tiên cho truyện này." /> : chapters.map((chapter) => {
         const earlyActive = Boolean(chapter.earlyAccessUntil && new Date(chapter.earlyAccessUntil).getTime() > Date.now());
-        const accessLabel = chapter.earlyAccessUntil
+        const accessLabel = chapter.isFreePreview ? 'Đọc thử miễn phí' : chapter.earlyAccessUntil
           ? earlyActive
             ? `Tiên Cơ đến ${new Date(chapter.earlyAccessUntil).toLocaleDateString('vi-VN')}`
             : 'Tiên Cơ đã mở miễn phí'

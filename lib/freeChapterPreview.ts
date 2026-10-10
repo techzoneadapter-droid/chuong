@@ -16,3 +16,12 @@ export function isFreePreviewChapter(
     && chapterNumber <= normalizeFreePreviewCount(freePreviewCount);
 }
 export const FREE_PREVIEW_PRESETS = [0, 5, 10, 50] as const;
+
+export function validateFreePreviewCount(value: unknown): number {
+  const text = String(value ?? '').trim();
+  const count = Number(text);
+  if (!/^\d+$/.test(text) || !Number.isSafeInteger(count) || count < 0 || count > 100000) {
+    throw new Error('Số chương đọc thử phải là số nguyên từ 0 đến 100.000.');
+  }
+  return count;
+}

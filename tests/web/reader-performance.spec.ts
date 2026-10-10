@@ -6,17 +6,17 @@ const authorId = '20000000-0000-4000-8000-000000000033';
 const nextLabel = 'Ch\u01b0\u01a1ng sau';
 const previousLabel = 'Ch\u01b0\u01a1ng tr\u01b0\u1edbc';
 
-async function fixture(page: Page, count: number, body = 'Reader body.') {
+async function fixture(page: Page, count: number, body = 'Reader body.', preview?: number) {
   const calls = { metadata: 0, content: [] as number[], attempts: [] as string[], errors: [] as string[], locked: new Set<number>(), offline: false, publishedNumber: null as number | null };
   page.on('pageerror', error => calls.errors.push(error.message));
   const chapters = Array.from({ length: count }, (_, i) => ({
     id: `40000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`, book_id: bookId,
     chapter_number: i * 3 + 1, title: `Reader title ${i * 3 + 1}`, status: 'published',
-    is_vip: false, price_coins: 0, published_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z',
+    is_vip: preview !== undefined, price_coins: preview !== undefined ? 10 : 0, published_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z',
   }));
   const book = { id: bookId, author_id: authorId, title: 'Reader fixture', slug: 'reader-fixture',
     description: 'Fixture', status: 'ongoing', visibility: 'public', total_chapters: count,
-    cover_url: null, tags: [], is_vip: false, price_coins: 0, rating: 4, rating_count: 1, views_count: 1, followers_count: 0 };
+    cover_url: null, tags: [], is_vip: preview !== undefined, price_coins: preview !== undefined ? 200 : 0, free_preview_chapters: preview ?? 0, rating: 4, rating_count: 1, views_count: 1, followers_count: 0 };
   const liveChapters = () => calls.publishedNumber ? [...chapters, { ...chapters[0],
     id: '40000000-0000-4000-8000-999999999999', chapter_number: calls.publishedNumber,
     title: `Reader title ${calls.publishedNumber}` }] : chapters;
@@ -29,7 +29,7 @@ async function fixture(page: Page, count: number, body = 'Reader body.') {
       calls.content.push(n);
       return route.fulfill({ json: liveChapters().filter(row => row.chapter_number === n).map(row => ({ ...row,
         content: calls.locked.has(n) ? null : `${body}\n\nEnd body ${n}.`,
-        lock_kind: calls.locked.has(n) ? 'chapter' : null, lock_price_coins: 100 })) });
+        lock_kind: calls.locked.has(n) ? (book.is_vip ? 'book' : 'chapter') : null, lock_price_coins: 100 })) });
     }
     if (url.pathname.endsWith('/chapters')) {
       calls.metadata++;
@@ -308,7 +308,7 @@ test('very long chapter, restored scroll, font and page settings preserve all te
   await expect(page.getByText(/L\u1eadt trang \u00b7 1\//)).toBeVisible();
   expect(await page.getByText(/^Long paragraph \d+:/).count()).toBeLessThan(20);
   expect(calls.errors).toEqual([]);
-  console.log(JSON.stringify({ workload: 'development web, 2000 paragraphs', chars: body.length, readyAndRestoredMs: readyMs }));
+  console.log(JSON.stringify({ workload: process.env.READER_RELEASE ? 'release web, 2000 paragraphs' : 'development web, 2000 paragraphs', chars: body.length, readyAndRestoredMs: readyMs }));
 });
 
 test('TTS resumes the authorized next chapter after loading and stops on a lock', async ({ page }) => {
@@ -377,6 +377,19 @@ test('offline fallback restores downloaded chapter without speculative network w
   expect(calls.errors).toEqual([]);
 });
 
+test('VIP preview is visibly free and speculative loads exclude the paid boundary', async ({page})=>{
+  await gestureSettings(page,true,false);
+  const calls=await fixture(page,100,'Preview content.',5);
+  calls.locked.add(7);
+  await page.goto(`/reader/${bookId}?chapter=4`);
+  await expect(page.getByText('ĐỌC THỬ MIỄN PHÍ',{exact:true})).toBeVisible({timeout:15000});
+  await page.waitForTimeout(1000);
+  expect(calls.content).not.toContain(7);
+  await page.getByText(nextLabel,{exact:true}).click();
+  await expect(page.getByText('TRUYỆN VIP',{exact:true})).toBeVisible();
+  expect(calls.errors).toEqual([]);
+});
+
 for (const count of [100, 500, 1201]) {
   test(`reader ${count} chapters: opening, sparse navigation and bounded body loading`, async ({ page }) => {
     const calls = await fixture(page, count);
@@ -385,7 +398,7 @@ for (const count of [100, 500, 1201]) {
     await expect(page.getByText('Reader title 1', { exact: true })).toBeVisible();
     const openedMs = performance.now() - start;
     const initialMetadata = calls.metadata;
-    if (!process.env.READER_BASELINE) await page.evaluate(() => (globalThis as any).__CHUONG_READER_PERF__.start());
+    if (!process.env.READER_BASELINE && !process.env.READER_RELEASE) await page.evaluate(() => (globalThis as any).__CHUONG_READER_PERF__.start());
     const transition = performance.now();
     await page.getByText(nextLabel, { exact: true }).click();
     await expect(page.getByText('Reader title 4', { exact: true })).toBeVisible();
@@ -394,10 +407,10 @@ for (const count of [100, 500, 1201]) {
     await page.getByText(previousLabel, { exact: true }).click();
     await expect(page.getByText('Reader title 1', { exact: true })).toBeVisible();
     if (!process.env.READER_BASELINE) expect(calls.metadata).toBe(initialMetadata);
-    if (!process.env.READER_BASELINE) await expect.poll(() => page.evaluate(() => (globalThis as any).__CHUONG_READER_PERF__.report()['chapter-and-text'].samples)).toBeGreaterThan(0);
+    if (!process.env.READER_BASELINE && !process.env.READER_RELEASE) await expect.poll(() => page.evaluate(() => (globalThis as any).__CHUONG_READER_PERF__.report()['chapter-and-text'].samples)).toBeGreaterThan(0);
     expect(calls.content.every(n => [1, 4, 7].includes(n))).toBe(true);
     expect(calls.errors).toEqual([]);
-    console.log(JSON.stringify({ phase: process.env.READER_BASELINE ? 'baseline' : 'phase3', chapters: count,
+    console.log(JSON.stringify({ phase: process.env.READER_BASELINE ? 'baseline' : process.env.READER_RELEASE ? 'phase3-release-web' : 'phase3', chapters: count,
       openedMs: Math.round(openedMs), nextMs: Math.round(nextMs), metadataRequests: calls.metadata, contentRequests: calls.content }));
   });
 }

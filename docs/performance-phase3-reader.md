@@ -1,6 +1,8 @@
 # CHUONG — Phase 3 Reader performance engine
 
 Date: 2026-10-10. Baseline: `ef6cd90bb45b1513d3ad931cfa08fa44d09e9acc` (Phase 2).
+
+Integration addendum: [Reader + canonical free preview delivery](reader-free-preview-delivery.md) records the feature branch, security migration, rollback, latest QA and production approval gate. Preview neighbors may now be prefetched when metadata marks them free; settled navigation still revalidates server access. New preview downloads have bounded offline licenses. The original Phase 3 measurements below are historical, not new native-device results.
 Working branch at the start: `backup/chuong-performance-phase2`. Changes remain local; no commit, push or deployment.
 
 ## Audit before changes

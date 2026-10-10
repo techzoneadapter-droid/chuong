@@ -97,6 +97,7 @@ export default function ReaderScreen() {
   const consumeAudioResume = useCallback(() => { resumeAudio.current = false; }, []);
   const readerEngine = useMemo(() => {
     let canonicalBookId = params.bookId;
+    let accessBook: Book | undefined;
     return createReaderEngine({
       loadCatalog: async () => {
         if (isSupabaseConfigured && !(await getConnectivityState()).connected) {
@@ -109,7 +110,8 @@ export default function ReaderScreen() {
           const result = await getBookById(params.bookId);
           if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
           canonicalBookId = result.data.id;
-          const chapters = await getChaptersByBook(result.data.id);
+          accessBook = result.data;
+          const chapters = await getChaptersByBook(result.data.id, result.data);
           return { hydrated: { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length },
             localOnly: result.mode === 'offline' || chapters.mode === 'offline' };
         } catch (cause) {
@@ -120,7 +122,7 @@ export default function ReaderScreen() {
         }
       },
       cacheCatalog: (catalog) => !catalog.localOnly,
-      loadChapter: (number) => getChapter(canonicalBookId, number),
+      loadChapter: (number) => getChapter(canonicalBookId, number, accessBook),
     });
   }, [params.bookId, user?.id, reload]);
   const loadedRoute = useRef<{ engine: typeof readerEngine; chapter?: string } | null>(null);
@@ -306,7 +308,7 @@ export default function ReaderScreen() {
   }, [authLoading, params.bookId, params.chapter, user?.id, reload, readerEngine]);
 
   useFocusEffect(useCallback(() => {
-    if (loading || !progressReady || offlineReading || lockedContent || book.isVip) return;
+    if (loading || !progressReady || offlineReading || lockedContent) return;
     let active = true;
     let cancelIdle: (() => void) | undefined;
     const timer = setTimeout(() => {
@@ -317,7 +319,7 @@ export default function ReaderScreen() {
           for (const number of [nextNumber, previousNumber]) {
             if (!active || AppState.currentState !== 'active') return;
             const metadata = book.chapters.find(item => item.number === number);
-            if (!metadata || metadata.access !== 'free' || metadata.configuredVip || readerEngine.hasPrepared(metadata.number)) continue;
+            if (!metadata || metadata.access !== 'free' || (metadata.configuredVip && !metadata.isFreePreview) || readerEngine.hasPrepared(metadata.number)) continue;
             await readerEngine.read(metadata.number).catch(() => undefined);
           }
         })();
@@ -657,6 +659,7 @@ export default function ReaderScreen() {
             <Text style={[styles.bookKicker, { color: palette.muted }]}>{book.title.toUpperCase()}</Text>
             <Text style={[styles.chapterNumber, { color: palette.text }]}>Chương {chapterNumber}</Text>
             {chapterDisplayTitle ? <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapterDisplayTitle}</Text> : null}
+            {chapter.isFreePreview ? <Text style={[styles.bookKicker, { color: palette.muted }]}>ĐỌC THỬ MIỄN PHÍ</Text> : null}
             {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
           </> : null}
           {paragraphElements}

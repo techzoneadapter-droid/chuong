@@ -1,3 +1,4 @@
+begin;
 -- Deploy only after client and admin UI are ready. Server is authoritative.
 alter table public.books
   add column if not exists free_preview_chapters integer not null default 0;
@@ -104,3 +105,98 @@ begin
     null::text, 0::integer;
 end;
 $function$;
+
+create or replace function private.can_read_chapter(p_user_id uuid, p_chapter_id uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_chapter public.chapters%rowtype;
+  v_book public.books%rowtype;
+  v_author public.authors%rowtype;
+begin
+  select * into v_chapter from public.chapters where id = p_chapter_id;
+  if not found then return false; end if;
+
+  select * into v_book from public.books where id = v_chapter.book_id;
+  select * into v_author from public.authors where id = v_book.author_id;
+
+  if p_user_id is not null and (
+    v_author.user_id = p_user_id
+    or exists (select 1 from public.profiles p where p.id = p_user_id and p.role = 'admin')
+  ) then
+    return true;
+  end if;
+
+  if v_chapter.status <> 'published'
+     or v_chapter.moderation_state <> 'approved'
+     or v_book.visibility <> 'public'
+     or v_book.status = 'draft'
+     or v_book.moderation_state <> 'approved'
+     or v_author.moderation_state <> 'approved' then
+    return false;
+  end if;
+
+  if v_chapter.chapter_number between 1 and v_book.free_preview_chapters then
+    return true;
+  end if;
+
+  if v_book.is_vip and v_book.price_coins > 0 then
+    return p_user_id is not null and exists (
+      select 1 from public.book_entitlements e
+      where e.user_id = p_user_id and e.book_id = v_book.id and e.revoked_at is null
+    );
+  end if;
+
+  if v_chapter.is_vip
+     and v_chapter.price_coins > 0
+     and (v_chapter.early_access_until is null or v_chapter.early_access_until > now()) then
+    return p_user_id is not null and (
+      exists (
+        select 1 from public.book_entitlements e
+        where e.user_id = p_user_id and e.book_id = v_book.id and e.revoked_at is null
+      )
+      or exists (
+        select 1 from public.chapter_entitlements e
+        where e.user_id = p_user_id and e.chapter_id = v_chapter.id and e.revoked_at is null
+      )
+    );
+  end if;
+
+  return true;
+end;
+$$;
+
+
+-- Preserve existing owner/admin book RLS. Never expose body via a table SELECT.
+revoke select on public.chapters from anon, authenticated;
+revoke select (content) on public.chapters from anon, authenticated;
+grant select (id,book_id,chapter_number,title,status,is_vip,price_coins,
+  early_access_until,scheduled_publish_at,published_at,created_at,updated_at,moderation_state)
+  on public.chapters to anon, authenticated;
+
+-- Author editing already uses get_author_chapter_for_editing. Admin editing gets
+-- the same full rows as before, but only after a server-side admin-role check.
+create or replace function public.get_admin_chapters_for_editing(
+  p_book_id uuid, p_chapter_id uuid default null
+)
+returns setof public.chapters
+language plpgsql stable security definer set search_path = ''
+as $$
+begin
+  if not coalesce(private.is_admin(), false) then
+    raise exception 'admin_required' using errcode = '42501';
+  end if;
+  return query select c.* from public.chapters c
+    where c.book_id = p_book_id and (p_chapter_id is null or c.id = p_chapter_id)
+    order by c.chapter_number;
+end;
+$$;
+revoke all on function public.get_admin_chapters_for_editing(uuid,uuid) from public, anon;
+grant execute on function public.get_admin_chapters_for_editing(uuid,uuid) to authenticated;
+notify pgrst, 'reload schema';
+
+commit;
