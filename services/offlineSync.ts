@@ -1,3 +1,4 @@
+import { createSerialQueue, createSingleFlight } from '../lib/asyncWork';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { Bookmark, LibraryStatus, ReadingProgress } from '../types';
@@ -6,6 +7,8 @@ import { isInternetReachable } from './connectivity';
 const QUEUE_KEY = 'chuong:offline-sync-queue:v1';
 const MAX_QUEUE = 500;
 const MAX_ATTEMPTS = 8;
+const mutateQueue = createSerialQueue();
+const flushOnce = createSingleFlight();
 
 type SyncMeta = {
   id: string;
@@ -83,14 +86,16 @@ function operationKey(operation: OfflineSyncOperation) {
   throw new Error('Unknown offline sync operation');
 }
 
-export async function enqueueOfflineSync(operation: OfflineSyncOperation) {
-  const queue = await readQueue();
-  const key = operationKey(operation);
-  const next = [
-    ...queue.filter((item) => operationKey(item) !== key),
-    operation,
-  ];
-  await writeQueue(next);
+export function enqueueOfflineSync(operation: OfflineSyncOperation) {
+  return mutateQueue(async () => {
+    const queue = await readQueue();
+    const key = operationKey(operation);
+    const next = [
+      ...queue.filter((item) => operationKey(item) !== key),
+      operation,
+    ];
+    await writeQueue(next);
+  });
 }
 
 export function makeProgressOperation(
@@ -248,12 +253,16 @@ async function applyOperation(operation: OfflineSyncOperation) {
   return false;
 }
 
-export async function flushOfflineSyncQueue(userId?: string) {
+export function flushOfflineSyncQueue(userId?: string) {
+  return flushOnce(userId ?? '*', () => flushQueue(userId));
+}
+
+async function flushQueue(userId?: string) {
   if (!supabase || !(await isInternetReachable())) {
     return { synced: 0, remaining: (await readQueue()).filter((item) => !userId || item.userId === userId).length };
   }
 
-  const queue = await readQueue();
+  const queue = await mutateQueue(readQueue);
   const remaining: OfflineSyncOperation[] = [];
   let synced = 0;
 
@@ -287,10 +296,24 @@ export async function flushOfflineSyncQueue(userId?: string) {
     }
   }
 
-  await writeQueue(remaining);
+  // Reconcile against the current queue so progress written while requests were
+  // pending survives; never hold the storage lock across network I/O.
+  const pendingCount = await mutateQueue(async () => {
+    const current = await readQueue();
+    const original = new Map(queue.map((item) => [operationKey(item), JSON.stringify(item)]));
+    const replacements = new Map(remaining.map((item) => [operationKey(item), item]));
+    const next = current.flatMap((item) => {
+      const key = operationKey(item);
+      if (original.get(key) !== JSON.stringify(item)) return [item];
+      const replacement = replacements.get(key);
+      return replacement ? [replacement] : [];
+    });
+    await writeQueue(next);
+    return next.filter((item) => !userId || item.userId === userId).length;
+  });
   return {
     synced,
-    remaining: remaining.filter((item) => !userId || item.userId === userId).length,
+    remaining: pendingCount,
   };
 }
 
@@ -307,11 +330,13 @@ export async function getOfflineSyncQueueStats(userId?: string) {
   };
 }
 
-export async function clearOfflineSyncQueue(userId?: string) {
-  if (!userId) {
-    await writeQueue([]);
-    return;
-  }
-  const queue = await readQueue();
-  await writeQueue(queue.filter((item) => item.userId !== userId));
+export function clearOfflineSyncQueue(userId?: string) {
+  return mutateQueue(async () => {
+    if (!userId) {
+      await writeQueue([]);
+      return;
+    }
+    const queue = await readQueue();
+    await writeQueue(queue.filter((item) => item.userId !== userId));
+  });
 }

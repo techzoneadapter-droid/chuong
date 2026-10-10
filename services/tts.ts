@@ -89,6 +89,75 @@ export function buildTtsSegments(text: string, targetWords = 32): TtsSegment[] {
   return segments;
 }
 
+async function normalizeTtsTextAsync(text: string, isCurrent: () => boolean) {
+  const chunks: string[] = [];
+  let tail = '';
+  let carriageReturn = '';
+  let started = performance.now();
+  for (let offset = 0; offset < text.length; offset += 32768) {
+    if (!isCurrent()) return '';
+    let raw = carriageReturn + text.slice(offset, offset + 32768);
+    carriageReturn = raw.endsWith('\r') ? '\r' : '';
+    if (carriageReturn) raw = raw.slice(0, -1);
+    const normalized = (tail + raw).replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ');
+    tail = normalized.match(/(?:\n+|[ \t]+)$/)?.[0] ?? '';
+    chunks.push(tail ? normalized.slice(0, -tail.length) : normalized);
+    if (performance.now() - started >= 4) {
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+      started = performance.now();
+    }
+  }
+  chunks.push((tail + carriageReturn).replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' '));
+  return chunks.join('').trim();
+}
+
+// Same sentence/word boundaries as buildTtsSegments, yielding between bounded batches.
+export async function buildTtsSegmentsAsync(text: string, targetWords = 32, isCurrent = () => true): Promise<TtsSegment[]> {
+  const normalized = await normalizeTtsTextAsync(text, isCurrent);
+  const segments: TtsSegment[] = [];
+  const separator = /(?<=[.!?…。！？])\s+|\n+/g;
+  let current: string[] = [];
+  let currentWords = 0;
+  let totalWords = 0;
+  let sliceStarted = performance.now();
+  let processed = 0;
+  const flush = () => {
+    if (!current.length) return;
+    const value = current.join(' ').trim();
+    const count = wordsIn(value);
+    segments.push({ text: value, startWord: totalWords, endWord: totalWords + count });
+    totalWords += count; current = []; currentWords = 0;
+  };
+  const consume = (sentence: string) => {
+    const count = wordsIn(sentence);
+    if (current.length && currentWords + count > targetWords * 1.25) flush();
+    current.push(sentence); currentWords += count;
+    if (currentWords >= targetWords) flush();
+  };
+  let start = 0;
+  while (start <= normalized.length) {
+    if (!isCurrent()) return [];
+    const match = separator.exec(normalized);
+    const sentence = normalized.slice(start, match?.index ?? normalized.length).trim();
+    if (sentence) {
+      const parts = wordsIn(sentence) > targetWords * 1.7 ? splitLongSentence(sentence, targetWords) : [sentence];
+      for (const part of parts) {
+        if (!isCurrent()) return [];
+        consume(part);
+        processed++;
+        if (processed % 64 === 0 && performance.now() - sliceStarted >= 4) {
+          await new Promise<void>(resolve => setTimeout(resolve, 0));
+          sliceStarted = performance.now();
+        }
+      }
+    }
+    if (!match) break;
+    start = separator.lastIndex;
+  }
+  flush();
+  return segments;
+}
+
 export function estimateTtsSeconds(totalWords: number, speed: number) {
   if (!totalWords) return 0;
   return totalWords / (WORDS_PER_SECOND * Math.max(.5, speed));

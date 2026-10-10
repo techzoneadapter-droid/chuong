@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AdBanner } from '../components/AdBanner';
 import { EmptyState, LoadingState, RetryState } from '../components/States';
@@ -126,11 +126,16 @@ export default function DownloadsScreen() {
       <Pressable style={styles.iconButton} onPress={() => { void load(true); }}><Ionicons name="refresh" size={20} color="#8F1D3F" /></Pressable>
     </View>
 
-    <ScrollView
+    <FlatList
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load(true); }} />}
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-    >
+
+      data={books}
+      keyExtractor={(item) => item.bookId}
+      initialNumToRender={5} maxToRenderPerBatch={4} windowSize={5} removeClippedSubviews={false}
+      ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
+      ListHeaderComponent={<View style={{ paddingBottom: 0 }}>
       <View style={styles.header}>
         <View>
           <Text style={styles.kicker}>CHƯƠNG OFFLINE</Text>
@@ -210,8 +215,9 @@ export default function DownloadsScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {!books.length ? <EmptyState title="Chưa có truyện offline" detail="Mở một truyện → Tải truyện để lưu chương trên thiết bị." /> : <View style={styles.list}>
-        {books.map((book) => <Pressable key={book.bookId} onPress={() => { void openBook(book); }} style={({ pressed }) => [styles.bookCard, pressed && styles.pressed]}>
+      </View>}
+      ListEmptyComponent={<EmptyState title="Chưa có truyện offline" detail="Mở một truyện → Tải truyện để lưu chương trên thiết bị." />}
+      renderItem={({ item: book }) => <Pressable key={book.bookId} onPress={() => { void openBook(book); }} style={({ pressed }) => [styles.bookCard, pressed && styles.pressed]}>
           <View style={[styles.cover, { backgroundColor: book.cover }]}>
             <Text style={styles.coverBrand}>CHƯƠNG</Text>
             <Text numberOfLines={3} style={styles.coverTitle}>{book.title}</Text>
@@ -228,14 +234,12 @@ export default function DownloadsScreen() {
           <Pressable hitSlop={8} onPress={(event) => { event.stopPropagation(); remove(book); }} style={styles.deleteButton}>
             <Ionicons name="trash-outline" size={18} color="#A12B48" />
           </Pressable>
-        </Pressable>)}
-      </View>}
-
-      <View style={styles.licenseNote}>
+        </Pressable>}
+      ListFooterComponent={<View style={styles.licenseNote}>
         <Ionicons name="information-circle-outline" size={20} color="#8F1D3F" />
         <Text style={styles.licenseText}>Nội dung miễn phí có thể đọc offline lâu dài. Nội dung VIP cần xác minh quyền đọc định kỳ; nếu hoàn tiền hoặc quyền bị thu hồi, bản tải sẽ bị vô hiệu khi ứng dụng kết nối lại.</Text>
-      </View>
-    </ScrollView>
+      </View>}
+    />
   </SafeAreaView>;
 }
 

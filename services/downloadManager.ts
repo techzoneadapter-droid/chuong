@@ -40,7 +40,7 @@ export async function downloadBookForOffline(
   const membership = await getMembershipStatus(userId);
   await applyOfflineStoragePlan(membership.isPremium);
 
-  const chapterResult = await getChaptersByBook(book.id);
+  const chapterResult = await getChaptersByBook(book.id, book);
   const chapters = chapterResult.data;
   if (!chapters.length) throw new Error('Truyện này chưa có chương công khai để tải.');
 
@@ -72,7 +72,7 @@ export async function downloadBookForOffline(
     await Promise.all(batch.map(async (meta) => {
       let status: OfflineDownloadProgress['status'] = 'failed';
       try {
-        const result = await getChapter(book.id, meta.number);
+        const result = await getChapter(book.id, meta.number, book);
         if (!result.data?.content) throw new Error('Chương không có nội dung.');
         await saveOfflineChapter(book, result.data);
         saved += 1;

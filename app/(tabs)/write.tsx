@@ -2,7 +2,7 @@ import { AuthorGiftDashboard } from '../../components/AuthorGiftDashboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
@@ -86,7 +86,12 @@ export default function WriteScreen() {
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <XianxiaBackdrop />
-    <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+    <FlatList contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}
+      data={books}
+      keyExtractor={(item) => item.id}
+      initialNumToRender={5} maxToRenderPerBatch={4} windowSize={5} removeClippedSubviews={false}
+      ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
+      ListHeaderComponent={<View style={{ paddingBottom: 0 }}>
       <View style={styles.headRow}>
         <View>
           <Text style={styles.kicker}>VĂN CÁC · AUTHOR STUDIO</Text>
@@ -137,8 +142,9 @@ export default function WriteScreen() {
         <Pressable style={styles.createMini} onPress={() => router.push('/author/books/new')}><Ionicons name="add" size={15} color={xianxia.goldSoft} /><Text style={styles.createMiniText}>Tạo truyện</Text></Pressable>
       </View>
 
-      {books.length === 0 ? <EmptyState title="Chưa có truyện" detail="Tạo linh quyển đầu tiên để bắt đầu viết chương." /> : <View style={styles.bookList}>
-        {books.map((book) => <View style={styles.bookRow} key={book.id}>
+      </View>}
+      ListEmptyComponent={<EmptyState title="Chưa có truyện" detail="Tạo linh quyển đầu tiên để bắt đầu viết chương." />}
+      renderItem={({ item: book }) => <View style={styles.bookRow} key={book.id}>
           <View style={styles.coverFrame}>
             <View style={styles.cover}>
               <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
@@ -156,16 +162,14 @@ export default function WriteScreen() {
             <Ionicons name="brush-outline" size={16} color={xianxia.goldSoft} />
             <Text style={styles.writeText}>Viết</Text>
           </Pressable>
-        </View>)}
-      </View>}
-
-      <Pressable style={styles.primaryButton} onPress={() => router.push('/author/books/new')}>
+        </View>}
+      ListFooterComponent={<Pressable style={styles.primaryButton} onPress={() => router.push('/author/books/new')}>
         <ButtonArt />
         <Ionicons name="add-circle-outline" size={18} color={xianxia.goldSoft} />
         <Text style={styles.primaryButtonText}>Tạo truyện mới</Text>
         <Ionicons name="arrow-forward" size={16} color={xianxia.white} />
-      </Pressable>
-    </ScrollView>
+      </Pressable>}
+    />
   </SafeAreaView>;
 }
 

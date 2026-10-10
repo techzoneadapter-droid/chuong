@@ -3,6 +3,7 @@ import { Author, Book, Chapter, ChapterInput } from '../types';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
 import { mapBook } from './books';
+import { chapterForBook } from './chapters';
 
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
 
@@ -47,7 +48,7 @@ export async function getOwnedAuthorBook(userId: string, bookId: string): Promis
   return data ? { ...mapBook(data), author: author.penName, authorUserId: userId } : null;
 }
 
-export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
+export async function getAuthorChapters(bookId: string, book?: Book): Promise<Chapter[]> {
   const client = requireSupabase();
   const data: Pick<Database['public']['Tables']['chapters']['Row'], 'id' | 'book_id' | 'chapter_number' | 'title' | 'status' | 'is_vip' | 'price_coins' | 'early_access_until' | 'scheduled_publish_at' | 'published_at' | 'updated_at'>[] = [];
   for (let offset = 0; ; offset += 500) {
@@ -61,7 +62,7 @@ export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
     data.push(...(page ?? []));
     if (!page || page.length < 500) break;
   }
-  return (data ?? []).map((row) => ({
+  return (data ?? []).map((row) => chapterForBook({
     id: row.id,
     bookId: row.book_id,
     number: row.chapter_number,
@@ -77,7 +78,7 @@ export async function getAuthorChapters(bookId: string): Promise<Chapter[]> {
     publishedAt: row.published_at,
     isRead: false,
     isDownloaded: false,
-  }));
+  }, book));
 }
 
 export async function getAuthorChapter(bookId: string, chapterId: string): Promise<Chapter | null> {

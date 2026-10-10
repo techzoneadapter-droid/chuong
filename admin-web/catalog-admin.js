@@ -359,6 +359,11 @@
     try{
       const body=catalogQueryBody();
       const rows=await rest('rpc/admin_catalog_search',{method:'POST',body});
+      if(rows?.length){
+        const limits=await rest('books?select=id,free_preview_chapters&id=in.('+rows.map(row=>encodeURIComponent(row.id)).join(',')+')');
+        const byId=new Map((limits||[]).map(row=>[row.id,row.free_preview_chapters]));
+        rows.forEach(row=>{row.free_preview_chapters=byId.get(row.id)||0;});
+      }
       catalogState.rows=rows||[];
       catalogState.total=Number(rows?.[0]?.total_count||0);
       catalogState.loaded=true;
@@ -393,7 +398,7 @@
       return '<tr data-catalog-id="'+row.id+'">'+
         '<td><input type="checkbox" data-catalog-select="'+row.id+'" '+(checked?'checked':'')+' /></td>'+
         '<td><div class="catalog-cover">'+coverHtml(row)+'</div></td>'+
-        '<td><strong class="catalog-title">'+esc(row.title)+'</strong><div class="tiny">'+(row.is_vip?'VIP · ':'')+'ID: '+row.id.slice(0,8)+'</div></td>'+
+        '<td><strong class="catalog-title">'+esc(row.title)+'</strong><div class="tiny">'+(row.is_vip?'VIP · ':'')+(row.free_preview_chapters?row.free_preview_chapters+' chương đọc thử · ':'')+'ID: '+row.id.slice(0,8)+'</div></td>'+
         '<td>'+esc(row.author_name||'Chuong')+'</td>'+
         '<td>'+esc(genre)+'</td>'+
         '<td><span class="catalog-status status-'+esc(row.status)+'">'+esc(statusLabel(row.status))+'</span></td>'+
@@ -488,6 +493,7 @@
     $c('catalogEditGenre').value=(row.genres||[])[0]||'Khác';
     $c('catalogEditStatus').value=row.status||'draft';
     $c('catalogEditDescription').value=row.description||'';
+    $c('catalogFreePreview').value=String(row.free_preview_chapters||0);
     renderEditCover(row.cover_url);
     $c('catalogChapterEditor').classList.add('hidden');
     $c('catalogBulkChapterEditor').classList.add('hidden');
@@ -518,6 +524,7 @@
     $c('catalogEditGenre').value='Khác';
     $c('catalogEditStatus').value='draft';
     $c('catalogEditDescription').value='';
+    $c('catalogFreePreview').value='0';
     renderEditCover('');
     $c('catalogBulkChapterEditor').classList.add('hidden');
     catalogState.bulkChapterRows=[];
@@ -549,6 +556,8 @@
     if(title.length<2)return showEditMessage('Tên truyện quá ngắn.','error');
 
     try{
+      const freePreview=window.chuongFreePreview.validate($c('catalogFreePreview').value);
+      if(freePreview<Number(row.free_preview_chapters||0)&&!window.confirm('Giảm số chương đọc thử sẽ khiến một số chương miễn phí trở lại chính sách VIP. Quyền đã mua vẫn được giữ. Tiếp tục lưu?'))return;
       $c('catalogSaveBookBtn').disabled=true;
 
       if(catalogState.creatingBook){
@@ -575,7 +584,8 @@
             visibility:status==='draft'?'private':'public',
             tags:[],
             is_vip:false,
-            price_coins:0
+            price_coins:0,
+            free_preview_chapters:freePreview
           }
         });
         const book=created?.[0];
@@ -584,6 +594,7 @@
         catalogState.editing={
           ...row,
           ...book,
+          free_preview_chapters:freePreview,
           id:book.id,
           title,
           author_name:author,
@@ -601,7 +612,7 @@
 
       await rest('books?id=eq.'+encodeURIComponent(row.id),{
         method:'PATCH',
-        body:{title,credited_author_name:author,description,updated_at:new Date().toISOString()}
+        body:{title,credited_author_name:author,description,free_preview_chapters:freePreview,updated_at:new Date().toISOString()}
       });
       await rest('book_genres?book_id=eq.'+encodeURIComponent(row.id),{method:'DELETE',prefer:'return=minimal'});
       await rest('book_genres',{method:'POST',prefer:'return=minimal',body:{book_id:row.id,genre}});
@@ -613,6 +624,8 @@
         if(!result?.[0]?.success)throw new Error(result?.[0]?.message||'Không thể đổi trạng thái.');
       }
       row.title=title;row.author_name=author;row.description=description;row.genres=[genre];row.status=status;
+      row.free_preview_chapters=freePreview;
+      renderChapters();
       $c('catalogEditHeading').textContent=title;
       showEditMessage('Đã lưu thông tin truyện.','success');
       await loadCatalog(false);
@@ -656,7 +669,7 @@
       '<button type="button" class="catalog-chapter-item" data-edit-chapter="'+ch.id+'">'+
         '<b>Chương '+ch.chapter_number+'</b>'+
         '<span>'+esc(ch.title||('Chương '+ch.chapter_number))+'</span>'+
-        '<small>'+esc(ch.status==='published'?'Đã xuất bản · Sửa chương':'Bản nháp · Sửa chương')+'</small>'+
+        '<small>'+esc(ch.status==='published'?(ch.chapter_number>=1&&ch.chapter_number<=Number(catalogState.editing?.free_preview_chapters||0)?'ĐỌC THỬ MIỄN PHÍ · ':'')+'Đã xuất bản · Sửa chương':'Bản nháp · Sửa chương')+'</small>'+
       '</button>'
     ).join('');
   }
@@ -1063,7 +1076,7 @@
     const row=catalogState.editing;if(!row?.id)return;
     closeBulkChapterEditor();
     try{
-      const items=await rest('chapters?id=eq.'+encodeURIComponent(id)+'&book_id=eq.'+encodeURIComponent(row.id)+'&select=id,chapter_number,title,content,status&limit=1');
+      const items=await rest('rpc/get_admin_chapters_for_editing',{method:'POST',body:{p_book_id:row.id,p_chapter_id:id}});
       const chapter=items?.[0];if(!chapter)throw new Error('Không tìm thấy chương.');
       catalogState.editingChapter={...chapter,isNew:false};
       $c('catalogChapterNumber').readOnly=false;

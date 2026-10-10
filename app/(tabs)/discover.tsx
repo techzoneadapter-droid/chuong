@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../../components/States';
 import { AssetBookCover, VipArt } from '../../components/Artwork';
@@ -66,6 +66,8 @@ export default function DiscoverScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
+  const requestVersion = useRef(0);
+  const paging = useRef(false);
 
   const hasQuery = query.trim().length > 0;
 
@@ -96,7 +98,11 @@ export default function DiscoverScreen() {
   }, [hasQuery, params.sort]);
 
   useEffect(() => {
+    // Sort follows typing immediately; wait for the debounced query before fetching.
+    if (query.trim() !== debouncedQuery) return;
     let active = true;
+    ++requestVersion.current;
+    paging.current = false;
     if (!refreshing) setLoading(true);
     setError('');
 
@@ -121,8 +127,26 @@ export default function DiscoverScreen() {
       }
     });
 
-    return () => { active = false; };
-  }, [debouncedQuery, genre, access, status, sort, reload]);
+    return () => { active = false; ++requestVersion.current; };
+  }, [query, debouncedQuery, genre, access, status, sort, reload]);
+
+  const loadMore = useCallback(() => {
+    if (query.trim() !== debouncedQuery || loading || refreshing || error || paging.current || !books.length || books.length >= total) return;
+    const version = requestVersion.current;
+    paging.current = true;
+    void searchDiscovery({ query: debouncedQuery, genre, access, status, sort, limit: 40, offset: books.length })
+      .then((result) => {
+        if (version !== requestVersion.current) return;
+        setBooks((current) => {
+          const seen = new Set(current.map((book) => book.id));
+          return [...current, ...result.books.filter((book) => !seen.has(book.id))];
+        });
+        // An empty page terminates paging even if the catalog changed mid-scroll.
+        setTotal(result.books.length ? result.total : books.length);
+      })
+      .catch((cause) => { if (version === requestVersion.current) setError(cause instanceof Error ? cause.message : 'Không thể tải khám phá.'); })
+      .finally(() => { if (version === requestVersion.current) paging.current = false; });
+  }, [query, loading, refreshing, error, books.length, total, debouncedQuery, genre, access, status, sort]);
 
   const activeFilters = useMemo(() => {
     let count = 0;
@@ -153,15 +177,27 @@ export default function DiscoverScreen() {
     setReload((value) => value + 1);
   };
 
+  const openBook = useCallback((book: Book) => {
+    if (query.trim()) void addSearchHistory(query).then(setHistory);
+    router.push({ pathname: '/book/[id]', params: { id: book.id } });
+  }, [query, router]);
+  const renderBook = useCallback(({ item: book, index }: { item: Book; index: number }) =>
+    <DiscoveryBookRow book={book} rank={!hasQuery && sort === 'popular' ? index + 1 : undefined} onOpen={openBook} />,
+    [hasQuery, sort, openBook]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <XianxiaBackdrop />
-      <ScrollView
+      <FlatList
+        data={loading || error ? [] : books}
+        keyExtractor={(book) => book.id}
+        renderItem={renderBook}
+        onEndReached={loadMore} onEndReachedThreshold={0.3}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.page}
-        showsVerticalScrollIndicator={false}
-      >
+        keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}
+        initialNumToRender={5} maxToRenderPerBatch={4} windowSize={5} removeClippedSubviews={false}
+        ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
+        ListHeaderComponent={<View>
         <View style={styles.header}>
           <View>
             <Text style={styles.eyebrow}>TÀNG KINH CÁC</Text>
@@ -250,16 +286,11 @@ export default function DiscoverScreen() {
             </Pressable>)}
         </ScrollView>
 
-        {loading ? <View style={styles.stateBox}><LoadingState label={hasQuery ? 'Đang tìm truyện…' : 'Đang xếp hạng truyện…'} /></View>
+        </View>}
+        ListEmptyComponent={loading ? <View style={styles.stateBox}><LoadingState label={hasQuery ? 'Đang tìm truyện…' : 'Đang xếp hạng truyện…'} /></View>
           : error ? <RetryState title="Không tải được Khám phá" detail={error} onRetry={() => setReload((value) => value + 1)} />
-          : books.length === 0 ? <EmptyState title="Không tìm thấy truyện" detail="Thử từ khóa ngắn hơn hoặc bỏ bớt bộ lọc." />
-          : <View style={styles.results}>
-            {books.map((book, index) => <DiscoveryBookRow key={book.id} book={book} rank={!hasQuery && sort === 'popular' ? index + 1 : undefined} onOpen={() => {
-              if (query.trim()) void submitSearch();
-              router.push({ pathname: '/book/[id]', params: { id: book.id } });
-            }} />)}
-          </View>}
-
+          : <EmptyState title="Không tìm thấy truyện" detail="Thử từ khóa ngắn hơn hoặc bỏ bớt bộ lọc." />}
+        ListFooterComponent={
         <View style={styles.infoCard}>
           <Ionicons name="analytics-outline" size={24} color="#8F1D3F" />
           <View style={{ flex: 1 }}>
@@ -267,7 +298,8 @@ export default function DiscoverScreen() {
             <Text style={styles.infoBody}>Phổ biến được tính từ lượt đọc, lượt theo dõi, đánh giá và độ mới. Không chèn số liệu giả để đẩy truyện.</Text>
           </View>
         </View>
-      </ScrollView>
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -278,8 +310,8 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
   </Pressable>;
 }
 
-function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; onOpen: () => void }) {
-  return <Pressable onPress={onOpen} style={({ pressed }) => [styles.bookRow, pressed && styles.pressed]}>
+const DiscoveryBookRow = memo(function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; onOpen: (book: Book) => void }) {
+  return <Pressable onPress={() => onOpen(book)} style={({ pressed }) => [styles.bookRow, pressed && styles.pressed]}>
     {rank ? <View style={[styles.rank, rank <= 3 && styles.rankTop]}><Text style={[styles.rankText, rank <= 3 && styles.rankTextTop]}>{rank}</Text></View> : null}
     <View style={styles.cover}>
       <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
@@ -306,7 +338,7 @@ function DiscoveryBookRow({ book, rank, onOpen }: { book: Book; rank?: number; o
     </View>
     <Ionicons name="chevron-forward" size={17} color="#B4A7AC" />
   </Pressable>;
-}
+});
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: xianxia.paper },

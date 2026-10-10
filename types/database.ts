@@ -814,6 +814,7 @@ export type Database = {
       books: {
         Row: {
           author_id: string
+          free_preview_chapters: number
           cover_url: string | null
           created_at: string
           credited_author_name: string | null
@@ -845,6 +846,7 @@ export type Database = {
         }
         Insert: {
           author_id: string
+          free_preview_chapters?: number
           cover_url?: string | null
           created_at?: string
           credited_author_name?: string | null
@@ -876,6 +878,7 @@ export type Database = {
         }
         Update: {
           author_id?: string
+          free_preview_chapters?: number
           cover_url?: string | null
           created_at?: string
           credited_author_name?: string | null
@@ -2442,6 +2445,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_admin_chapters_for_editing: {
+        Args: { p_book_id: string; p_chapter_id?: string | null }
+        Returns: Database['public']['Tables']['chapters']['Row'][]
+      }
       get_public_author_hub: {
         Args: { p_author_id: string }
         Returns: { author_id: string; pen_name: string; bio: string | null; avatar_url: string | null; verified: boolean; followers_count: number; public_books_count: number; viewer_follows: boolean; viewer_is_author: boolean; viewer_can_follow: boolean; gift_book_id: string | null; gift_book_title: string | null }[]
