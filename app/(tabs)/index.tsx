@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FollowedUpdateCard } from '../../components/FollowedUpdateCard';
 import { FollowedBookUpdate, getFollowedBookUpdates, getFollowedUpdateBadge } from '../../services/followedUpdates';
@@ -13,7 +13,7 @@ import { artwork } from '../../constants/artwork';
 import { ArtDivider, ArtIcon, BrandLockup, ButtonArt } from '../../components/Artwork';
 import { useAuth } from '../../contexts/AuthContext';
 import { books as demoBooks } from '../../data/books';
-import { getBooks } from '../../services/books';
+import { getBookById, getBooks } from '../../services/books';
 import { getLatestReadingProgress } from '../../services/library';
 import { getUnreadNotificationCount } from '../../services/notifications';
 import {
@@ -70,32 +70,34 @@ export default function HomeScreen() {
     let active = true;
     // Always refresh the public catalog when Home regains focus so a newly
     // published/uploaded book appears immediately without restarting the app.
-    setReload((value) => value + 1);
     if (!user) {
       setUnreadNotifications(0);
       return () => { active = false; };
     }
-    void getUnreadNotificationCount().then((count) => { if (active) setUnreadNotifications(count); });
+    void getUnreadNotificationCount().then((count) => { if (active) setUnreadNotifications(count); }).catch(() => undefined);
     return () => { active = false; };
-  }, [user]));
+  }, [user?.id]));
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let active = true;
     setLoading(true);
     setLoadError('');
     setRecommendError('');
 
     Promise.all([
-      getBooks(),
+      getBooks(1),
       getLatestReadingProgress(user?.id),
       getPersonalizedRecommendations(10).catch((cause) => {
         if (active) setRecommendError(cause instanceof Error ? cause.message : 'Không thể tải đề xuất.');
         return [] as PersonalizedRecommendation[];
       }),
       getHomeRankingGroups(8),
-    ]).then(([result, progress, personalized, rankingGroups]) => {
+    ]).then(async ([result, progress, personalized, rankingGroups]) => {
       if (!active) return;
-      setBooks(result.data);
+      const resumed = progress?.bookId && !result.data.some((book) => book.id === progress.bookId)
+        ? await getBookById(progress.bookId).catch(() => null) : null;
+      if (!active) return;
+      setBooks(resumed?.data ? [resumed.data, ...result.data] : result.data);
       setSavedProgress(progress);
       setRecommendations(personalized);
       setRankings(rankingGroups);
@@ -106,7 +108,7 @@ export default function HomeScreen() {
     });
 
     return () => { active = false; };
-  }, [user?.id, reload]);
+  }, [user?.id, reload]));
 
   if (loading) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang mở sơn môn…" /></SafeAreaView>;
   if (loadError) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;
@@ -206,30 +208,34 @@ export default function HomeScreen() {
         <ArtDivider />
         {rankings.trending.length ? <>
           <SectionTitle title="Đang thịnh hành" subtitle="Xếp theo dữ liệu đọc 7 ngày: độc giả, quay lại đọc, phiên đọc, hoàn thành chương và thời gian đọc" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'trending' } })} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
-            {rankings.trending.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('trending', item)}</Text></View>)}
-          </ScrollView>
+          <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}
+            data={rankings.trending} keyExtractor={(item) => item.book.id}
+            initialNumToRender={3} maxToRenderPerBatch={3} windowSize={3} removeClippedSubviews={false}
+            renderItem={({ item }) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('trending', item)}</Text></View>} />
         </> : null}
 
         {rankings.hot.length ? <>
           <SectionTitle title="Hot 48 giờ" subtitle="Chỉ dựa trên mức tăng tương tác 48 giờ gần nhất và lượt theo dõi mới; không dùng số liệu ảo" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'hot' } })} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
-            {rankings.hot.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('hot', item)}</Text></View>)}
-          </ScrollView>
+          <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}
+            data={rankings.hot} keyExtractor={(item) => item.book.id}
+            initialNumToRender={3} maxToRenderPerBatch={3} windowSize={3} removeClippedSubviews={false}
+            renderItem={({ item }) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('hot', item)}</Text></View>} />
         </> : null}
 
         {rankings.newest.length ? <>
           <SectionTitle title="Truyện mới ra" subtitle="Sắp theo thời điểm chương đầu tiên được xuất bản công khai" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'new' } })} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
-            {rankings.newest.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('new', item)}</Text></View>)}
-          </ScrollView>
+          <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}
+            data={rankings.newest} keyExtractor={(item) => item.book.id}
+            initialNumToRender={3} maxToRenderPerBatch={3} windowSize={3} removeClippedSubviews={false}
+            renderItem={({ item }) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('new', item)}</Text></View>} />
         </> : null}
 
         {rankings.top.length ? <>
           <SectionTitle title="Top CHƯƠNG" subtitle="Thành tích toàn thời gian từ lượt đọc, độc giả, theo dõi, hoàn thành chương, thời gian đọc và đánh giá thực tế" action="Xem tất cả" onPress={() => router.push({ pathname: '/discover', params: { sort: 'top' } })} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}>
-            {rankings.top.map((item) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('top', item)}</Text></View>)}
-          </ScrollView>
+          <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingRow}
+            data={rankings.top} keyExtractor={(item) => item.book.id}
+            initialNumToRender={3} maxToRenderPerBatch={3} windowSize={3} removeClippedSubviews={false}
+            renderItem={({ item }) => <View key={item.book.id} style={styles.rankingItem}><BookCard book={item.book} /><Text numberOfLines={2} style={styles.rankingReason}>#{item.rank} · {rankingReason('top', item)}</Text></View>} />
         </> : null}
 
         <SectionTitle
@@ -245,8 +251,10 @@ export default function HomeScreen() {
         </View> : null}
 
         {recommendations.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendRow}>
-            {recommendations.map((item) => (
+          <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendRow}
+            data={recommendations} keyExtractor={(item) => item.book.id} extraData={user?.id}
+            initialNumToRender={3} maxToRenderPerBatch={3} windowSize={3} removeClippedSubviews={false}
+            renderItem={({ item }) => (
               <View style={styles.recommendItem} key={item.book.id}>
                 <BookCard book={item.book} />
                 <View style={styles.reasonRow}>
@@ -268,8 +276,7 @@ export default function HomeScreen() {
                   ><Ionicons name="close" size={13} color={xianxia.muted} /></Pressable> : null}
                 </View>
               </View>
-            ))}
-          </ScrollView>
+            )} />
         ) : !recommendError ? (
           <View style={styles.recommendEmpty}>
             <View style={styles.recommendEmblem}><Ionicons name="sparkles" size={16} color={xianxia.goldSoft} /></View>

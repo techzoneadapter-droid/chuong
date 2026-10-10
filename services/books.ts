@@ -62,29 +62,33 @@ async function hydrateBooks(rows: BookRow[]): Promise<Book[]> {
   ]);
   if (authorError) throw authorError;
   if (genreError) throw genreError;
-  return rows.map((row) => mapBook(
-    row,
-    authors?.find((author) => author.id === row.author_id),
-    genres?.filter((genre) => genre.book_id === row.id).map((genre) => genre.genre) ?? []
-  ));
+  const authorsById = new Map((authors ?? []).map((author) => [author.id, author]));
+  const genresByBook = new Map<string, string[]>();
+  for (const genre of genres ?? []) {
+    const values = genresByBook.get(genre.book_id) ?? [];
+    values.push(genre.genre);
+    genresByBook.set(genre.book_id, values);
+  }
+  return rows.map((row) => mapBook(row, authorsById.get(row.author_id), genresByBook.get(row.id) ?? []));
 }
 
-export async function getBooks(): Promise<ServiceResult<Book[]>> {
-  if (!supabase) return { data: demoBooks, mode: 'demo' };
+export async function getBooks(limit?: number): Promise<ServiceResult<Book[]>> {
+  const take = limit === undefined ? undefined : Math.max(1, Math.min(500, Math.floor(limit)));
+  if (!supabase) return { data: take === undefined ? demoBooks : demoBooks.slice(0, take), mode: 'demo' };
   try {
     const books: Book[] = [];
     for (let offset = 0; ; offset += 500) {
-      const { data, error } = await supabase.from('books').select('*').eq('visibility', 'public').neq('status', 'draft').order('updated_at', { ascending: false }).order('id').range(offset, offset + 499);
+      const { data, error } = await supabase.from('books').select('*').eq('visibility', 'public').neq('status', 'draft').order('updated_at', { ascending: false }).order('id').range(offset, offset + (take ?? 500) - 1);
       if (error) throw error;
       books.push(...await hydrateBooks(data ?? []));
-      if (!data || data.length < 500) break;
+      if (take !== undefined || !data || data.length < 500) break;
     }
     return { data: books, mode: 'supabase' };
   } catch (error) {
     const summaries = await listOfflineBooks().catch(() => []);
     if (summaries.length) {
-      const snapshots = await Promise.all(summaries.map((item) => getOfflineBookSnapshot(item.bookId)));
-      return { data: snapshots.filter((book): book is Book => Boolean(book)), mode: 'offline' };
+      const snapshots = await Promise.all(summaries.slice(0, take).map((item) => getOfflineBookSnapshot(item.bookId)));
+      return { data: snapshots.filter((book): book is Book => Boolean(book)).slice(0, take), mode: 'offline' };
     }
     throw toServiceError(error, 'Không thể tải danh sách truyện.');
   }

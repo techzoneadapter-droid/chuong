@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LoadingState, EmptyState, RetryState } from '../../components/States';
@@ -180,6 +180,7 @@ export default function ReaderScreen() {
           ? requested
           : hydrated.chapters[0]?.number ?? 1;
 
+        if (!active) return;
         setBook(hydrated);
         setChapterNumber(targetChapter);
 
@@ -342,14 +343,29 @@ export default function ReaderScreen() {
     }
   };
 
-  const openQuoteShare = (quote: string) => {
+  const openQuoteShare = useCallback((quote: string) => {
     if (!quote.trim()) return;
     setAutoScrolling(false);
     setControlsVisible(true);
     setSheet(null);
     setShareNotice('');
     setQuoteToShare(quote);
-  };
+  }, []);
+
+  const paragraphElements = useMemo(() => visibleContent.map((paragraph, index) => (
+    <Text
+      key={`${chapterNumber}-${pageIndex}-${index}`}
+      style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}
+      onLongPress={(event) => {
+        event.stopPropagation?.();
+        openQuoteShare(paragraph);
+      }}
+      suppressHighlighting
+    >
+      {paragraph}
+    </Text>
+  )),
+    [visibleContent, chapterNumber, pageIndex, palette.text, settings.fontSize, lineHeight, fontFamily, openQuoteShare]);
 
   const shareCurrentQuote = async () => {
     if (!quoteToShare || sharingQuote) return;
@@ -503,19 +519,7 @@ export default function ReaderScreen() {
             {chapterDisplayTitle ? <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapterDisplayTitle}</Text> : null}
             {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
           </> : null}
-          {visibleContent.map((paragraph, index) => (
-            <Text
-              key={`${chapterNumber}-${pageIndex}-${index}`}
-              style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}
-              onLongPress={(event) => {
-                event.stopPropagation?.();
-                openQuoteShare(paragraph);
-              }}
-              suppressHighlighting
-            >
-              {paragraph}
-            </Text>
-          ))}
+          {paragraphElements}
           {settings.mode === 'page' ? <View style={[styles.pagePager, { borderColor: dark ? '#4C494B' : xianxia.line }]}>
             <Pressable disabled={pageIndex === 0} onPress={() => goReaderPage(pageIndex - 1)} style={[styles.pageButton, pageIndex === 0 && styles.disabled]}><Ionicons name="chevron-back" size={17} color={palette.text} /><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang trước</Text></Pressable>
             <Text style={[styles.pageCount, { color: palette.muted }]}>{pageIndex + 1} / {pagedContent.length}</Text>
