@@ -928,6 +928,8 @@ $('uploadBtn').addEventListener('click',async()=>{
   hideMessage(uploadMessage);
   const title=$('bookTitle').value.trim(),author=$('authorName').value.trim(),genre=$('genre').value,sourceType=$('sourceType').value,bookStatus=$('bookStatus').value,publish=$('publishNow').checked,schedule=$('schedulePublish').checked,rights=$('rightsConfirmed').checked,useAi=$('aiTranslate').checked,isVip=$('bookVip').checked,priceCoins=isVip?Number($('vipPrice').value||0):0,chapters=state.chapters;
   const perDay=schedule?Number($('schedulePerDay').value||0):0;
+  let freePreview;
+  try{freePreview=window.chuongFreePreview.validate($('bookFreePreview').value);}catch(error){return showMessage(uploadMessage,error.message);}
   let scheduledStart='';
   if(!state.ownerAuthorId)return showMessage(uploadMessage,'Chưa xác định được tác giả nội bộ Admin.');
   if(title.length<2)return showMessage(uploadMessage,'Hãy nhập tên truyện.');
@@ -959,7 +961,7 @@ $('uploadBtn').addEventListener('click',async()=>{
     btn.textContent=useAi?(schedule?'Đang AI xử lý rồi xếp lịch…':'Đang nhập rồi AI xử lý…'):(schedule?'Đang nhập và xếp lịch…':'Đang đẩy và xác minh…');
 
     const slug=(slugify(title)||'truyen')+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
-    const books=await rest('books?select=id',{method:'POST',prefer:'return=representation',body:{author_id:state.ownerAuthorId,title,slug,description:'Truyện được Admin nhập bằng CHƯƠNG Upload Studio từ nguồn '+(state.sourceName||'nội dung quản trị')+'.',credited_author_name:author,language:'vi',source_type:sourceType,status:'draft',visibility:'private',tags:[],is_vip:isVip,price_coins:priceCoins}});
+    const books=await rest('books?select=id',{method:'POST',prefer:'return=representation',body:{author_id:state.ownerAuthorId,title,slug,description:'Truyện được Admin nhập bằng CHƯƠNG Upload Studio từ nguồn '+(state.sourceName||'nội dung quản trị')+'.',credited_author_name:author,language:'vi',source_type:sourceType,status:'draft',visibility:'private',tags:[],is_vip:isVip,price_coins:priceCoins,free_preview_chapters:freePreview}});
     bookId=books[0].id;
     await rest('admin_import_logs?id=eq.'+encodeURIComponent(logId),{method:'PATCH',body:{book_id:bookId}}).catch(()=>{});
     await rest('book_genres',{method:'POST',prefer:'return=minimal',body:{book_id:bookId,genre}});
