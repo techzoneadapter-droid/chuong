@@ -1,9 +1,9 @@
 export type GestureSensitivity = 'low' | 'medium' | 'high';
 export type ChapterDirection = 'previous' | 'next';
 export const gestureThresholds = {
-  low: { distance: 120, velocity: .12 },
-  medium: { distance: 88, velocity: .10 },
-  high: { distance: 64, velocity: .08 },
+  low: { distance: 96, velocity: .12 },
+  medium: { distance: 64, velocity: .10 },
+  high: { distance: 48, velocity: .08 },
 };
 
 export type GestureStart = {

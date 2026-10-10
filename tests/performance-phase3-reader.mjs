@@ -15,7 +15,7 @@ function load(path, dependencies = {}) {
 const text = load('../services/contentText.ts');
 const helpers = load('../lib/asyncWork.ts');
 const engine = load('../lib/readerEngine.ts', { './asyncWork': helpers, '../services/contentText': text });
-const tts = load('../services/tts.ts', { 'expo-speech': {} });
+const tts = load('../services/tts.ts', { 'expo-speech': {}, 'react-native': { Platform: { OS: 'web' } } });
 const same = (a, b) => assert.deepEqual(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)));
 
 for (const body of ['', '  ', 'Chapter 4: Title\n\nBody\n \t\nEnd', 'a\r\n\r\nb\n\n\nc', '\n\nOnly one paragraph', 'x '.repeat(5000), 'One! Two? Three\u2026 Four\u3002\n\nTail']) {

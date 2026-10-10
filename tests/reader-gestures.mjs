@@ -42,13 +42,14 @@ for (const sensitivity of ['low', 'medium', 'high']) {
 
 let now = 0;
 let feedback = null;
+let stateWrites = 0;
 const effects = [];
 const native = { Platform: { OS: 'android' }, PanResponder: { create: callbacks => ({ panHandlers: callbacks }) } };
 const hook = load('../hooks/useReaderGestures.ts', {
-  react: { useCallback: fn => fn, useRef: current => ({ current }), useMemo: fn => fn(), useState: value => [value, next => { feedback = typeof next === 'function' ? next(feedback) : next; }], useEffect: fn => effects.push(fn) },
+  react: { useCallback: fn => fn, useRef: current => ({ current }), useMemo: fn => fn(), useState: value => [value, next => { stateWrites++; feedback = typeof next === 'function' ? next(feedback) : next; }], useEffect: fn => effects.push(fn) },
   'react-native': native,
   '../lib/readerGestures': math,
-}, { Date: { now: () => now }, window: { getSelection: () => null } });
+}, { Date: { now: () => now }, performance, window: { getSelection: () => null } });
 const navigations = [];
 const options = { enabled: true, horizontal: true, vertical: true, sensitivity: 'medium', chapterKey: '1', start: () => start, navigate: value => navigations.push(value) };
 const { handlers } = hook.useReaderGestures(options);
@@ -91,12 +92,59 @@ for (const effect of effects) effect()?.();
 native.Platform.OS = 'web';
 const web = hook.useReaderGestures({ ...options, vertical: false });
 let listener, prevented = 0, removed = 0;
-web.bindWeb({ addEventListener: (_, fn) => { listener = fn; }, removeEventListener: () => { removed++; } });
+const listeners = {};
+web.bindWeb({ addEventListener: (name, fn) => { listeners[name] = fn; if (name === 'touchmove') listener = fn; }, removeEventListener: () => { removed++; } });
 now += 2000; web.handlers.onStartShouldSetPanResponderCapture(event); now += 80;
 listener({ touches: [{ pageX: 90, pageY: 300 }], cancelable: true, preventDefault: () => { prevented++; } });
 assert.equal(prevented, 1, 'Recognized horizontal swipe keeps browser from cancelling delivery');
 web.handlers.onStartShouldSetPanResponderCapture(event);
 listener({ touches: [{ pageX: 190, pageY: 400 }], cancelable: true, preventDefault: () => { prevented++; } });
 assert.equal(prevented, 1, 'Ordinary vertical scroll is not prevented');
-web.bindWeb(null); assert.equal(removed, 1);
+now += 2000; web.handlers.onStartShouldSetPanResponderCapture(event); now += 200;
+listener({ touches: [{ pageX: 90, pageY: 300 }], cancelable: false });
+assert.equal(feedback.armed, true, 'A noncancelable boundary touch can still publish feedback');
+const beforeWeb = navigations.length;
+listeners.touchend({ touches: [], changedTouches: [{ pageX: 90, pageY: 300 }] });
+web.handlers.onPanResponderRelease(event, gesture(-100, 0, 0));
+assert.equal(navigations.length, beforeWeb + 1, 'Raw web release and responder release cannot navigate twice');
+now+=2000;web.handlers.onStartShouldSetPanResponderCapture(event);now+=100;
+listener({touches:[{pageX:90,pageY:300}],cancelable:false});
+listener({touches:[{pageX:290,pageY:300}],cancelable:false});assert.equal(feedback.armed,false);
+const beforeReverse=navigations.length;listeners.touchend({touches:[],changedTouches:[{pageX:290,pageY:300}]});assert.equal(navigations.length,beforeReverse);
+web.bindWeb(null); assert.equal(removed, 3);
 console.log('PASS: direction, boundary, edge exclusion, sensitivity, long press, multi-touch, diagonal rejection, single release and cleanup');
+native.Platform.OS = 'android';
+let atBottom = false;
+const lateBoundary = hook.useReaderGestures({ ...options, start: () => ({ ...start, atTop: false, atBottom }) });
+now += 2000; lateBoundary.handlers.onStartShouldSetPanResponderCapture(event); now += 80;
+assert.equal(lateBoundary.handlers.onMoveShouldSetPanResponderCapture(event, gesture(0, -80)), false);
+now += 500; atBottom = true;
+assert.equal(lateBoundary.handlers.onMoveShouldSetPanResponderCapture(event, gesture(0, -100)), false, 'Scroll distance before boundary is excluded');
+now += 80;
+assert.equal(lateBoundary.handlers.onMoveShouldSetPanResponderCapture(event, gesture(0, -132)), true);
+const before = stateWrites;
+lateBoundary.handlers.onPanResponderGrant();
+now += 120;
+for (let i = 0; i < 200; i++) lateBoundary.handlers.onPanResponderMove(event, gesture(0, -184));
+lateBoundary.handlers.onPanResponderRelease(event, gesture(0, -184, 0));
+assert.equal(stateWrites - before, 3, '200 move events only publish show/armed/clear changes');
+assert.equal(navigations.at(-1), 'next');
+console.log('PASS: live boundary acquired after 500ms ordinary scroll; 200 moves produce 3 feedback state writes, not 200');
+const fallback = lateBoundary.boundaryHandlers;
+now += 2000;
+assert.equal(fallback.next.onStartShouldSetPanResponderCapture(event), true);
+fallback.next.onPanResponderGrant();now += 200;
+fallback.next.onPanResponderMove(event, gesture(0, -100));
+fallback.next.onPanResponderRelease(event, gesture(0, -100, 0));
+assert.equal(navigations.at(-1),'next');
+assert.equal(fallback.previous.onStartShouldSetPanResponderCapture(event),false);
+const count=navigations.length;
+fallback.next.onStartShouldSetPanResponderCapture(event);fallback.next.onPanResponderGrant();now+=200;
+fallback.next.onPanResponderRelease(event,gesture(100,0,0));assert.equal(navigations.length,count);
+console.log('PASS: Android boundary fallback claims only eligible edge pull; horizontal movement cannot trigger it');
+now+=2000;handlers.onStartShouldSetPanResponderCapture(event);now+=80;
+handlers.onMoveShouldSetPanResponderCapture(event,gesture(-30,0));
+handlers.onPanResponderGrant({nativeEvent:{pageX:160,pageY:300}});now+=100;
+handlers.onPanResponderMove(event,gesture(-40,0));assert.equal(feedback.armed,true);
+const beforeGrant=navigations.length;handlers.onPanResponderRelease(event,gesture(-40,0,0));assert.equal(navigations.length,beforeGrant+1);
+console.log('PASS: full 70dp swipe retained despite PanResponder resetting dx after 30dp acquisition');

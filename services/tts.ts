@@ -1,4 +1,5 @@
 import * as Speech from 'expo-speech';
+import { Platform } from 'react-native';
 
 export type TtsVoice = 'Nam' | 'Nữ';
 export type SleepTimer = 'Tắt' | '15 phút' | '30 phút' | '60 phút' | 'Hết chương';
@@ -183,20 +184,33 @@ function mapVoice(item: Awaited<ReturnType<typeof Speech.getAvailableVoicesAsync
   };
 }
 
-export async function getVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
+let voiceRequest: Promise<TtsVoiceInfo[]> | null = null;
+let vietnameseSupport: 'unknown' | 'available' | 'missing' = 'unknown';
+export function getVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
+  if (!voiceRequest) voiceRequest = loadVietnameseTtsVoices().finally(() => { voiceRequest = null; });
+  return voiceRequest;
+}
+
+async function loadVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
+  vietnameseSupport = 'unknown';
   // Never fall back to an English/foreign voice. That was the cause of Vietnamese
   // chapter text being spoken with a foreign accent in Chrome.
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  const attempts = Platform.OS === 'web' ? 4 : 1;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      const voices = await Speech.getAvailableVoicesAsync();
+      const voices = await new Promise<Awaited<ReturnType<typeof Speech.getAvailableVoicesAsync>>>((resolve, reject) => {
+        const timer = setTimeout(() => resolve([]), 1500);
+        Speech.getAvailableVoicesAsync().then(items => { clearTimeout(timer); resolve(items); }, cause => { clearTimeout(timer); reject(cause); });
+      });
       const vietnamese = voices
-        .filter((item) => /^vi(?:-|_)/i.test(item.language) || /tiếng việt|vietnam/i.test(item.name))
+        .filter((item) => /^vi(?:$|-|_)/i.test(item.language))
         .map(mapVoice);
+      vietnameseSupport = vietnamese.length ? 'available' : voices.length ? 'missing' : 'unknown';
       if (vietnamese.length) return vietnamese;
     } catch {
       // Some web speech engines expose their voices slightly after page load.
     }
-    await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
   }
   return [];
 }
@@ -235,7 +249,15 @@ export function hasDistinctGenderVoices(voices: TtsVoiceInfo[]) {
   return Boolean(male && female && male.identifier !== female.identifier);
 }
 
+const pendingSpeech = new Set<() => void>();
+let stopEpoch = 0;
+let speechRequested = false;
 export async function stopTts() {
+  stopEpoch++;
+  const shouldStopNative = speechRequested;
+  speechRequested = false;
+  for (const cancel of [...pendingSpeech]) cancel();
+  if (!shouldStopNative) return; // Do not initialize the lazy native TTS engine during ordinary reading.
   try { await Speech.stop(); } catch { /* best effort */ }
 }
 
@@ -249,40 +271,76 @@ export async function speakTtsSegment(
   },
 ): Promise<'done' | 'stopped'> {
   if (!text.trim()) return 'done';
+  if (Platform.OS !== 'web' && !options.voice) {
+    const epoch = stopEpoch;
+    if (vietnameseSupport === 'unknown') await getVietnameseTtsVoices();
+    if (epoch !== stopEpoch) return 'stopped';
+    // Expo's native implementation may silently use the OS language when unsupported.
+    // A successful nonempty inventory with no Vietnamese voice must not read Vietnamese in English.
+    if (vietnameseSupport === 'missing') throw new Error('Engine TTS chưa có giọng tiếng Việt. Vào Cài đặt → Ngôn ngữ → Chuyển văn bản thành giọng nói, tải gói tiếng Việt và chọn Thử lại giọng tiếng Việt.');
+  }
+  // Preserve oversized words/paragraphs rather than silently truncating at the native engine limit.
+  const limit = Speech.maxSpeechInputLength;
+  if (Number.isFinite(limit) && limit > 0 && text.length > limit) {
+    const epoch = stopEpoch;
+    for (let offset = 0; offset < text.length;) {
+      let end = Math.min(text.length, offset + limit);
+      if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1])) end--;
+      const status = await speakTtsSegment(text.slice(offset, end), options);
+      if (status === 'stopped' || epoch !== stopEpoch) return 'stopped';
+      offset = end;
+    }
+    return 'done';
+  }
 
   return new Promise((resolve, reject) => {
     let settled = false;
     const estimated = Math.max(8, estimateTtsSeconds(wordsIn(text), options.rate));
-    const timeout = setTimeout(() => finish('done'), Math.min(180_000, Math.max(20_000, estimated * 4_000)));
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      pendingSpeech.delete(cancel);
+      const detail = error instanceof Error ? error.message : typeof error === 'object' && error && 'error' in error ? String(error.error) : '';
+      reject(new Error(`${detail ? detail + '. ' : ''}Không thể phát giọng tiếng Việt. Kiểm tra engine TTS và tải gói tiếng Việt trong cài đặt thiết bị, rồi thử lại.`));
+    };
+    const timedOut = () => {
+      fail(new Error('Engine TTS không phản hồi. Kiểm tra giọng tiếng Việt trong Cài đặt → Ngôn ngữ → Chuyển văn bản thành giọng nói, rồi thử lại.'));
+      void stopTts();
+    };
+    let timeout = setTimeout(timedOut, 10_000);
 
     const finish = (state: 'done' | 'stopped') => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      pendingSpeech.delete(cancel);
       resolve(state);
     };
+    const cancel = () => finish('stopped');
+    pendingSpeech.add(cancel);
 
     try {
-      Speech.speak(text.slice(0, Speech.maxSpeechInputLength), {
-        language: 'vi-VN',
+      speechRequested = true;
+      Speech.speak(text, {
+        // SDK 54 Android constructs Locale(language), not Locale.forLanguageTag.
+        // "vi-VN" becomes an unsupported language there; "vi" correctly requests Vietnamese.
+        language: Platform.OS === 'android' ? 'vi' : 'vi-VN',
         rate: options.rate,
         pitch: options.pitch ?? 1,
         voice: options.voice,
-        onStart: options.onStart,
+        onStart: () => {
+          if (settled) return;
+          clearTimeout(timeout);
+          timeout = setTimeout(timedOut, Math.min(180_000, Math.max(20_000, estimated * 4_000)));
+          options.onStart?.();
+        },
         onDone: () => finish('done'),
         onStopped: () => finish('stopped'),
-        onError: (error) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          reject(error instanceof Error ? error : new Error('Không thể phát giọng đọc.'));
-        },
+        onError: fail,
       });
     } catch (error) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      reject(error instanceof Error ? error : new Error('Không thể phát giọng đọc.'));
+      fail(error);
     }
   });
 }

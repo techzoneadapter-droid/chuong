@@ -49,6 +49,7 @@ export function useTtsPlayer({
   const [voices, setVoices] = useState<TtsVoiceInfo[]>([]);
   const [sleepExpired, setSleepExpired] = useState(false);
   const runId = useRef(0);
+  const mounted = useRef(true);
   const restartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sleepTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEndedRef = useRef(onEnded);
@@ -56,6 +57,7 @@ export function useTtsPlayer({
   const preferencesRef = useRef(preferences);
 
   useEffect(() => {
+    if (!text) { setPrepared(current => current ? null : current); return; }
     let active = true;
     const started = performance.now();
     void buildTtsSegmentsAsync(text, 32, () => active).then(segments => {
@@ -106,11 +108,6 @@ export function useTtsPlayer({
 
   const runFrom = useCallback(async (startIndex: number) => {
     if (!segments.length) return;
-    if (!voices.length) {
-      setError('Thiết bị chưa có giọng tiếng Việt. Hãy cài voice pack tiếng Việt trong cài đặt Text-to-Speech rồi thử lại.');
-      setPlaying(false);
-      return;
-    }
     runId.current += 1;
     const token = runId.current;
     await stopTts();
@@ -136,7 +133,8 @@ export function useTtsPlayer({
           pitch,
           voice: voiceId,
         });
-        if (token !== runId.current || status === 'stopped') return;
+        if (token !== runId.current) return;
+        if (status === 'stopped') { clearSleepTimeout(); setPlaying(false); setPaused(true); return; }
       }
 
       if (token !== runId.current) return;
@@ -254,12 +252,13 @@ export function useTtsPlayer({
   }, [runFrom]);
 
   useEffect(() => {
+    if (!text) return;
     let active = true;
     void getVietnameseTtsVoices().then((items) => {
       if (active) setVoices(items);
     });
     return () => { active = false; };
-  }, []);
+  }, [Boolean(text)]);
 
   useEffect(() => {
     runId.current += 1;
@@ -275,12 +274,13 @@ export function useTtsPlayer({
     setSegmentIndex(targetIndex >= 0 ? targetIndex : initialProgressPercent >= 100 ? Math.max(0, segments.length - 1) : 0);
   }, [chapterKey, clearSleepTimeout, clearRestartTimeout, segments, totalWords]);
 
-  useEffect(() => () => {
+  useEffect(() => { mounted.current = true; return () => {
+    mounted.current = false;
     runId.current += 1;
     clearRestartTimeout();
     clearSleepTimeout();
     void stopTts();
-  }, [clearSleepTimeout, clearRestartTimeout]);
+  }; }, [clearSleepTimeout, clearRestartTimeout]);
 
   return {
     preparing,
@@ -298,7 +298,8 @@ export function useTtsPlayer({
     sleepTimer: preferences.sleepTimer,
     autoNext: preferences.autoNext,
     sleepExpired,
-    hasSpeech: segments.length > 0 && voices.length > 0,
+    hasSpeech: segments.length > 0,
+    retryVoices: () => { setError(''); void getVietnameseTtsVoices().then(items => { if (mounted.current) setVoices(items); }); },
     voiceCount: voices.length,
     hasDistinctGenderVoices: hasDistinctGenderVoices(voices),
     toggle,

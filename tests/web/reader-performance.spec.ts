@@ -64,6 +64,85 @@ async function swipe(page: Page, x: number, y: number, dx: number, dy: number, d
   await cdp.detach();
 }
 
+test('hotfix: 20 chapter swipes preserve the mounted reading surface and sparse order', async ({ page }) => {
+  test.setTimeout(60000);
+  await gestureSettings(page, true, false);
+  const calls = await fixture(page, 100, 'Swipe body. ' + 'Reader text '.repeat(100));
+  await page.goto(`/reader/${bookId}?chapter=1`);
+  await expect(page.getByText('Reader title 1', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.getByTestId('reader-gesture-content').evaluate(node => { (window as any).__readingNode = node; });
+  const metrics: unknown[] = [];
+  for (let index = 1; index <= 20; index++) {
+    await page.evaluate(() => (globalThis as any).__CHUONG_READER_PERF__?.start());
+    await swipe(page, 240, 320, -120, 0, 160);
+    await expect(page).toHaveURL(new RegExp(`chapter=${index * 3 + 1}$`));
+    await expect(page.getByText(`End body ${index * 3 + 1}.`, { exact: true })).toBeVisible();
+    expect(await page.getByTestId('reader-gesture-content').evaluate(node => node === (window as any).__readingNode)).toBe(true);
+    metrics.push(await page.evaluate(() => { const perf = (globalThis as any).__CHUONG_READER_PERF__; const result = perf?.report(); perf?.stop(); return result ?? null; }));
+  }
+  expect(calls.errors).toEqual([]);
+  if (metrics[0]) console.log('Development browser Reader metrics per swipe (not device FPS/RAM):', JSON.stringify(metrics));
+});
+
+test('hotfix: Vietnamese default remains playable with an empty voice list; normal reading does not enumerate voices', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__voiceQueries = 0;
+    (window as any).__spoken = [];
+    (window as any).SpeechSynthesisUtterance = class { text = ''; onstart: any; onend: any; };
+    window.speechSynthesis.getVoices = () => { (window as any).__voiceQueries++; return []; };
+    window.speechSynthesis.speak = utterance => { (window as any).__spoken.push({ text: utterance.text, language: utterance.lang, voice: utterance.voice }); utterance.onstart?.({ utterance } as SpeechSynthesisEvent); };
+    window.speechSynthesis.cancel = () => {};
+  });
+  await fixture(page, 100, 'Xin chào Việt Nam.');
+  await page.goto(`/reader/${bookId}?chapter=1`);
+  await expect(page.getByText('Reader title 1', { exact: true })).toBeVisible({ timeout: 15000 });
+  expect(await page.evaluate(() => (window as any).__voiceQueries)).toBe(0);
+  await page.getByText('Nghe', { exact: true }).click();
+  await expect(page.getByLabel('Phát giọng đọc')).toBeEnabled();
+  await page.getByLabel('Phát giọng đọc').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__spoken.length)).toBe(1);
+  expect(await page.evaluate(() => (window as any).__spoken[0].language)).toBe('vi-VN');
+  expect(await page.evaluate(() => (window as any).__spoken[0].voice)).toBeUndefined();
+  await expect(page.getByRole('button', { name: 'Thử lại giọng tiếng Việt' })).toBeVisible();
+});
+
+test('hotfix: live scroll boundary is refreshed during the same touch session', async ({ page }) => {
+  await gestureSettings(page, false, true);
+  await fixture(page, 100, Array.from({ length: 100 }, (_, i) => `Boundary ${i}. ` + 'Reader text '.repeat(20)).join('\n\n'));
+  await page.goto(`/reader/${bookId}?chapter=1`);
+  await expect(page.getByText('Reader title 1', { exact: true })).toBeVisible({ timeout: 15000 });
+  const moveToEdge = (past: number) => page.getByTestId('reader-gesture-content').evaluate((node, past) => {
+    let parent = node.parentElement;
+    while (parent) {
+      if (/auto|scroll/.test(getComputedStyle(parent).overflowY) && parent.scrollHeight > parent.clientHeight) {
+        (node as HTMLElement).style.touchAction = 'none';
+        parent.scrollTop += node.getBoundingClientRect().bottom - parent.getBoundingClientRect().bottom + past;
+        return;
+      }
+      parent = parent.parentElement;
+    }
+  }, past);
+  await moveToEdge(-60); await page.waitForTimeout(100);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 190, y: 400 }] });
+  await page.waitForTimeout(80);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 190, y: 370 }] });
+  await page.waitForTimeout(80);
+  // Controlled scroll offset isolates boundary-refresh logic from platform overscroll behavior.
+  await moveToEdge(4); await page.waitForTimeout(100);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 190, y: 350 }] });
+  await page.waitForTimeout(60);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 190, y: 320 }] });
+  await page.waitForTimeout(80);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 190, y: 250 }] });
+  await expect(page.getByText('Thả để chuyển chương', { exact: true })).toBeVisible();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+  await expect(page).toHaveURL(/chapter=4/);
+  await expect(page.getByText('End body 4.', { exact: true })).toBeVisible();
+});
+
 test('horizontal gestures preserve sparse ordering and recheck locked chapter access', async ({ page }) => {
   await gestureSettings(page, true, false);
   const calls = await fixture(page, 500, 'Gesture paragraph. ' + 'Reader text '.repeat(100));
@@ -153,6 +232,7 @@ test('a second swipe while loading cannot skip another chapter', async ({ page }
   await swipe(page, 240, 320, -160, 0);
   await expect(page.getByText('Reader title 4', { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/chapter=4/);
+  await expect(page.getByText('End body 4.', { exact: true })).toBeVisible();
   expect(calls.content.filter(number => number === 4)).toHaveLength(1);
 });
 

@@ -1,6 +1,6 @@
 import { createReaderEngine } from '../../lib/readerEngine';
 import { scheduleIdle } from '../../lib/scheduleIdle';
-import { recordReaderDuration } from '../../lib/readerPerformance';
+import { recordReaderDuration, recordReaderRender } from '../../lib/readerPerformance';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { getConnectivityState, isInternetReachable } from '../../services/connectivity';
 import { premiumPrice, SpiritCurrency } from '../../services/spiritStones';
@@ -9,7 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Alert, AppState, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LoadingState, EmptyState, RetryState } from '../../components/States';
 import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
@@ -53,6 +53,7 @@ const themes: Record<ReaderTheme, { bg: string; text: string; muted: string; bar
 };
 
 export default function ReaderScreen() {
+  recordReaderRender();
   const params = useLocalSearchParams<{ bookId: string; chapter?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -86,9 +87,21 @@ export default function ReaderScreen() {
   const [sharingQuote, setSharingQuote] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
   const scrollRef = useRef<ScrollView>(null);
+  const readingContentRef = useRef<View>(null);
   const scrollPosition = useRef(0);
   const navigationPending = useRef(false);
   const textBounds = useRef({ bottom: 0, viewport: 0 });
+  const [pullEdges, setPullEdges] = useState({ top: true, bottom: false });
+  const pullEdgesRef = useRef(pullEdges);
+  const updatePullEdges = () => {
+    if (Platform.OS !== 'android' || !settings.boundaryChapterGestures) return;
+    const next = { top: scrollPosition.current <= 2,
+      bottom: textBounds.current.bottom > 0 && scrollPosition.current + textBounds.current.viewport >= textBounds.current.bottom - 2 };
+    if (next.top !== pullEdgesRef.current.top || next.bottom !== pullEdgesRef.current.bottom) {
+      pullEdgesRef.current = next;
+      setPullEdges(next);
+    }
+  };
   const recentPositions = useRef(new Map<number, { scrollPosition: number; progressPercent: number }>());
   const arrival = useRef<{ number: number; end: boolean; position?: { scrollPosition: number; progressPercent: number } } | null>(null);
   const pendingRestore = useRef<{ number: number; y: number; end?: boolean } | null>(null);
@@ -208,6 +221,7 @@ export default function ReaderScreen() {
     setProgressReady(false);
     setLoading(true);
     setLoadError('');
+    if (!resumeAudio.current) setAudioInitialized(false);
     setLockedContent(null);
     setUnlockError('');
 
@@ -291,7 +305,7 @@ export default function ReaderScreen() {
         if (!active) return;
         setBookmarked(marks.some((item) => item.chapterNumber === targetChapter));
         pendingRestore.current = landing?.end ? { number: targetChapter, y: 0, end: true }
-          : scrollPosition.current > 0 ? { number: targetChapter, y: scrollPosition.current } : null;
+          : { number: targetChapter, y: scrollPosition.current };
         pendingLayout.current = { number: targetChapter, started: performance.now() };
         loadedRoute.current = { engine: readerEngine, chapter: params.chapter };
         setProgressReady(true);
@@ -342,6 +356,7 @@ export default function ReaderScreen() {
     void sync.flush();
     void analytics.flush();
     resumeAudio.current = continueAudio;
+    if (!continueAudio) setAudioInitialized(false);
     setProgressReady(false);
     setLoading(true);
     const next = number;
@@ -375,13 +390,30 @@ export default function ReaderScreen() {
     restoreReaderPosition();
   };
 
+  useEffect(() => {
+    if (loading || !chapterReady) return;
+    let active = true;
+    const frame = requestAnimationFrame(() => {
+      if (Platform.OS === 'web') { restoreReaderPosition(); return; }
+      // Equal-sized chapters may not emit another onLayout when the ScrollView stays mounted.
+      readingContentRef.current?.measure((_x, y, _width, height) => {
+        if (!active) return;
+        textBounds.current.bottom = y + height;
+        updatePullEdges();
+        restoreReaderPosition();
+      });
+    });
+    return () => { active = false; cancelAnimationFrame(frame); };
+  }, [loading, chapterReady, chapterNumber, settings.mode]);
+
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (settings.mode === 'page') return;
+    if (loading || settings.mode === 'page') return;
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     scrollPosition.current = contentOffset.y;
+    updatePullEdges();
     const max = contentSize.height - layoutMeasurement.height;
     const progress = max > 0 ? Math.min(100, Math.round(contentOffset.y / max * 100)) : 100;
-    setReadingProgress(progress);
+    if (progress !== readingProgress) setReadingProgress(progress);
     if (autoScrolling && max > 0 && contentOffset.y >= max - 2) {
       setAutoScrolling(false);
       setControlsVisible(true);
@@ -420,11 +452,16 @@ export default function ReaderScreen() {
       atTop: scrollPosition.current <= 2,
       atBottom: textBounds.current.bottom > 0 && scrollPosition.current + textBounds.current.viewport >= textBounds.current.bottom - 2,
       previous: previousNumber !== undefined, next: nextNumber !== undefined }),
-    navigate: (direction) => {
+    navigate: (direction, releasedAt) => {
+      if (releasedAt !== undefined) recordReaderDuration('gesture-dispatch', releasedAt);
       const number = direction === 'next' ? nextNumber : previousNumber;
       if (number !== undefined) goChapter(number);
     },
   });
+  const bindReadingContent = useCallback((node: View | null) => {
+    readingContentRef.current = node;
+    chapterGestures.bindWeb(node);
+  }, [chapterGestures.bindWeb]);
 
   useEffect(() => {
     if (settings.mode !== 'page') return;
@@ -571,7 +608,7 @@ export default function ReaderScreen() {
     }
   };
 
-  if (loading) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><LoadingState label={navigationPending.current ? 'Đang chuyển chương…' : 'Đang mở linh quyển…'} /></View>;
+  if (loading && !preparedContent.length) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><LoadingState label={navigationPending.current ? 'Đang chuyển chương…' : 'Đang mở linh quyển…'} /></View>;
   if (loadError) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></View>;
 
   if (lockedContent) {
@@ -633,9 +670,11 @@ export default function ReaderScreen() {
       {!dark ? <XianxiaBackdrop opacity={settings.theme === 'paper' ? .16 : .07} /> : null}
       {sync.error ? <Text style={{ color: '#A12B48', padding: 8 }}>{sync.error}</Text> : null}
       <StatusBar style={dark ? 'light' : 'dark'} />
+      <View style={{ flex: 1, opacity: loading ? 0 : 1 }} pointerEvents={loading ? 'none' : 'auto'} {...chapterGestures.handlers}
+        {...(settings.mode === 'page' && !settings.horizontalChapterGestures ? pagePanResponder.panHandlers : {})}>
       <ScrollView
         ref={scrollRef}
-        onLayout={(event) => { textBounds.current.viewport = event.nativeEvent.layout.height; restoreReaderPosition(); }}
+        onLayout={(event) => { textBounds.current.viewport = event.nativeEvent.layout.height; restoreReaderPosition(); updatePullEdges(); }}
         onScroll={onScroll}
         onContentSizeChange={onReaderContentSizeChange}
         onScrollBeginDrag={() => {
@@ -644,15 +683,17 @@ export default function ReaderScreen() {
             setControlsVisible(true);
           }
         }}
-        scrollEventThrottle={120}
-        scrollEnabled={settings.mode !== 'page'}
-        {...(settings.mode === 'page' && !settings.horizontalChapterGestures ? pagePanResponder.panHandlers : {})}
+        scrollEventThrottle={32}
+        disableScrollViewPanResponder={settings.mode === 'scroll' && Boolean(settings.boundaryChapterGestures)}
+        scrollEnabled={!loading && settings.mode !== 'page'}
+        accessibilityElementsHidden={loading}
+        importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.readingPage, { paddingHorizontal: settings.padding, paddingTop: insets.top + 72, paddingBottom: insets.bottom + 105 }]}
         style={{ backgroundColor: dark ? palette.bg : settings.theme === 'paper' ? 'rgba(244,235,216,.88)' : 'rgba(255,255,255,.94)' }}
       >
-        <View ref={chapterGestures.bindWeb} testID="reader-gesture-content" {...chapterGestures.handlers}
-          onLayout={(event) => { textBounds.current.bottom = event.nativeEvent.layout.y + event.nativeEvent.layout.height; restoreReaderPosition(); }}>
+        <View ref={bindReadingContent} testID="reader-gesture-content" collapsable={false}
+          onLayout={(event) => { textBounds.current.bottom = event.nativeEvent.layout.y + event.nativeEvent.layout.height; restoreReaderPosition(); updatePullEdges(); }}>
         <Pressable onPress={() => setControlsVisible((value) => !value)}>
           {settings.mode === 'page' ? <View style={[styles.pageModeBadge, dark && styles.pageModeBadgeDark]}><Ionicons name="albums-outline" size={14} color={dark ? xianxia.goldSoft : xianxia.jadeDeep} /><Text style={[styles.pageModeText, dark && styles.pageModeTextDark]}>Lật trang · {pageIndex + 1}/{pagedContent.length}</Text></View> : null}
           {settings.mode !== 'page' || pageIndex === 0 ? <>
@@ -688,7 +729,16 @@ export default function ReaderScreen() {
           </View> : <Comments bookId={book.id} chapterId={chapter.id} />}
         </View>
       </ScrollView>
+      </View>
 
+      {Platform.OS === 'android' && settings.mode === 'scroll' && settings.boundaryChapterGestures
+        && !loading && chapterReady && !lockedContent && !sheet && !giftOpen && !quoteToShare ? <>
+        {pullEdges.top && previousNumber !== undefined ? <View {...chapterGestures.boundaryHandlers.previous}
+          accessible={false} style={{ position: 'absolute', left: settings.padding, right: settings.padding, top: insets.top + 76, height: 28 }} /> : null}
+        {pullEdges.bottom && nextNumber !== undefined ? <View {...chapterGestures.boundaryHandlers.next}
+          accessible={false} style={{ position: 'absolute', left: settings.padding, right: settings.padding, bottom: insets.bottom + 108, height: 28 }} /> : null}
+      </> : null}
+      {loading ? <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: palette.bg, zIndex: 100 }}><LoadingState label="Đang chuyển chương…" /></View> : null}
       {chapterGestures.feedback ? <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 76, alignSelf: 'center',
         paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: palette.bar, borderWidth: 1,
         borderColor: chapterGestures.feedback.armed ? xianxia.jadeDeep : palette.muted }}>
@@ -950,6 +1000,7 @@ function AudioSheet({
     <Text style={audioStyles.sub}>TTS hệ thống · {player.voiceName}</Text>
     {player.voiceCount === 0 ? <Text style={audioStyles.voiceHint}>Chưa phát hiện gói giọng tiếng Việt trên thiết bị. CHƯƠNG sẽ yêu cầu hệ điều hành dùng giọng vi-VN mặc định và tuyệt đối không chọn giọng tiếng Anh thay thế.</Text> : !player.hasDistinctGenderVoices ? <Text style={audioStyles.voiceHint}>Thiết bị đã có giọng tiếng Việt nhưng chưa cung cấp đủ hai giọng Nam/Nữ riêng biệt. CHƯƠNG vẫn giữ tiếng Việt và tạo khác biệt Nam/Nữ bằng cao độ; cài thêm voice pack tiếng Việt để có hai giọng tự nhiên riêng biệt.</Text> : <Text style={audioStyles.voiceHint}>Đã phát hiện hai giọng tiếng Việt khác nhau cho lựa chọn Nam/Nữ.</Text>}
     {player.error ? <Text style={audioStyles.error}>{player.error}</Text> : null}
+    {player.error || player.voiceCount === 0 ? <Pressable accessibilityRole="button" onPress={player.retryVoices}><Text style={audioStyles.voiceHint}>Thử lại giọng tiếng Việt</Text></Pressable> : null}
     {player.sleepExpired ? <Text style={audioStyles.sleepNotice}>Hẹn giờ ngủ đã dừng giọng đọc.</Text> : null}
 
     <Pressable
