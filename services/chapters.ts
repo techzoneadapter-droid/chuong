@@ -4,6 +4,7 @@ import { requireSupabase, supabase } from '../lib/supabase';
 import { Chapter, ChapterInput, ServiceResult } from '../types';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
+import { getConnectivityState } from './connectivity';
 import {
   getOfflineBookRecords,
   getOfflineBookSnapshot,
@@ -116,6 +117,13 @@ export async function getChapter(bookId: string, chapterNumber: number): Promise
       return null;
     });
     return offline ? { data: offline, mode: 'offline' } : { data: demoChapter(bookId, chapterNumber), mode: 'demo' };
+  }
+
+  if (!(await getConnectivityState()).connected) {
+    // Explicit offline state: validate the stored license/checksum without waiting for RPC retries.
+    const offline = await getOfflineChapter(bookId, chapterNumber);
+    if (offline) return { data: offline, mode: 'offline' };
+    throw toServiceError(new Error('Không có kết nối mạng.'), 'Không thể tải nội dung chương.');
   }
 
   try {
