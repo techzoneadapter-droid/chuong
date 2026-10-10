@@ -80,7 +80,7 @@ export function useReadingAnalytics(input: {
     }, 1000);
 
     const heartbeatTimer = setInterval(() => {
-      void send();
+      if (focusedRef.current && appStateRef.current === 'active') void send();
     }, 30000);
 
     return () => {

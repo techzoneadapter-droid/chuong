@@ -1,10 +1,11 @@
+import { createSingleFlight } from '../../lib/asyncWork';
 import { premiumPrice, SpiritCurrency } from '../../services/spiritStones';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, AppState, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LoadingState, EmptyState, RetryState } from '../../components/States';
 import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
@@ -55,6 +56,7 @@ export default function ReaderScreen() {
   const initialChapter = Math.min(book.totalChapters, Math.max(1, Number(params.chapter) || 1));
   const [chapterNumber, setChapterNumber] = useState(initialChapter);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [audioInitialized, setAudioInitialized] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [settings, setSettings] = usePersistentState<ReaderSettings>('reader:settings', defaultReaderSettings);
   const [bookmarked, setBookmarked] = useState(false);
@@ -78,6 +80,9 @@ export default function ReaderScreen() {
   const [shareNotice, setShareNotice] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const scrollPosition = useRef(0);
+  const catalogRequests = useRef(createSingleFlight());
+
+  useEffect(() => { if (sheet === 'audio') setAudioInitialized(true); }, [sheet]);
 
   const selectedChapter = book.chapters.find((item) => item.number === chapterNumber);
   const chapter = selectedChapter ?? { number: chapterNumber, title: '', content: '', id: undefined };
@@ -104,7 +109,9 @@ export default function ReaderScreen() {
     const cleaned = stripLeadingChapterMarker(chapter.content, chapterNumber);
     return cleaned.split(/\n\s*\n/).filter(Boolean);
   }, [chapter.content, chapterNumber]);
+  const audioText = useMemo(() => audioInitialized || sheet === 'audio' ? content.join('\n\n') : '', [audioInitialized, sheet === 'audio', content]);
   const pagedContent = useMemo(() => {
+    if (settings.mode !== 'page') return [];
     const spacingFactor = settings.spacing === 'compact' ? 1.12 : settings.spacing === 'relaxed' ? .82 : 1;
     const target = Math.max(520, Math.round(1120 * (18 / settings.fontSize) * spacingFactor));
     const pages: string[][] = [];
@@ -122,7 +129,7 @@ export default function ReaderScreen() {
     }
     if (current.length || !pages.length) pages.push(current);
     return pages;
-  }, [content, settings.fontSize, settings.spacing]);
+  }, [content, settings.fontSize, settings.spacing, settings.mode]);
   const visibleContent = settings.mode === 'page' ? (pagedContent[pageIndex] ?? pagedContent[0] ?? []) : content;
   const bookmark: Bookmark | null = bookmarked ? { chapter: chapterNumber, progress: readingProgress, updatedAt: new Date().toISOString() } : null;
   const palette = themes[settings.theme];
@@ -154,27 +161,36 @@ export default function ReaderScreen() {
     setLockedContent(null);
     setUnlockError('');
 
+    let restoreTimer: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
       try {
-        let hydrated: Book;
-        let localOnly = false;
+        const catalog = await catalogRequests.current(`${params.bookId}:${user?.id ?? 'guest'}:${reload}`, async () => {
+          let hydrated: Book;
+          let localOnly = false;
 
-        try {
-          const result = await getBookById(params.bookId);
-          if (!active) return;
-          if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
+          try {
+            const result = await getBookById(params.bookId);
+            if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
 
-          const chapters = await getChaptersByBook(result.data.id);
-          if (!active) return;
-          hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length };
-        } catch (networkOrCatalogError) {
-          const offlineBook = await getOfflineBookSnapshot(params.bookId);
-          if (!offlineBook) throw networkOrCatalogError;
-          hydrated = offlineBook;
-          localOnly = true;
-        }
+            const chapters = await getChaptersByBook(result.data.id);
+            hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length };
+          } catch (networkOrCatalogError) {
+            const offlineBook = await getOfflineBookSnapshot(params.bookId);
+            if (!offlineBook) throw networkOrCatalogError;
+            hydrated = offlineBook;
+            localOnly = true;
+          }
 
-        const saved = await getReadingProgress(hydrated.id, user?.id).catch(() => null);
+          return { hydrated, localOnly };
+        });
+        if (!active) return;
+        const hydrated = catalog.hydrated;
+        let localOnly = catalog.localOnly;
+
+        const [saved, marks] = await Promise.all([
+          getReadingProgress(hydrated.id, user?.id).catch(() => null),
+          getBookmarks(hydrated.id, user?.id).catch(() => []),
+        ]);
         const requested = Number(params.chapter) || saved?.chapterNumber;
         const targetChapter = requested && hydrated.chapters.some((item) => item.number === requested)
           ? requested
@@ -219,12 +235,11 @@ export default function ReaderScreen() {
         });
         setReadingProgress(saved?.chapterNumber === targetChapter ? saved.progressPercent : 0);
         scrollPosition.current = saved?.chapterNumber === targetChapter ? saved.scrollPosition : 0;
-        const marks = await getBookmarks(hydrated.id, user?.id).catch(() => []);
         if (!active) return;
         setBookmarked(marks.some((item) => item.chapterNumber === targetChapter));
         setProgressReady(true);
         if (scrollPosition.current > 0) {
-          setTimeout(() => scrollRef.current?.scrollTo({ y: scrollPosition.current, animated: false }), 80);
+          restoreTimer = setTimeout(() => { if (active) scrollRef.current?.scrollTo({ y: scrollPosition.current, animated: false }); }, 80);
         }
       } catch (cause) {
         if (active) setLoadError(messageForError(cause, 'Không thể tải nội dung.'));
@@ -234,7 +249,7 @@ export default function ReaderScreen() {
     };
 
     load();
-    return () => { active = false; };
+    return () => { active = false; if (restoreTimer) clearTimeout(restoreTimer); };
   }, [params.bookId, params.chapter, user?.id, reload]);
 
   const goChapter = (number: number) => {
@@ -319,6 +334,7 @@ export default function ReaderScreen() {
     const speedMap: Record<ReaderAutoScrollSpeed, number> = { 1: 14, 2: 24, 3: 38, 4: 56 };
     const speed = speedMap[(settings.autoScrollSpeed ?? 2) as ReaderAutoScrollSpeed] ?? 24;
     const interval = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
       const next = scrollPosition.current + speed / 20;
       scrollRef.current?.scrollTo({ y: next, animated: false });
     }, 50);
@@ -605,19 +621,19 @@ export default function ReaderScreen() {
         autoScrolling={autoScrolling}
         onToggleAutoScroll={toggleAutoScroll}
       />
-      <AudioSheet
+      {audioInitialized || sheet === 'audio' ? <AudioSheet
         visible={sheet === 'audio'}
         onClose={() => setSheet(null)}
         chapterKey={`${book.id}:${chapterNumber}`}
         chapterTitle={chapterDisplayTitle ? `Chương ${chapterNumber} · ${chapterDisplayTitle}` : `Chương ${chapterNumber}`}
-        chapterText={content.join('\n\n')}
+        chapterText={audioText}
         initialProgress={readingProgress}
         onProgress={setReadingProgress}
         onPrevious={() => goChapter(previousNumber ?? chapterNumber)}
         onNext={() => goChapter(nextNumber ?? chapterNumber)}
         canPrevious={previousNumber !== undefined}
         canNext={nextNumber !== undefined}
-      />
+      /> : null}
       <MoreSheet
         visible={sheet === 'more'}
         onClose={() => setSheet(null)}

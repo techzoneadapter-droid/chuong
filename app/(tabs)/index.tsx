@@ -40,7 +40,7 @@ function SectionTitle({ title, action, onPress, subtitle }: { title: string; act
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [books, setBooks] = useState<Book[]>(demoBooks);
   const [savedProgress, setSavedProgress] = useState<ReadingProgress | null>(null);
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendation[]>([]);
@@ -54,6 +54,7 @@ export default function HomeScreen() {
   const [updatesError, setUpdatesError] = useState(false);
 
   useFocusEffect(useCallback(() => {
+    if (authLoading) return;
     let active = true;
     setFollowedUpdates([]); setNewChapters(null); setUpdatesError(false);
     if (user) {
@@ -62,11 +63,12 @@ export default function HomeScreen() {
         .catch(() => { if (active) setUpdatesError(true); });
     }
     return () => { active = false; };
-  }, [user?.id]));
+  }, [user?.id, authLoading]));
 
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useFocusEffect(useCallback(() => {
+    if (authLoading) return;
     let active = true;
     // Always refresh the public catalog when Home regains focus so a newly
     // published/uploaded book appears immediately without restarting the app.
@@ -76,9 +78,10 @@ export default function HomeScreen() {
     }
     void getUnreadNotificationCount().then((count) => { if (active) setUnreadNotifications(count); }).catch(() => undefined);
     return () => { active = false; };
-  }, [user?.id]));
+  }, [user?.id, authLoading]));
 
   useFocusEffect(useCallback(() => {
+    if (authLoading) return;
     let active = true;
     setLoading(true);
     setLoadError('');
@@ -108,7 +111,7 @@ export default function HomeScreen() {
     });
 
     return () => { active = false; };
-  }, [user?.id, reload]));
+  }, [user?.id, reload, authLoading]));
 
   if (loading) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><LoadingState label="Đang mở sơn môn…" /></SafeAreaView>;
   if (loadError) return <SafeAreaView style={styles.safe}><XianxiaBackdrop /><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></SafeAreaView>;

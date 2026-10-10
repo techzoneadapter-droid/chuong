@@ -1,6 +1,9 @@
+import { createSerialQueue } from '../lib/asyncWork';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { Book, Chapter } from '../types';
+
+const mutateOffline = createSerialQueue();
 
 const MANIFEST_KEY = 'chuong:offline-manifest:v2';
 const WEB_PAYLOAD_PREFIX = 'chuong:offline-payload:v2:';
@@ -151,7 +154,8 @@ async function writePayload(key: string, payload: StoredChapterPayload) {
 
   const file = await getNativeFile(key);
   if (!file.exists) file.create({ intermediates: true });
-  file.write(serialized);
+  const { writeAsStringAsync, EncodingType } = await import('expo-file-system/legacy');
+  await writeAsStringAsync(file.uri, serialized, { encoding: EncodingType.UTF8 });
   return typeof file.size === 'number' && file.size > 0 ? file.size : estimateBytes(serialized);
 }
 
@@ -216,7 +220,7 @@ async function enforceQuota(manifest: OfflineManifest, preserveKeys: string[] = 
   return manifest;
 }
 
-export async function saveOfflineChapter(
+async function saveOfflineChapterImpl(
   book: Pick<Book, 'id' | 'title' | 'author' | 'cover' | 'coverUrl'> & Partial<Pick<Book, 'genre'>>,
   chapter: Chapter,
 ) {
@@ -273,7 +277,7 @@ export async function saveOfflineChapter(
   return record;
 }
 
-export async function getOfflineChapter(bookId: string, chapterNumber: number): Promise<Chapter | null> {
+async function getOfflineChapterImpl(bookId: string, chapterNumber: number): Promise<Chapter | null> {
   const manifest = await readManifest();
   const key = chapterKey(bookId, chapterNumber);
   const record = manifest.chapters.find((item) => item.key === key);
@@ -312,7 +316,7 @@ export async function hasOfflineChapter(bookId: string, chapterNumber: number) {
   return manifest.chapters.some((item) => item.bookId === bookId && item.chapterNumber === chapterNumber);
 }
 
-export async function refreshOfflineChapterIfDownloaded(chapter: Chapter) {
+async function refreshOfflineChapterIfDownloadedImpl(chapter: Chapter) {
   if (!chapter.bookId || !chapter.content) return false;
   const manifest = await readManifest();
   const current = manifest.chapters.find(
@@ -320,7 +324,7 @@ export async function refreshOfflineChapterIfDownloaded(chapter: Chapter) {
   );
   if (!current) return false;
 
-  await saveOfflineChapter(
+  await saveOfflineChapterImpl(
     {
       id: current.bookId,
       title: current.bookTitle,
@@ -334,7 +338,7 @@ export async function refreshOfflineChapterIfDownloaded(chapter: Chapter) {
   return true;
 }
 
-export async function removeOfflineChapter(bookId: string, chapterNumber: number) {
+async function removeOfflineChapterImpl(bookId: string, chapterNumber: number) {
   const manifest = await readManifest();
   const key = chapterKey(bookId, chapterNumber);
   const existed = manifest.chapters.some((item) => item.key === key);
@@ -346,7 +350,7 @@ export async function removeOfflineChapter(bookId: string, chapterNumber: number
   return true;
 }
 
-export async function removeOfflineBook(bookId: string) {
+async function removeOfflineBookImpl(bookId: string) {
   const manifest = await readManifest();
   const targets = manifest.chapters.filter((item) => item.bookId === bookId);
   await Promise.all(targets.map((item) => deletePayload(item.key)));
@@ -453,7 +457,7 @@ export async function getOfflineStorageStats(): Promise<OfflineStorageStats> {
   };
 }
 
-export async function setOfflineQuotaBytes(bytes: number) {
+async function setOfflineQuotaBytesImpl(bytes: number) {
   const manifest = await readManifest();
   manifest.quotaBytes = Math.min(MAX_QUOTA_BYTES, Math.max(MIN_QUOTA_BYTES, Math.round(bytes)));
   await enforceQuota(manifest);
@@ -461,7 +465,7 @@ export async function setOfflineQuotaBytes(bytes: number) {
   return getOfflineStorageStats();
 }
 
-export async function applyOfflineStoragePlan(isPremium: boolean) {
+async function applyOfflineStoragePlanImpl(isPremium: boolean) {
   const manifest = await readManifest();
   const target = isPremium ? PREMIUM_OFFLINE_QUOTA_BYTES : STANDARD_OFFLINE_QUOTA_BYTES;
   if (manifest.quotaBytes !== target) {
@@ -472,13 +476,13 @@ export async function applyOfflineStoragePlan(isPremium: boolean) {
   return getOfflineStorageStats();
 }
 
-export async function clearOfflineDownloads() {
+async function clearOfflineDownloadsImpl() {
   const manifest = await readManifest();
   await Promise.all(manifest.chapters.map((item) => deletePayload(item.key)));
   await writeManifest({ ...manifest, chapters: [] });
 }
 
-export async function pruneExpiredVipDownloads() {
+async function pruneExpiredVipDownloadsImpl() {
   const manifest = await readManifest();
   const expiredRecords = manifest.chapters.filter(expired);
   await Promise.all(expiredRecords.map((item) => deletePayload(item.key)));
@@ -496,3 +500,31 @@ export function formatOfflineBytes(bytes: number) {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 * 1024 ? 1 : 0)} GB`;
 }
+
+// Keep payload and manifest updates atomic relative to other in-process operations.
+export const saveOfflineChapter = (...args: Parameters<typeof saveOfflineChapterImpl>): ReturnType<typeof saveOfflineChapterImpl> =>
+  mutateOffline(() => saveOfflineChapterImpl(...args));
+
+export const getOfflineChapter = (...args: Parameters<typeof getOfflineChapterImpl>): ReturnType<typeof getOfflineChapterImpl> =>
+  mutateOffline(() => getOfflineChapterImpl(...args));
+
+export const refreshOfflineChapterIfDownloaded = (...args: Parameters<typeof refreshOfflineChapterIfDownloadedImpl>): ReturnType<typeof refreshOfflineChapterIfDownloadedImpl> =>
+  mutateOffline(() => refreshOfflineChapterIfDownloadedImpl(...args));
+
+export const removeOfflineChapter = (...args: Parameters<typeof removeOfflineChapterImpl>): ReturnType<typeof removeOfflineChapterImpl> =>
+  mutateOffline(() => removeOfflineChapterImpl(...args));
+
+export const removeOfflineBook = (...args: Parameters<typeof removeOfflineBookImpl>): ReturnType<typeof removeOfflineBookImpl> =>
+  mutateOffline(() => removeOfflineBookImpl(...args));
+
+export const setOfflineQuotaBytes = (...args: Parameters<typeof setOfflineQuotaBytesImpl>): ReturnType<typeof setOfflineQuotaBytesImpl> =>
+  mutateOffline(() => setOfflineQuotaBytesImpl(...args));
+
+export const applyOfflineStoragePlan = (...args: Parameters<typeof applyOfflineStoragePlanImpl>): ReturnType<typeof applyOfflineStoragePlanImpl> =>
+  mutateOffline(() => applyOfflineStoragePlanImpl(...args));
+
+export const clearOfflineDownloads = (...args: Parameters<typeof clearOfflineDownloadsImpl>): ReturnType<typeof clearOfflineDownloadsImpl> =>
+  mutateOffline(() => clearOfflineDownloadsImpl(...args));
+
+export const pruneExpiredVipDownloads = (...args: Parameters<typeof pruneExpiredVipDownloadsImpl>): ReturnType<typeof pruneExpiredVipDownloadsImpl> =>
+  mutateOffline(() => pruneExpiredVipDownloadsImpl(...args));

@@ -21,3 +21,19 @@ export function createSingleFlight() {
     return result;
   };
 }
+
+// Run independent work with bounded concurrency, preserving input order.
+export async function mapConcurrent<T, R>(items: readonly T[], concurrency: number, work: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  let failed = false;
+  const workers = Array.from({ length: Math.min(items.length, Math.max(1, Math.floor(concurrency))) }, async () => {
+    while (!failed && cursor < items.length) {
+      const index = cursor++;
+      try { results[index] = await work(items[index], index); }
+      catch (error) { failed = true; throw error; }
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
