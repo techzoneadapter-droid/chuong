@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePersistentState } from './usePersistentState';
+import { recordReaderDuration } from '../lib/readerPerformance';
 import {
-  buildTtsSegments,
+  buildTtsSegmentsAsync,
   chooseTtsVoice,
   DEFAULT_TTS_PREFERENCES,
   describeTtsVoice,
@@ -15,6 +16,7 @@ import {
   TtsPreferences,
   TtsVoice,
   TtsVoiceInfo,
+  TtsSegment,
   wordsForSeconds,
 } from '../services/tts';
 
@@ -26,6 +28,8 @@ type Options = {
   onEnded?: () => void;
 };
 
+const EMPTY_SEGMENTS: TtsSegment[] = [];
+
 export function useTtsPlayer({
   chapterKey,
   text,
@@ -34,7 +38,9 @@ export function useTtsPlayer({
   onEnded,
 }: Options) {
   const [preferences, setPreferences] = usePersistentState<TtsPreferences>('reader:tts', DEFAULT_TTS_PREFERENCES);
-  const segments = useMemo(() => buildTtsSegments(text), [text]);
+  const [prepared, setPrepared] = useState<{ text: string; key: string; segments: TtsSegment[] } | null>(null);
+  const preparing = Boolean(text) && (prepared?.text !== text || prepared.key !== chapterKey);
+  const segments = prepared?.text === text && prepared.key === chapterKey ? prepared.segments : EMPTY_SEGMENTS;
   const totalWords = segments[segments.length - 1]?.endWord ?? 0;
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -48,6 +54,15 @@ export function useTtsPlayer({
   const onEndedRef = useRef(onEnded);
   const onProgressRef = useRef(onProgress);
   const preferencesRef = useRef(preferences);
+
+  useEffect(() => {
+    let active = true;
+    const started = performance.now();
+    void buildTtsSegmentsAsync(text, 32, () => active).then(segments => {
+      if (active) { recordReaderDuration('tts-prepare', started); setPrepared({ text, key: chapterKey, segments }); }
+    }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Không thể chuẩn bị giọng đọc.'); });
+    return () => { active = false; };
+  }, [text, chapterKey]);
 
   useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
@@ -268,6 +283,7 @@ export function useTtsPlayer({
   }, [clearSleepTimeout, clearRestartTimeout]);
 
   return {
+    preparing,
     playing,
     paused,
     error,
