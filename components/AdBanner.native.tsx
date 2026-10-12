@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { useMembership } from '../hooks/useMembership';
 import { xianxia } from '../constants/xianxia';
+import { ensureAdsConsent, getAdsConsentSnapshot, subscribeAdsConsent } from '../services/adConsent.native';
 
 function configuredBannerId() {
   if (Platform.OS === 'android') return process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || '';
@@ -13,11 +14,18 @@ function configuredBannerId() {
 export function AdBanner({ dark = false, compact = false }: { dark?: boolean; compact?: boolean }) {
   const membership = useMembership();
   const [failed, setFailed] = useState(false);
+  const consented = useSyncExternalStore(subscribeAdsConsent, getAdsConsentSnapshot, getAdsConsentSnapshot);
 
-  if (membership.loading || !membership.showAds) return null;
+  useEffect(() => {
+    if (!membership.loading && membership.showAds) {
+      void ensureAdsConsent();
+    }
+  }, [membership.loading, membership.showAds]);
+
+  if (membership.loading || !membership.showAds || !consented) return null;
 
   const productionId = configuredBannerId();
-  const unitId = __DEV__ || !productionId ? TestIds.BANNER : productionId;
+  const unitId = __DEV__ || process.env.EXPO_PUBLIC_ADS_MODE !== 'production' || !productionId ? TestIds.BANNER : productionId;
 
   if (failed) {
     return (
@@ -33,7 +41,7 @@ export function AdBanner({ dark = false, compact = false }: { dark?: boolean; co
       <BannerAd
         unitId={unitId}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-        requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+        requestOptions={{ requestNonPersonalizedAdsOnly: true }}
         onAdFailedToLoad={() => setFailed(true)}
       />
     </View>

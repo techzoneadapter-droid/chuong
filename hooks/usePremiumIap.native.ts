@@ -1,4 +1,4 @@
-import { ErrorCode, finishTransaction, type Product, type Purchase, useIAP } from 'expo-iap';
+import { ErrorCode, finishTransaction, getAvailablePurchases, type Product, type Purchase, useIAP } from 'expo-iap';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { PremiumIapState, PremiumNativeProduct } from './premiumIapTypes';
@@ -31,7 +31,7 @@ export function usePremiumIap(userId: string, onVerified?: () => void): PremiumI
   const verify = useCallback(async (purchase: Purchase, restored = false) => {
     if (!provider || !userId || purchase.productId !== productId) return;
     const identity = String(purchase.transactionId || purchase.id || purchase.purchaseToken || '');
-    if (identity && handled.current.has(identity)) return;
+    if (!restored && identity && handled.current.has(identity)) return;
     if (identity) handled.current.add(identity);
 
     setProcessing(!restored);
@@ -146,21 +146,17 @@ export function usePremiumIap(userId: string, onVerified?: () => void): PremiumI
     setSuccess('');
     try {
       await iap.restorePurchases();
-      await iap.getAvailablePurchases();
+      const purchases = await getAvailablePurchases();
+      const subscription = purchases.find((item) => item.productId === productId);
+      if (subscription) await verify(subscription, true);
+      else setError('Không tìm thấy thuê bao VIP có thể khôi phục trong tài khoản cửa hàng này.');
     } catch (cause) {
       const message = friendly(cause);
       if (message) setError(message);
+    } finally {
       setRestoring(false);
     }
-  }, [iap.getAvailablePurchases, iap.restorePurchases, provider, userId]);
-
-  useEffect(() => {
-    if (!restoring) return;
-    const purchases = ((iap as unknown as { availablePurchases?: Purchase[] }).availablePurchases ?? []) as Purchase[];
-    const subscription = purchases.find((item) => item.productId === productId);
-    if (!subscription) return;
-    void verify(subscription, true).finally(() => setRestoring(false));
-  }, [iap, productId, restoring, verify]);
+  }, [iap.restorePurchases, productId, provider, userId, verify]);
 
   return {
     supported: Boolean(provider),

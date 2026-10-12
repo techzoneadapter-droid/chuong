@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import mobileAds, { AdsConsent } from 'react-native-google-mobile-ads';
+import { ensureAdsConsent } from '../services/adConsent.native';
 import { useMembership } from '../hooks/useMembership';
 
 export function AdsBridge() {
@@ -13,21 +13,9 @@ export function AdsBridge() {
     const start = async () => {
       const initializeIfAllowed = async () => {
         if (!active || initialized.current) return;
-        try {
-          const info = await AdsConsent.getConsentInfo();
-          if (!info.canRequestAds) return;
-          initialized.current = true;
-          await mobileAds().initialize();
-        } catch {
-          // Ad failures must never block the reading experience.
-        }
+        initialized.current = await ensureAdsConsent();
       };
 
-      try {
-        await AdsConsent.gatherConsent();
-      } catch {
-        // UMP can use prior-session state if gathering temporarily fails.
-      }
       await initializeIfAllowed();
     };
 

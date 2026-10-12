@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { appleStoreBase, requireStoreEnvironment } from "../_shared/storeEnvironment.ts";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const ANDROID_SCOPE = "https://www.googleapis.com/auth/androidpublisher";
@@ -333,10 +334,7 @@ async function createAppleServerJwt() {
 
 async function fetchAppleTransaction(transactionId: string) {
   const jwt = await createAppleServerJwt();
-  const bases = [
-    "https://api.storekit.apple.com",
-    "https://api.storekit-sandbox.apple.com",
-  ];
+  const bases = [appleStoreBase(Deno.env.get("IAP_ENVIRONMENT"))];
 
   for (const base of bases) {
     const response = await fetch(
@@ -917,6 +915,8 @@ async function processApple(bodyText: string, body: any, admin: SupabaseAdmin) {
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return reply(405, { error: "method_not_allowed" });
+  try { requireStoreEnvironment(Deno.env.get("IAP_ENVIRONMENT")); }
+  catch { return reply(503, { error: "iap_environment_not_configured" }); }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = serviceRoleKey();

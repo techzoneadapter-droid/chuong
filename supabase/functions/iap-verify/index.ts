@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { appleStoreBase, assertStoreEnvironment } from "../_shared/storeEnvironment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,6 +30,7 @@ function serviceRoleKey() {
 }
 
 function providerReady(provider: Provider) {
+  if (!["sandbox", "production"].includes(Deno.env.get("IAP_ENVIRONMENT") || "")) return false;
   if (provider === "google_play") {
     return Boolean(
       Deno.env.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON") &&
@@ -206,6 +208,7 @@ async function verifyGooglePurchase(input: {
     acknowledgementState?: string;
     testPurchaseContext?: unknown;
   };
+  assertStoreEnvironment(Deno.env.get("IAP_ENVIRONMENT"), Boolean(purchase.testPurchaseContext));
 
   if (purchase.purchaseStateContext?.purchaseState !== "PURCHASED") {
     throw new Error(
@@ -244,10 +247,7 @@ async function verifyGooglePurchase(input: {
 }
 
 async function fetchAppleTransaction(transactionId: string, jwt: string) {
-  const urls = [
-    "https://api.storekit.apple.com",
-    "https://api.storekit-sandbox.apple.com",
-  ];
+  const urls = [appleStoreBase(Deno.env.get("IAP_ENVIRONMENT"))];
 
   let lastStatus = 0;
   for (const base of urls) {
@@ -295,6 +295,9 @@ async function verifyApplePurchase(input: {
     type?: string;
     storefront?: string;
   }>(parts[1]);
+
+  if (!['Sandbox', 'Production'].includes(payload.environment || '')) throw new Error('apple_environment_missing');
+  assertStoreEnvironment(Deno.env.get("IAP_ENVIRONMENT"), payload.environment === 'Sandbox');
 
   if (payload.transactionId !== input.transactionId) throw new Error("apple_transaction_mismatch");
   if (payload.productId !== input.productId) throw new Error("apple_product_mismatch");

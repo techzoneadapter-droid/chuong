@@ -13,6 +13,7 @@ const routes = [
 ] as const;
 
 test('all requested demo routes render without runtime errors or overflow', async ({ page }) => {
+  test.setTimeout(90000); // Includes first Metro compilation plus 20+ distinct routes.
   const errors: string[] = []; page.on('pageerror', (error) => errors.push(error.message));
   for (const [route, text] of routes) {
     const response = await page.goto(route);

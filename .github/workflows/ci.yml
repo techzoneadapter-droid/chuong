@@ -2,7 +2,7 @@ name: CHUONG CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'release/**']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -40,8 +40,13 @@ jobs:
         run: npm run test:release
       - name: Database regression
         run: npm run test:db
-      - name: Reader and preview policy regression
-        run: npm run test:free-preview && node tests/performance-phase3-reader.mjs && node tests/reader-gestures.mjs && node tests/reader-hotfix-tts.mjs
+      - name: Reader, monetization and deletion regression
+        run: npm run test:unit && node tests/free-preview-db.mjs && node tests/account-deletion.mjs
+      - name: Native JavaScript bundles
+        run: npx expo export --platform all --output-dir .cache/native-export
+        env:
+          EXPO_PUBLIC_SUPABASE_MODE: demo
+          EXPO_PUBLIC_ADS_MODE: test
       - name: Web export
         run: npm run build
 
@@ -67,9 +72,13 @@ jobs:
           export CI=1
           EXPO_PUBLIC_SUPABASE_MODE=demo npx expo start --web --port 3001 --host localhost --clear > /tmp/chuong-demo.log 2>&1 &
           SERVER_PID=$!
+          python3 -m http.server 3010 --bind 127.0.0.1 --directory admin-web > /tmp/chuong-admin.log 2>&1 &
+          ADMIN_PID=$!
           cleanup() {
             kill "$SERVER_PID" 2>/dev/null || true
             wait "$SERVER_PID" 2>/dev/null || true
+            kill "$ADMIN_PID" 2>/dev/null || true
+            wait "$ADMIN_PID" 2>/dev/null || true
           }
           trap cleanup EXIT
           ready=0
@@ -84,7 +93,7 @@ jobs:
             cat /tmp/chuong-demo.log
             exit 1
           fi
-          TEST_BASE_URL=http://127.0.0.1:3001 npx playwright test tests/web/demo.spec.ts
+          TEST_BASE_URL=http://127.0.0.1:3001 TEST_ADMIN_URL=http://127.0.0.1:3010 npx playwright test tests/web/demo.spec.ts tests/web/artwork.spec.ts tests/web/admin-free-preview.spec.ts tests/web/performance-phase2.spec.ts tests/web/reader-gestures-demo.spec.ts tests/web/release-readiness.spec.ts
           cleanup
           trap - EXIT
       - name: Mock-backend browser regression
@@ -114,4 +123,4 @@ jobs:
             cat /tmp/chuong-backend.log
             exit 1
           fi
-          TEST_BACKEND=1 TEST_BASE_URL=http://127.0.0.1:3002 npx playwright test tests/web/backend.spec.ts
+          TEST_BACKEND=1 TEST_BASE_URL=http://127.0.0.1:3002 npx playwright test tests/web/backend.spec.ts tests/web/performance-backend-phase2.spec.ts tests/web/reader-performance.spec.ts tests/web/release-readiness.spec.ts

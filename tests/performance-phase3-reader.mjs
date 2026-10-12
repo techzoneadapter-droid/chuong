@@ -74,8 +74,8 @@ const chapterService = load('../services/chapters.ts', {
     return { data: [{ id: 'chapter', book_id: 'book', chapter_number: 1, title: 'Title', status: 'published',
       is_vip: true, price_coins: 100, content: locked ? null : 'Authorized body', lock_kind: locked ? 'chapter' : null }] };
   } }, requireSupabase: () => { throw new Error('Unused'); } },
-  // A connected network with uncertain/negative reachability must still ask the server.
-  './connectivity': { getConnectivityState: async () => ({ connected, reachable: false }) },
+  // Unknown reachability is treated as online by the real connectivity service.
+  './connectivity': { getConnectivityState: async () => ({ connected, reachable: connected }) },
   './errors': { toServiceError: error => error },
   './offlineDownloads': {
     getOfflineBookRecords: async () => [], getOfflineBookSnapshot: async () => null,

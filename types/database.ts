@@ -2445,6 +2445,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      request_account_deletion: { Args: Record<string, never>; Returns: Json };
       get_admin_chapters_for_editing: {
         Args: { p_book_id: string; p_chapter_id?: string | null }
         Returns: Database['public']['Tables']['chapters']['Row'][]

@@ -152,7 +152,7 @@ const ttsSource = readFileSync(new URL('services/tts.ts', root), 'utf8');
 const ttsHookSource = readFileSync(new URL('hooks/useTtsPlayer.ts', root), 'utf8');
 check(ttsSource.includes("from 'expo-speech'"), 'Read-aloud uses Expo Speech instead of simulated playback');
 check(ttsSource.includes('Never fall back to an English/foreign voice'), 'TTS forbids foreign voice fallback for Vietnamese chapters');
-check(ttsHookSource.includes("Thiết bị chưa có giọng tiếng Việt"), 'TTS blocks playback rather than using a foreign voice when vi-VN is unavailable');
+check(ttsSource.includes("vietnameseSupport === 'missing'") && ttsSource.includes('Engine TTS chưa có giọng tiếng Việt'), 'TTS rejects a known engine without Vietnamese instead of using a foreign voice');
 check(ttsHookSource.includes("prefs.voice === 'Nam' ? 0.82 : 1.08"), 'TTS differentiates Nam/Nữ by pitch when only one Vietnamese system voice exists');
 check(ttsHookSource.includes('speakTtsSegment') && ttsHookSource.includes('seekBySeconds'), 'TTS controller supports real playback and approximate seeking');
 
@@ -197,7 +197,12 @@ check(premiumIapSource.includes("type: 'subs'") && premiumIapSource.includes('su
 check(subscriptionWorkerSource.includes('purchases/subscriptionsv2/tokens') && subscriptionWorkerSource.includes('/inApps/v1/transactions/'), 'Server verifies Google and Apple subscription state independently');
 check(storeEventsSource.includes('subscriptionNotification') && storeEventsSource.includes('apple_server_notification_v2_subscription'), 'Store webhooks reconcile Premium renewal/cancellation state');
 check(nativeAdSource.includes('BannerAd') && nativeAdSource.includes('TestIds.BANNER'), 'Native Standard plan renders AdMob banners with safe test fallback');
-check(adsBridgeSource.includes('AdsConsent.gatherConsent') && adsBridgeSource.includes('mobileAds().initialize'), 'AdMob waits for UMP consent before initialization');
+const consentSource = readFileSync(new URL('services/adConsent.native.ts', root), 'utf8');
+check(adsBridgeSource.includes('ensureAdsConsent') && consentSource.includes('AdsConsent.gatherConsent') && consentSource.includes('canRequestAds') && consentSource.includes('mobileAds().initialize'), 'AdMob waits for UMP consent before initialization');
+check(easJson.build.release?.distribution === 'store' && easJson.build.release?.android?.buildType === 'app-bundle', 'Release testing builds an Android AAB for store testing');
+check(easJson.build.release?.env?.EXPO_PUBLIC_SUPABASE_MODE === 'staging', 'Release testing requires isolated staging');
+check(easJson.build.release?.ios?.image?.includes('xcode-26'), 'Release testing pins Xcode 26');
+check(easJson.build.release?.env?.EXPO_PUBLIC_ADS_MODE === 'test', 'Release testing uses test ads');
 check(appConfigSource.includes('react-native-google-mobile-ads') && appConfigSource.includes('EXPO_PUBLIC_ADMOB_ANDROID_APP_ID'), 'Expo config wires AdMob App IDs through environment variables');
 
 const studioDashboardSource = readFileSync(new URL('app/studio/index.tsx', root), 'utf8');
@@ -258,5 +263,5 @@ if (warnings.length) {
   console.log(`WARN: ${warnings.length} manual release items remain`);
   for (const item of warnings) console.log(`- ${item}`);
 } else {
-  console.log('WARN: 0 manual release items detected by this static check');
+  console.log('INFO: Identity checks passed. Store credentials, policy, signed native artifacts and device QA still require verification; see docs/RELEASE_READINESS.md.');
 }

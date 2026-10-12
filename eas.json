@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 16.0.0"
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -12,13 +13,28 @@
     },
     "preview": {
       "distribution": "internal",
+      "environment": "preview",
+      "env": { "EXPO_PUBLIC_SUPABASE_MODE": "demo", "EXPO_PUBLIC_ADS_MODE": "test" },
+      "ios": { "image": "macos-sequoia-15.6-xcode-26.0" },
       "android": {
         "buildType": "apk"
       }
     },
+    "release": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "environment": "preview",
+      "env": { "EXPO_PUBLIC_SUPABASE_MODE": "staging", "EXPO_PUBLIC_ADS_MODE": "test" },
+      "android": { "buildType": "app-bundle" },
+      "ios": { "image": "macos-sequoia-15.6-xcode-26.0" }
+    },
     "production": {
       "autoIncrement": true,
-      "distribution": "store"
+      "distribution": "store",
+      "environment": "production",
+      "env": { "EXPO_PUBLIC_ADS_MODE": "test" },
+      "android": { "buildType": "app-bundle" },
+      "ios": { "image": "macos-sequoia-15.6-xcode-26.0" }
     }
   },
   "submit": {

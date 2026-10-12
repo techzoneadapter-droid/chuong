@@ -21,7 +21,7 @@ export default function ResetPasswordScreen() {
     finally { setLoading(false); }
   };
   return <FormScreen title="Đặt lại mật khẩu">
-    {!user && !restoring ? <FormMessage error>Mở liên kết khôi phục từ email trên trình duyệt này. Nếu liên kết hết hạn, hãy gửi lại yêu cầu.</FormMessage> : null}
+    {!user && !restoring ? <FormMessage error>Mở liên kết khôi phục từ email trên thiết bị này. Nếu liên kết hết hạn, hãy gửi lại yêu cầu.</FormMessage> : null}
     {error ? <FormMessage error>{error}</FormMessage> : null}
     <FormField label="Mật khẩu mới" value={password} onChangeText={setPassword} secureTextEntry />
     <FormField label="Xác nhận mật khẩu" value={confirm} onChangeText={setConfirm} secureTextEntry />

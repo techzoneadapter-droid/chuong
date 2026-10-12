@@ -185,3 +185,18 @@ Before enabling real money:
 8. Apple refund reversal restores the purchase exactly once.
 9. Retry the same webhook and confirm no duplicated balance change.
 10. Confirm admin dashboard has no unresolved failed webhook events.
+
+### Phase 4A release audit — isolated store environments (2026-10-12)
+
+The candidate verifiers and webhook now require the server-only `IAP_ENVIRONMENT`
+secret to be exactly `sandbox` or `production`. Missing configuration keeps billing
+readiness false and webhook processing unavailable. Apple lookups use only the
+selected endpoint; purchase/subscription verification rejects the other environment.
+Google verification also rejects transactions whose test flag differs from the
+selected environment. Never enable `sandbox` on the production wallet database.
+
+Deploy all three functions (`iap-verify`, `subscription-verify`, `iap-events`) and
+their `_shared` helper to a separate staging project first, with `IAP_ENVIRONMENT=sandbox`.
+Use Play license testers and Apple sandbox/TestFlight accounts there. Production
+configuration and deployment are separate work after the release blockers close.
+No functions or secrets were deployed during this audit.

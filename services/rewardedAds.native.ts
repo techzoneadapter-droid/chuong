@@ -1,15 +1,14 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import mobileAds, {
+import {
   AdEventType,
   RewardedAd,
   RewardedAdEventType,
   TestIds,
 } from 'react-native-google-mobile-ads';
+import { ensureAdsConsent } from './adConsent.native';
 
 export type RewardedAdResult = 'earned' | 'closed' | 'unavailable';
-
-let initialized = false;
 
 function productionUnitId() {
   if (Platform.OS === 'android') return process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID?.trim() || '';
@@ -20,18 +19,15 @@ function productionUnitId() {
 export function rewardedAdsAvailable() {
   if (Platform.OS !== 'android' && Platform.OS !== 'ios') return false;
   if (Constants.appOwnership === 'expo') return false;
-  return __DEV__ || Boolean(productionUnitId());
+  return true;
 }
 
 export async function showDailyRewardedAd(): Promise<RewardedAdResult> {
   if (!rewardedAdsAvailable()) return 'unavailable';
 
-  if (!initialized) {
-    await mobileAds().initialize();
-    initialized = true;
-  }
+  if (!(await ensureAdsConsent())) return 'unavailable';
 
-  const adUnitId = __DEV__ ? TestIds.REWARDED : productionUnitId();
+  const adUnitId = __DEV__ || process.env.EXPO_PUBLIC_ADS_MODE !== 'production' ? TestIds.REWARDED : productionUnitId();
   if (!adUnitId) return 'unavailable';
 
   const rewarded = RewardedAd.createForAdRequest(adUnitId, {

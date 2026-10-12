@@ -129,7 +129,7 @@ export async function getChapter(bookId: string, chapterNumber: number, book?: C
     return offline ? { data: offline, mode: 'offline' } : { data: demoChapter(bookId, chapterNumber), mode: 'demo' };
   }
 
-  if (!(await getConnectivityState()).connected) {
+  if (!(await getConnectivityState()).reachable) {
     // Explicit offline state: validate the stored license/checksum without waiting for RPC retries.
     const offline = await getOfflineChapter(bookId, chapterNumber);
     if (offline) return { data: offline, mode: 'offline' };

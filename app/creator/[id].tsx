@@ -94,6 +94,9 @@ export default function CreatorScreen() {
         {author.verified ? <Text style={styles.verified}>✓ Tác giả đã xác minh</Text> : null}
         {author.bio ? <Text style={styles.copy}>{author.bio}</Text> : null}
         <Text style={styles.stats}>{author.followers_count} người theo dõi · {author.public_books_count} truyện công khai</Text>
+        {!author.viewer_is_author ? <Pressable accessibilityRole="button" style={styles.secondary} onPress={() => user
+          ? router.push({ pathname: '/report', params: { authorId: author.author_id, label: author.pen_name } })
+          : router.push('/auth/login')}><Text style={styles.verified}>Báo cáo tác giả</Text></Pressable> : null}
         {author.viewer_is_author ? <Text style={styles.copy}>Đây là trang tác giả của bạn.</Text> : <Pressable accessibilityRole="button" disabled={saving || Boolean(user && !author.viewer_can_follow)} style={styles.button} onPress={() => { void follow(); }}><Text style={styles.buttonText}>{saving ? 'Đang cập nhật…' : author.viewer_follows ? 'Đang theo dõi' : 'Theo dõi tác giả'}</Text></Pressable>}
         {!user ? <Text style={styles.copy}>Đăng nhập để theo dõi và nhận thông báo truyện mới.</Text> : null}
         {!author.viewer_is_author && author.gift_book_id ? <Pressable accessibilityRole="button" style={styles.secondary} onPress={() => user ? setGiftOpen(true) : router.push('/auth/login')}><Text style={styles.verified}>Tặng quà tác giả</Text></Pressable> : !author.gift_book_id ? <Text style={styles.copy}>Chưa có truyện công khai để nhận quà.</Text> : null}

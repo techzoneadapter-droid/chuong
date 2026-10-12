@@ -49,20 +49,29 @@ export default function LibraryScreen() {
       ]);
       if (request !== requestId.current) return;
       const map = Object.fromEntries(bookGroups.flat().filter((book) => !book.visibility || (book.visibility === 'public' && book.backendStatus !== 'draft')).map((book) => [book.id, book]));
-      const ordinals: Record<string, number> = {};
-      await mapConcurrent(library, 3, async (entry) => {
-        if (request !== requestId.current) return;
-        const book = map[entry.bookId];
-        if (book) {
-          const chapters = await getChaptersByBook(book.id, book);
-          ordinals[book.id] = Math.max(0, chapters.data.findIndex((chapter) => chapter.number === progress[book.id]?.chapterNumber));
-          map[book.id] = { ...book, chapters: [], totalChapters: chapters.data.length };
-        }
-      });
-      if (request !== requestId.current) return;
+      // Render the batched shelf immediately. Chapter metadata is only needed to
+      // refine overall progress, and one failed book must not hide the whole shelf.
       setEntries(library);
       setBookMap(map);
       setProgressMap(progress);
+      setChapterOrdinals({});
+      setLoading(false);
+      const ordinals: Record<string, number> = {};
+      const refined = { ...map };
+      await mapConcurrent(library, 3, async (entry) => {
+        if (request !== requestId.current) return;
+        const book = map[entry.bookId];
+        if (book && progress[book.id]) {
+          try {
+            const chapters = await getChaptersByBook(book.id, book);
+            const ordinal = chapters.data.findIndex((chapter) => chapter.number === progress[book.id]?.chapterNumber);
+            if (ordinal >= 0) ordinals[book.id] = ordinal;
+            refined[book.id] = { ...book, chapters: [], totalChapters: chapters.data.length };
+          } catch { /* Keep the shelf usable when progress refinement fails. */ }
+        }
+      });
+      if (request !== requestId.current) return;
+      setBookMap(refined);
       setChapterOrdinals(ordinals);
     } catch (cause) {
       if (request !== requestId.current) return;
@@ -88,7 +97,7 @@ export default function LibraryScreen() {
 
   const renderEntry = useCallback(({ item: entry }: { item: LibraryEntry }) => <LibraryBookRow
     entry={entry} book={bookMap[entry.bookId]} progress={progressMap[entry.bookId]}
-    chapterOrdinal={chapterOrdinals[entry.bookId] ?? 0} remove={remove} update={update}
+    chapterOrdinal={chapterOrdinals[entry.bookId]} remove={remove} update={update}
   />, [bookMap, progressMap, chapterOrdinals, remove, update]);
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
@@ -166,12 +175,12 @@ export default function LibraryScreen() {
 }
 
 const LibraryBookRow = memo(function LibraryBookRow({ entry, book, progress, chapterOrdinal, remove, update }: {
-  entry: LibraryEntry; book?: Book; progress?: ReadingProgress | null; chapterOrdinal: number;
+  entry: LibraryEntry; book?: Book; progress?: ReadingProgress | null; chapterOrdinal?: number;
   remove: (bookId: string) => Promise<void>; update: (bookId: string, status: LibraryStatus) => Promise<void>;
 }) {
   const router = useRouter();
   if (!book) return <View key={entry.bookId} style={styles.missingRow}><Text style={styles.chapter}>Truyện không còn công khai.</Text><Pressable onPress={() => remove(entry.bookId)}><Text style={styles.removeText}>Xóa khỏi tủ</Text></Pressable></View>;
-  const overall = progress ? Math.min(100, ((chapterOrdinal) + progress.progressPercent / 100) / Math.max(1, book.totalChapters) * 100) : 0;
+  const overall = progress ? chapterOrdinal === undefined ? null : Math.min(100, (chapterOrdinal + progress.progressPercent / 100) / Math.max(1, book.totalChapters) * 100) : 0;
   return <Pressable onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })} style={({ pressed }) => [styles.row, pressed && styles.pressed]} key={entry.bookId}>
     <View style={styles.coverFrame}>
       <View style={styles.cover}>
@@ -189,13 +198,13 @@ const LibraryBookRow = memo(function LibraryBookRow({ entry, book, progress, cha
         <Pressable hitSlop={10} style={styles.closeButton} onPress={() => remove(book.id)}><Ionicons name="close" size={16} color={xianxia.muted} /></Pressable>
       </View>
       <Text style={styles.chapter}>{progress ? `Chương ${progress.chapterNumber} · ${Math.round(progress.progressPercent)}% chương` : `${book.totalChapters} chương`}</Text>
-      <View style={styles.track}><View style={[styles.fill, { width: `${overall}%` }]} /></View>
+      <View style={styles.track}><View style={[styles.fill, { width: `${overall ?? 0}%` }]} /></View>
       <View style={styles.readRow}>
         <Pressable style={styles.readButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: book.id, chapter: progress?.chapterNumber ?? 1 } })}>
           <ButtonArt />
           <Ionicons name="book-outline" size={14} color={xianxia.goldSoft} /><Text style={styles.readText}>Đọc tiếp</Text>
         </Pressable>
-        <Text style={styles.percent}>{Math.round(overall)}%</Text>
+        <Text style={styles.percent}>{overall === null ? '…' : `${Math.round(overall)}%`}</Text>
       </View>
       <View style={styles.statuses}>{tabs.map((tab) => <Pressable key={tab.value} onPress={() => update(book.id, tab.value)}><Text style={[styles.status, entry.status === tab.value && styles.statusActive]}>{tab.label}</Text></Pressable>)}</View>
     </View>

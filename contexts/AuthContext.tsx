@@ -2,7 +2,8 @@ import { Session, User } from '@supabase/supabase-js';
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { messageForError } from '../services/errors';
-import { AppState, Platform } from 'react-native';
+import { AppState, Linking, Platform } from 'react-native';
+import { parseNativeRecoveryUrl } from '../lib/authRecovery';
 import { Profile } from '../types';
 import { ensureProfile, signOut as signOutService } from '../services/auth';
 
@@ -61,6 +62,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => { refreshProfile().catch(() => setProfile(null)); }, [refreshProfile]);
+
+  useEffect(() => {
+    if (!supabase || Platform.OS === 'web') return;
+    let active = true;
+    const recover = async (url: string | null) => {
+      if (!url) return;
+      const credentials = parseNativeRecoveryUrl(url);
+      if (!credentials) return;
+      try {
+        const result = credentials.code
+          ? await supabase!.auth.exchangeCodeForSession(credentials.code)
+          : await supabase!.auth.setSession({ access_token: credentials.accessToken!, refresh_token: credentials.refreshToken! });
+        if (result.error) throw result.error;
+      } catch {
+        if (active) setError('Liên kết khôi phục không hợp lệ hoặc đã hết hạn. Hãy gửi lại yêu cầu.');
+      }
+    };
+    void Linking.getInitialURL().then(recover).catch(() => undefined);
+    const listener = Linking.addEventListener('url', event => { void recover(event.url); });
+    return () => { active = false; listener.remove(); };
+  }, []);
 
   useEffect(() => {
     if (!supabase || Platform.OS === 'web') return;

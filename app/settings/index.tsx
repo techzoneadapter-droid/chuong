@@ -6,12 +6,13 @@ import { BrandLockup } from '../../components/Artwork';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
 import { useAuth } from '../../contexts/AuthContext';
+import { AdPrivacyOptions } from '../../components/AdPrivacyOptions';
 
 type Item = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   detail: string;
-  route: '/settings/reading' | '/notifications/settings' | '/profile/privacy' | '/downloads' | '/profile/edit';
+  route: '/settings/reading' | '/notifications/settings' | '/profile/privacy' | '/downloads' | '/profile/edit' | '/delete-account';
   auth?: boolean;
 };
 
@@ -21,6 +22,7 @@ const items: Item[] = [
   { icon: 'shield-checkmark-outline', title: 'Quyền riêng tư', detail: 'Hồ sơ công khai, kệ sách, hoạt động, theo dõi và chặn.', route: '/profile/privacy', auth: true },
   { icon: 'cloud-download-outline', title: 'Tải xuống', detail: 'Quản lý các truyện và chương đã lưu để đọc offline.', route: '/downloads' },
   { icon: 'person-circle-outline', title: 'Hồ sơ tài khoản', detail: 'Tên hiển thị, username, avatar và giới thiệu.', route: '/profile/edit', auth: true },
+  { icon: 'trash-outline', title: 'Xóa tài khoản', detail: 'Yêu cầu xóa tài khoản CHƯƠNG và dữ liệu liên quan.', route: '/delete-account' },
 ];
 
 export default function SettingsScreen() {
@@ -55,7 +57,7 @@ export default function SettingsScreen() {
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
       <View style={styles.brandCard}>
         <BrandLockup compact />
-        <Text style={styles.brandNote}>Tất cả tùy chọn dưới đây đều mở được và lưu thay đổi thật, không còn là mục demo.</Text>
+        <Text style={styles.brandNote}>Quản lý tùy chọn đọc và tài khoản CHƯƠNG.</Text>
       </View>
 
       <Text style={styles.section}>ỨNG DỤNG & ĐỌC</Text>
@@ -77,6 +79,7 @@ export default function SettingsScreen() {
         <Text style={styles.tipText}>Thiết lập đọc được lưu trên thiết bị và được dùng ngay khi mở Reader. Bạn có thể chỉnh lại nhanh ngay trong thanh công cụ khi đang đọc.</Text>
       </View>
 
+      <AdPrivacyOptions />
       {user ? <Pressable style={styles.logout} onPress={signOut}>
         <Ionicons name="log-out-outline" size={18} color={xianxia.cinnabar} />
         <Text style={styles.logoutText}>Đăng xuất</Text>

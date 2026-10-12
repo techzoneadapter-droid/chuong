@@ -33,6 +33,7 @@ await new Promise(resolve=>setImmediate(resolve));assert.equal(callbacks.languag
 speech.getAvailableVoicesAsync=async()=>[{identifier:'en',language:'en-US',name:'English'}];
 await tts.getVietnameseTtsVoices();const chunkCount=chunks.length;
 await assert.rejects(tts.speakTtsSegment('Không dùng tiếng Anh.',options),/chưa có giọng tiếng Việt/);assert.equal(chunks.length,chunkCount);
+platform.OS='web';await assert.rejects(tts.speakTtsSegment('Không dùng tiếng Anh trên web.',options),/chưa có giọng tiếng Việt/);
 console.log('PASS: Vietnamese-only enumeration, vi-VN default, start/done/stopped/error, timeout rejects (never done), explicit stop settles and late callback ignored');
 console.log('PASS: oversized TTS input preserved across bounded native speech chunks');
 console.log('PASS: hung voice enumeration has a bounded deadline; concurrent retries share one request');

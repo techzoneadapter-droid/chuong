@@ -1,5 +1,5 @@
 import { ErrorCode, finishTransaction, type Product, type Purchase, useIAP } from 'expo-iap';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { getIapVerificationStatus, nativeStoreProvider, productIdForPlatform, submitStorePurchase } from '../services/store';
 import { LinhThachIapArgs, LinhThachIapState, NativeStoreProduct } from './iapTypes';
@@ -18,6 +18,7 @@ export function useLinhThachIap({ catalog, userId, onCredited }: LinhThachIapArg
   const [processingProductId, setProcessingProductId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const inFlight = useRef(new Set<string>());
 
   const provider = nativeStoreProvider();
   const skus = useMemo(
@@ -26,7 +27,10 @@ export function useLinhThachIap({ catalog, userId, onCredited }: LinhThachIapArg
   );
 
   const handlePurchase = useCallback(async (purchase: Purchase) => {
-    if (!provider) return;
+    if (!provider || !userId || !skus.includes(purchase.productId)) return;
+    const identity = purchase.transactionId || purchase.id || purchase.purchaseToken;
+    if (!identity || inFlight.current.has(identity)) return;
+    inFlight.current.add(identity);
     setProcessingProductId(purchase.productId);
     setError('');
     setSuccess('');
@@ -45,9 +49,10 @@ export function useLinhThachIap({ catalog, userId, onCredited }: LinhThachIapArg
       const message = friendlyPurchaseError(cause);
       if (message) setError(message);
     } finally {
+      inFlight.current.delete(identity);
       setProcessingProductId(null);
     }
-  }, [onCredited, provider]);
+  }, [onCredited, provider, skus, userId]);
 
   const iap = useIAP({
     onPurchaseSuccess: (purchase) => {
@@ -103,7 +108,7 @@ export function useLinhThachIap({ catalog, userId, onCredited }: LinhThachIapArg
   }, [iap.products]);
 
   const buy = useCallback(async (productId: string) => {
-    if (!provider || Platform.OS === 'web') return;
+    if (!provider || Platform.OS === 'web' || !userId || !skus.includes(productId)) return;
     setError('');
     setSuccess('');
     if (!verifierReady) {
@@ -128,7 +133,7 @@ export function useLinhThachIap({ catalog, userId, onCredited }: LinhThachIapArg
       if (message) setError(message);
       setProcessingProductId(null);
     }
-  }, [iap.connected, iap.requestPurchase, provider, userId, verifierReady]);
+  }, [iap.connected, iap.requestPurchase, provider, skus, userId, verifierReady]);
 
   return {
     supported: Boolean(provider),

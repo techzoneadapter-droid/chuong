@@ -2,6 +2,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { requireSupabase, supabase } from '../lib/supabase';
 import { Profile } from '../types';
 import { toServiceError } from './errors';
+import { Platform } from 'react-native';
 
 export interface AuthPayload { session: Session | null; user: User | null; }
 export type FutureOAuthProvider = 'google' | 'apple';
@@ -54,7 +55,7 @@ export async function signUp(email: string, password: string, displayName: strin
 
 export async function sendPasswordReset(email: string) {
   try {
-    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/reset` : undefined;
+    const redirectTo = Platform.OS === 'web' && typeof window !== 'undefined' ? `${window.location.origin}/auth/reset` : 'chuong://auth/reset';
     const { error } = await requireSupabase().auth.resetPasswordForEmail(email.trim(), { redirectTo });
     if (error) throw error;
   } catch (error) { throw toServiceError(error, 'Không thể gửi email đặt lại mật khẩu.'); }

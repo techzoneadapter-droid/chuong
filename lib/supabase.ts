@@ -11,9 +11,10 @@ const PRODUCTION_SUPABASE_URL = 'https://lwchpifeahyuoajeidsa.supabase.co';
 const PRODUCTION_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_dItrQ5tEdt3J-peHAqauzQ_VPnRVu0l';
 
 const forceDemoMode = process.env.EXPO_PUBLIC_SUPABASE_MODE?.trim().toLowerCase() === 'demo';
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || PRODUCTION_SUPABASE_URL;
+const staging = process.env.EXPO_PUBLIC_SUPABASE_MODE?.trim().toLowerCase() === 'staging';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || (staging ? '' : PRODUCTION_SUPABASE_URL);
 const supabasePublishableKey =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() || PRODUCTION_SUPABASE_PUBLISHABLE_KEY;
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() || (staging ? '' : PRODUCTION_SUPABASE_PUBLISHABLE_KEY);
 
 function validUrl(value?: string) {
   if (!value) return false;

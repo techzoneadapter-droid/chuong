@@ -755,6 +755,11 @@ test('creator hub shares author follow with book detail and preserves reader soc
   await expect(page.getByRole('button', { name: 'Đang theo dõi', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Đang theo dõi', exact: true }).click();
   await expect.poll(() => authorFollowing).toBe(false);
+  await page.getByRole('button', { name: 'Báo cáo tác giả', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`authorId=${authorId}`));
+  await expect(page.getByRole('button', { name: 'Gửi báo cáo', exact: true })).toBeEnabled();
+  await page.goBack();
+  await expect(page.getByRole('button', { name: 'Theo dõi tác giả', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Quay lại' }).click();
   await expect(page.getByText('Theo dõi tác giả', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { appleStoreBase, assertStoreEnvironment } from "../_shared/storeEnvironment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,7 @@ function premiumProduct(provider: Provider) {
 }
 
 function providerReady(provider: Provider) {
+  if (!["sandbox", "production"].includes(Deno.env.get("IAP_ENVIRONMENT") || "")) return false;
   if (provider === "google_play") {
     return Boolean(Deno.env.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON") && Deno.env.get("ANDROID_PACKAGE_NAME"));
   }
@@ -161,6 +163,7 @@ async function verifyGoogleSubscription(input: {
       autoRenewingPlan?: { autoRenewEnabled?: boolean };
     }>;
   };
+  assertStoreEnvironment(Deno.env.get("IAP_ENVIRONMENT"), Boolean(sub.testPurchase));
 
   if (sub.externalAccountIdentifiers?.obfuscatedExternalAccountId !== input.userId) {
     throw new Error("google_subscription_account_binding_mismatch");
@@ -223,7 +226,7 @@ async function createAppleServerJwt() {
 }
 
 async function fetchAppleTransaction(transactionId: string, jwt: string) {
-  for (const base of ["https://api.storekit.apple.com", "https://api.storekit-sandbox.apple.com"]) {
+  for (const base of [appleStoreBase(Deno.env.get("IAP_ENVIRONMENT"))]) {
     const response = await fetch(
       `${base}/inApps/v1/transactions/${encodeURIComponent(transactionId)}`,
       { headers: { Authorization: `Bearer ${jwt}` } },
@@ -264,6 +267,9 @@ async function verifyAppleSubscription(input: {
     environment?: string;
     storefront?: string;
   }>(parts[1]);
+
+  if (!['Sandbox', 'Production'].includes(payload.environment || '')) throw new Error('apple_environment_missing');
+  assertStoreEnvironment(Deno.env.get("IAP_ENVIRONMENT"), payload.environment === 'Sandbox');
 
   if (payload.transactionId !== input.transactionId) throw new Error("apple_transaction_mismatch");
   if (payload.productId !== input.productId) throw new Error("apple_subscription_product_mismatch");

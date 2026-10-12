@@ -186,6 +186,7 @@ function mapVoice(item: Awaited<ReturnType<typeof Speech.getAvailableVoicesAsync
 
 let voiceRequest: Promise<TtsVoiceInfo[]> | null = null;
 let vietnameseSupport: 'unknown' | 'available' | 'missing' = 'unknown';
+let voiceInventoryChecked = false;
 export function getVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
   if (!voiceRequest) voiceRequest = loadVietnameseTtsVoices().finally(() => { voiceRequest = null; });
   return voiceRequest;
@@ -193,6 +194,7 @@ export function getVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
 
 async function loadVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
   vietnameseSupport = 'unknown';
+  voiceInventoryChecked = false;
   // Never fall back to an English/foreign voice. That was the cause of Vietnamese
   // chapter text being spoken with a foreign accent in Chrome.
   const attempts = Platform.OS === 'web' ? 4 : 1;
@@ -206,12 +208,13 @@ async function loadVietnameseTtsVoices(): Promise<TtsVoiceInfo[]> {
         .filter((item) => /^vi(?:$|-|_)/i.test(item.language))
         .map(mapVoice);
       vietnameseSupport = vietnamese.length ? 'available' : voices.length ? 'missing' : 'unknown';
-      if (vietnamese.length) return vietnamese;
+      if (vietnamese.length) { voiceInventoryChecked = true; return vietnamese; }
     } catch {
       // Some web speech engines expose their voices slightly after page load.
     }
     if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
   }
+  voiceInventoryChecked = true;
   return [];
 }
 
@@ -271,9 +274,11 @@ export async function speakTtsSegment(
   },
 ): Promise<'done' | 'stopped'> {
   if (!text.trim()) return 'done';
-  if (Platform.OS !== 'web' && !options.voice) {
+  if (!options.voice) {
     const epoch = stopEpoch;
-    if (vietnameseSupport === 'unknown') await getVietnameseTtsVoices();
+    // Browser inventories may wait indefinitely for voiceschanged even when
+    // language-based playback works. Do not delay a user's Play while it loads.
+    if (!voiceInventoryChecked && Platform.OS !== 'web') await getVietnameseTtsVoices();
     if (epoch !== stopEpoch) return 'stopped';
     // Expo's native implementation may silently use the OS language when unsupported.
     // A successful nonempty inventory with no Vietnamese voice must not read Vietnamese in English.

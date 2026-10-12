@@ -9,6 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web --port 3000 --host lan",
     "typecheck": "tsc --noEmit",
+    "test:unit": "node tests/performance.mjs && node tests/performance-phase2.mjs && node tests/performance-phase3-reader.mjs && node tests/reader-gestures.mjs && node tests/reader-hotfix-tts.mjs && node tests/free-preview-policy.mjs && node tests/release-runtime.mjs && node tests/store-verifiers.mjs",
+    "test:readiness": "npm run typecheck && npm run test:unit && npm run test:ui-copy && npm run test:admin-web && npm run test:release && npm run test:db && node tests/free-preview-db.mjs && node tests/account-deletion.mjs",
     "dev": "expo start --web --port 3000 --host lan",
     "build": "expo export --platform web",
     "test:db": "node tests/database.mjs && node tests/economy.mjs && node tests/followed-updates.mjs && node tests/release-batching.mjs && node tests/author-releases.mjs",
@@ -47,7 +49,8 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "^0.21.0",
+    "expo-linking": "8.0.12"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
