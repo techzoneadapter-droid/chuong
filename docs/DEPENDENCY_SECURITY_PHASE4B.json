@@ -1,0 +1,778 @@
+{
+  "date": "2026-10-12",
+  "source": "npm audit --json online, final locked graph",
+  "before": {
+    "info": 0,
+    "low": 0,
+    "moderate": 20,
+    "high": 24,
+    "critical": 0,
+    "total": 44
+  },
+  "counts": {
+    "info": 0,
+    "low": 0,
+    "moderate": 8,
+    "high": 23,
+    "critical": 0,
+    "total": 31
+  },
+  "fixes": [
+    {
+      "dependency": "postcss",
+      "version": "8.5.29",
+      "scope": "same-major JS CSS build tooling override"
+    },
+    {
+      "dependency": "uuid",
+      "version": "11.1.1",
+      "scope": "xcode only; CommonJS v4 retained, no native upgrade"
+    }
+  ],
+  "resolvedFindingNames": [
+    "@expo/config",
+    "@expo/config-plugins",
+    "@expo/prebuild-config",
+    "expo-asset",
+    "expo-constants",
+    "expo-dev-client",
+    "expo-dev-launcher",
+    "expo-linking",
+    "expo-manifests",
+    "expo-notifications",
+    "postcss",
+    "uuid",
+    "xcode"
+  ],
+  "triage": [
+    {
+      "name": "@expo/cli",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "@expo/code-signing-certificates",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "@expo/config",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "@expo/config-plugins",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "@expo/metro",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "@expo/metro-config",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "@expo/prebuild-config",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "@istanbuljs/load-nyc-config",
+      "severity": "moderate",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "@jest/environment",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "@jest/fake-timers",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "@jest/transform",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "@react-native/community-cli-plugin",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "argparse",
+      "severity": "moderate",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "babel-jest",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "babel-plugin-istanbul",
+      "severity": "moderate",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "braces",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "decode-uri-component",
+      "severity": "moderate",
+      "status": "OPEN",
+      "assessment": "Runtime/linking input parsing; replacement decoder is ESM and cannot be forced into pinned CommonJS query-string. Remains release review blocker."
+    },
+    {
+      "name": "expo",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "expo-asset",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "expo-constants",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "expo-dev-client",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "expo-dev-launcher",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "expo-linking",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "expo-manifests",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "expo-notifications",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "expo-router",
+      "severity": "moderate",
+      "status": "OPEN",
+      "assessment": "Runtime/linking input parsing; replacement decoder is ESM and cannot be forced into pinned CommonJS query-string. Remains release review blocker."
+    },
+    {
+      "name": "image-size",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "jest-environment-node",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "jest-haste-map",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "jest-message-util",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "js-yaml",
+      "severity": "moderate",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "metro",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "metro-config",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "metro-file-map",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "metro-transform-worker",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "micromatch",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "node-forge",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "postcss",
+      "severity": "high",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "query-string",
+      "severity": "moderate",
+      "status": "OPEN",
+      "assessment": "Runtime/linking input parsing; replacement decoder is ESM and cannot be forced into pinned CommonJS query-string. Remains release review blocker."
+    },
+    {
+      "name": "react-native",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "react-native-google-mobile-ads",
+      "severity": "high",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "sprintf-js",
+      "severity": "moderate",
+      "status": "OPEN",
+      "assessment": "Primarily transitive build/config tooling; keep untrusted imported files away from CLI, Metro and signing tools. Native/SDK/toolchain replacement not authorized; reachability is not legal/security acceptance."
+    },
+    {
+      "name": "uuid",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    },
+    {
+      "name": "xcode",
+      "severity": "moderate",
+      "status": "RESOLVED in online graph",
+      "assessment": "Resolved via safe tooling override; validated by exports/Expo checks."
+    }
+  ],
+  "findings": [
+    {
+      "name": "@expo/cli",
+      "severity": "high",
+      "direct": false,
+      "range": "<=0.0.0-canary-20231123-1b19f96-4 || >=0.0.1-canary-20231125-d600e44",
+      "via": [
+        "@expo/code-signing-certificates",
+        "@expo/metro",
+        "@expo/metro-config",
+        "node-forge"
+      ],
+      "fixAvailable": {
+        "name": "expo",
+        "version": "44.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "@expo/code-signing-certificates",
+      "severity": "high",
+      "direct": false,
+      "range": "*",
+      "via": [
+        "node-forge"
+      ],
+      "fixAvailable": true
+    },
+    {
+      "name": "@expo/metro",
+      "severity": "high",
+      "direct": false,
+      "range": "*",
+      "via": [
+        "metro",
+        "metro-config",
+        "metro-file-map",
+        "metro-transform-worker"
+      ],
+      "fixAvailable": {
+        "name": "expo",
+        "version": "44.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "@expo/metro-config",
+      "severity": "high",
+      "direct": false,
+      "range": ">=0.21.0-canary-20250630-547cd82",
+      "via": [
+        "@expo/metro"
+      ],
+      "fixAvailable": {
+        "name": "expo",
+        "version": "44.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "@istanbuljs/load-nyc-config",
+      "severity": "moderate",
+      "direct": false,
+      "range": "*",
+      "via": [
+        "js-yaml"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "@jest/environment",
+      "severity": "high",
+      "direct": false,
+      "range": "<=30.2.0",
+      "via": [
+        "@jest/fake-timers"
+      ],
+      "fixAvailable": true
+    },
+    {
+      "name": "@jest/fake-timers",
+      "severity": "high",
+      "direct": false,
+      "range": "<=30.2.0",
+      "via": [
+        "jest-message-util"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "@jest/transform",
+      "severity": "high",
+      "direct": false,
+      "range": "*",
+      "via": [
+        "babel-plugin-istanbul",
+        "jest-haste-map",
+        "micromatch"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "@react-native/community-cli-plugin",
+      "severity": "high",
+      "direct": false,
+      "range": "*",
+      "via": [
+        "metro",
+        "metro-config"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "argparse",
+      "severity": "moderate",
+      "direct": false,
+      "range": "1.0.0 - 1.0.10",
+      "via": [
+        "sprintf-js"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "babel-jest",
+      "severity": "high",
+      "direct": false,
+      "range": ">=24.2.0-alpha.0",
+      "via": [
+        "@jest/transform",
+        "babel-plugin-istanbul"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "babel-plugin-istanbul",
+      "severity": "moderate",
+      "direct": false,
+      "range": ">=6.0.0-beta.0",
+      "via": [
+        "@istanbuljs/load-nyc-config"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "braces",
+      "severity": "high",
+      "direct": false,
+      "range": "*",
+      "via": [
+        {
+          "name": "braces",
+          "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+          "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+          "range": "<=3.0.3"
+        }
+      ],
+      "fixAvailable": {
+        "name": "expo",
+        "version": "44.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "decode-uri-component",
+      "severity": "moderate",
+      "direct": false,
+      "range": "<=0.4.2",
+      "via": [
+        {
+          "name": "decode-uri-component",
+          "title": "decode-uri-component: Denial of service via exponential decoding of malformed percent-encoded input",
+          "url": "https://github.com/advisories/GHSA-vcc3-ghjq-m6fr",
+          "range": "<=0.4.2"
+        }
+      ],
+      "fixAvailable": {
+        "name": "expo-router",
+        "version": "58.0.17",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "expo",
+      "severity": "high",
+      "direct": true,
+      "range": ">=45.0.0-beta.1",
+      "via": [
+        "@expo/cli",
+        "@expo/metro",
+        "@expo/metro-config"
+      ],
+      "fixAvailable": {
+        "name": "expo",
+        "version": "44.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "expo-router",
+      "severity": "moderate",
+      "direct": true,
+      "range": "1.2.2 - 3.1.2 || 5.2.0-canary-20250611-f0afe80 - 58.0.12",
+      "via": [
+        "query-string"
+      ],
+      "fixAvailable": {
+        "name": "expo-router",
+        "version": "58.0.17",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "image-size",
+      "severity": "high",
+      "direct": false,
+      "range": "0.6.3 - 2.0.2",
+      "via": [
+        {
+          "name": "image-size",
+          "title": "image-size: JXL and HEIF parsers allow denial of service through infinite loops",
+          "url": "https://github.com/advisories/GHSA-5p2g-fcmc-qvqq",
+          "range": ">=1.2.0 <=2.0.2"
+        },
+        {
+          "name": "image-size",
+          "title": "image-size: ICNS parser allows denial of service through an infinite loop",
+          "url": "https://github.com/advisories/GHSA-w3rx-r6r6-pgpr",
+          "range": ">=0.6.3 <=2.0.2"
+        }
+      ],
+      "fixAvailable": true
+    },
+    {
+      "name": "jest-environment-node",
+      "severity": "high",
+      "direct": false,
+      "range": "24.2.0-alpha.0 - 30.2.0",
+      "via": [
+        "@jest/environment",
+        "@jest/fake-timers"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "jest-haste-map",
+      "severity": "high",
+      "direct": false,
+      "range": "18.1.0 - 30.2.0",
+      "via": [
+        "micromatch"
+      ],
+      "fixAvailable": true
+    },
+    {
+      "name": "jest-message-util",
+      "severity": "high",
+      "direct": false,
+      "range": "18.5.0-alpha.7da3df39 - 30.2.0",
+      "via": [
+        "micromatch"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "js-yaml",
+      "severity": "moderate",
+      "direct": false,
+      "range": "3.2.7 - 3.15.2",
+      "via": [
+        "argparse"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "metro",
+      "severity": "high",
+      "direct": false,
+      "range": ">=0.71.0",
+      "via": [
+        "metro-config",
+        "metro-file-map",
+        "metro-transform-worker"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "metro-config",
+      "severity": "high",
+      "direct": false,
+      "range": ">=0.71.0",
+      "via": [
+        "metro"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "metro-file-map",
+      "severity": "high",
+      "direct": false,
+      "range": "*",
+      "via": [
+        "micromatch"
+      ],
+      "fixAvailable": {
+        "name": "expo",
+        "version": "44.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "metro-transform-worker",
+      "severity": "high",
+      "direct": false,
+      "range": ">=0.71.0",
+      "via": [
+        "metro"
+      ],
+      "fixAvailable": true
+    },
+    {
+      "name": "micromatch",
+      "severity": "high",
+      "direct": false,
+      "range": ">=0.2.0",
+      "via": [
+        "braces"
+      ],
+      "fixAvailable": {
+        "name": "expo",
+        "version": "44.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "node-forge",
+      "severity": "high",
+      "direct": false,
+      "range": "*",
+      "via": [
+        {
+          "name": "node-forge",
+          "title": "node-forge RSA PKCS#1 v1.5 signature verification accepts extra nested DigestAlgorithm elements",
+          "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+          "range": "<=1.4.0"
+        }
+      ],
+      "fixAvailable": {
+        "name": "expo",
+        "version": "44.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "query-string",
+      "severity": "moderate",
+      "direct": false,
+      "range": "5.0.0 - 9.4.1",
+      "via": [
+        "decode-uri-component"
+      ],
+      "fixAvailable": {
+        "name": "expo-router",
+        "version": "58.0.17",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "react-native",
+      "severity": "high",
+      "direct": true,
+      "range": "<=0.0.0-ffdfbbec0 || >=0.71.0-rc.0",
+      "via": [
+        "@react-native/community-cli-plugin",
+        "babel-jest",
+        "jest-environment-node"
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "react-native-google-mobile-ads",
+      "severity": "high",
+      "direct": true,
+      "range": ">=14.0.0",
+      "via": [
+        "expo"
+      ],
+      "fixAvailable": {
+        "name": "react-native-google-mobile-ads",
+        "version": "13.6.1",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "sprintf-js",
+      "severity": "moderate",
+      "direct": false,
+      "range": "*",
+      "via": [
+        {
+          "name": "sprintf-js",
+          "title": "sprintf-js vulnerable to denial of service through unbounded precision specifiers",
+          "url": "https://github.com/advisories/GHSA-hp3w-g68c-fv3c",
+          "range": "<=1.1.3"
+        }
+      ],
+      "fixAvailable": {
+        "name": "react-native",
+        "version": "0.87.1",
+        "isSemVerMajor": true
+      }
+    }
+  ],
+  "note": "Native Expo54/RN0.81.5/IAP5.8.2/Ads16.3.4 pins unchanged. OPEN entries are not accepted or waived; no npm audit fix --force."
+}

@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-12",
+  "mode": "demo, test ads",
+  "command": "expo export --platform all --max-workers 2",
+  "note": "JS/Hermes only; no signed AAB/IPA or device test",
+  "files": [
+    {
+      "path": "_expo/static/js/android/entry-63609c3c436fd34acd9bb6b005f0ade7.hbc",
+      "bytes": 5645619,
+      "sha256": "31f778b559b5ded10ab25bb3eb8a914025a2b3d94594bdfee06eecc70b1483fe"
+    },
+    {
+      "path": "_expo/static/js/ios/entry-08765c164ab7fdf41952e8998b19493f.hbc",
+      "bytes": 5647571,
+      "sha256": "34f33e189e6ed9492fafe8aab524015f6fe59118c563820c178b40ad8910b119"
+    },
+    {
+      "path": "_expo/static/js/web/entry-2b2ff710515da5ecd9a74a642ebe4f68.js",
+      "bytes": 3011218,
+      "sha256": "29c4a608a03e5d0ea0f61906853d3881ee590e1913839aa498c4d6bb9b0c0665"
+    },
+    {
+      "path": "_expo/static/js/web/index-313a24d7beb0f5fb15066edcac35a7f8.js",
+      "bytes": 12518,
+      "sha256": "51a6c51ef1b77e490520f8635095a292add3c0653fc55d89b67b0c286e2922a3"
+    },
+    {
+      "path": "_expo/static/js/web/legacy-24b054d4363b07e34c6418e2017643bc.js",
+      "bytes": 9732,
+      "sha256": "344b08646f8ce8177a350fbbf04de1083214cbaf6430df75947273636193ad31"
+    },
+    {
+      "path": "_expo/static/js/web/Network-111efee9a8327888d8bb09eb14a53215.js",
+      "bytes": 2606,
+      "sha256": "20a2f162fe25d2bd6dbf588d137fe07455b430644210d0a55205f90db095ce00"
+    }
+  ]
+}

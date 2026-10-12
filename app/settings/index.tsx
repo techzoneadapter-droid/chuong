@@ -12,7 +12,7 @@ type Item = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   detail: string;
-  route: '/settings/reading' | '/notifications/settings' | '/profile/privacy' | '/downloads' | '/profile/edit' | '/delete-account';
+  route: '/settings/reading' | '/notifications/settings' | '/profile/privacy' | '/downloads' | '/profile/edit' | '/delete-account' | '/privacy' | '/terms';
   auth?: boolean;
 };
 
@@ -23,6 +23,8 @@ const items: Item[] = [
   { icon: 'cloud-download-outline', title: 'Tải xuống', detail: 'Quản lý các truyện và chương đã lưu để đọc offline.', route: '/downloads' },
   { icon: 'person-circle-outline', title: 'Hồ sơ tài khoản', detail: 'Tên hiển thị, username, avatar và giới thiệu.', route: '/profile/edit', auth: true },
   { icon: 'trash-outline', title: 'Xóa tài khoản', detail: 'Yêu cầu xóa tài khoản CHƯƠNG và dữ liệu liên quan.', route: '/delete-account' },
+  { icon: 'document-text-outline', title: 'Chính sách quyền riêng tư', detail: 'Dự thảo dữ liệu và quyền của người dùng · DRAFT.', route: '/privacy' },
+  { icon: 'reader-outline', title: 'Điều khoản sử dụng', detail: 'Dự thảo nội dung, bản quyền và mua hàng · DRAFT.', route: '/terms' },
 ];
 
 export default function SettingsScreen() {

@@ -4,6 +4,6 @@ export function rewardedAdsAvailable() {
   return false;
 }
 
-export async function showDailyRewardedAd(): Promise<RewardedAdResult> {
+export async function showDailyRewardedAd(_sessionId: string): Promise<RewardedAdResult> {
   return 'unavailable';
 }

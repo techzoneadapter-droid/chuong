@@ -396,6 +396,33 @@ async function mock(page: Page, authenticated = false) {
   return writes;
 }
 
+test('deletion request persists status without claiming completion and approved terms record exact version', async ({ page }) => {
+  test.setTimeout(60000);
+  await mock(page,true);
+  let status: any = null, requests=0, accepted='';
+  await page.route('**/rest/v1/rpc/get_account_deletion_status',route=>route.fulfill({json:status}));
+  await page.route('**/rest/v1/rpc/request_account_deletion',route=>{
+    requests++; status={id:'deletion-fixture',status:'pending'}; return route.fulfill({json:status});
+  });
+  await page.goto('/delete-account');
+  await page.getByLabel('Nhập XÓA để xác nhận yêu cầu').fill('XÓA');
+  await page.getByRole('button',{name:'Yêu cầu xóa tài khoản và dữ liệu',exact:true}).click();
+  await expect(page.getByText(/deletion-fixture.*Đang chờ xử lý xóa/)).toBeVisible();
+  status={...status,status:'processing'};
+  await page.getByRole('button',{name:'Cập nhật trạng thái'}).click();
+  await expect(page.getByText(/deletion-fixture.*Đang xử lý/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/deletion-fixture.*Đang xử lý/)).toBeVisible();
+  expect(requests).toBe(1);
+  await page.route('**/rest/v1/rpc/get_active_ugc_policy',route=>route.fulfill({json:{version:'approved-fixture',terms:'Điều khoản thử nghiệm được chủ sở hữu fixture phê duyệt.',accepted:false}}));
+  await page.route('**/rest/v1/rpc/accept_ugc_policy',route=>{accepted=route.request().postDataJSON().p_version;return route.fulfill({json:null});});
+  await page.goto('/terms');
+  await expect(page.getByText('Phiên bản đã phê duyệt: approved-fixture')).toBeVisible();
+  await page.getByRole('button',{name:'Tôi đã đọc và chấp nhận điều khoản'}).click();
+  await expect(page.getByText('Bạn đã chấp nhận phiên bản này.')).toBeVisible();
+  expect(accepted).toBe('approved-fixture');
+});
+
 test('backend reader displays backend content, navigates sparse chapter numbers, and never substitutes demo on missing books', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

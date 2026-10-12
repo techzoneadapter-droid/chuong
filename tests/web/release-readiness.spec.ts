@@ -1,5 +1,19 @@
 import { test, expect } from '@playwright/test';
 
+test('policy drafts and deletion guidance are public, admin deletion queue stays protected', async ({ page }) => {
+  await page.goto('/privacy');
+  await expect(page.getByText('Chính sách quyền riêng tư · DRAFT', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Chủ sở hữu cần xác nhận pháp nhân/)).toBeVisible();
+  await page.getByText('Điều khoản sử dụng · DRAFT', { exact: true }).click();
+  await expect(page.getByText('Điều khoản sử dụng · DRAFT', { exact: true }).and(page.locator(':not([role="link"])'))).toBeVisible();
+  await expect(page.getByText(/Chỉ đăng truyện, bản dịch và ảnh bìa/)).toBeVisible();
+  await page.getByRole('link', { name: 'Yêu cầu xóa tài khoản và dữ liệu', exact: true }).and(page.locator(':visible')).click();
+  await expect(page.getByRole('button', { name: 'Đăng nhập để yêu cầu xóa' })).toBeVisible();
+  await page.goto('/admin/deletions');
+  await expect(page.getByText('Bạn không có quyền quản trị.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nhận xử lý' })).toHaveCount(0);
+});
+
 test('account deletion is discoverable and explains pending processing before login', async ({ page }) => {
   await page.goto('/settings');
   await page.getByText('Xóa tài khoản', { exact: true }).click();

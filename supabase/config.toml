@@ -1,2 +1,11 @@
 [functions.ai-generate-cover]
 verify_jwt = false
+
+# Authenticated by Google's ECDSA signature, not a Supabase user JWT.
+[functions.admob-ssv]
+verify_jwt = false
+
+# Store callbacks do not carry Supabase JWTs. The handler verifies Google OIDC
+# and bases Apple mutations exclusively on fresh authenticated Store API data.
+[functions.iap-events]
+verify_jwt = false

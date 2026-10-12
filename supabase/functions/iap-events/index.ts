@@ -1,12 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { appleStoreBase, requireStoreEnvironment } from "../_shared/storeEnvironment.ts";
+import { appleStoreBase, requireStoreEnvironment, assertStoreEnvironment } from "../_shared/storeEnvironment.ts";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const ANDROID_SCOPE = "https://www.googleapis.com/auth/androidpublisher";
 
 type Provider = "google_play" | "app_store";
-type SupabaseAdmin = ReturnType<typeof createClient>;
+type SupabaseAdmin = ReturnType<typeof createClient<any>>;
 
 function premiumProduct(provider: Provider) {
   if (provider === "google_play") return Deno.env.get("PREMIUM_GOOGLE_PRODUCT_ID") || "chuong.vip.monthly";
@@ -134,7 +134,7 @@ async function getGooglePurchase(purchaseToken: string) {
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   if (!response.ok) throw new Error(`google_purchase_lookup_failed_${response.status}`);
-  return await response.json() as {
+  const purchase = await response.json() as {
     purchaseStateContext?: { purchaseState?: string };
     productLineItem?: Array<{
       productId?: string;
@@ -151,6 +151,8 @@ async function getGooglePurchase(purchaseToken: string) {
     acknowledgementState?: string;
     testPurchaseContext?: unknown;
   };
+  assertStoreEnvironment(Deno.env.get("IAP_ENVIRONMENT"), Boolean(purchase.testPurchaseContext));
+  return purchase;
 }
 
 
@@ -163,7 +165,7 @@ async function getGoogleSubscription(purchaseToken: string) {
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   if (!response.ok) throw new Error(`google_subscription_lookup_failed_${response.status}`);
-  return await response.json() as {
+  const subscription = await response.json() as {
     subscriptionState?: string;
     acknowledgementState?: string;
     latestOrderId?: string;
@@ -177,6 +179,8 @@ async function getGoogleSubscription(purchaseToken: string) {
       autoRenewingPlan?: { autoRenewEnabled?: boolean };
     }>;
   };
+  assertStoreEnvironment(Deno.env.get("IAP_ENVIRONMENT"), Boolean(subscription.testPurchase));
+  return subscription;
 }
 
 async function upsertGooglePremiumSubscription(
@@ -346,7 +350,7 @@ async function fetchAppleTransaction(transactionId: string) {
       if (!data.signedTransactionInfo) throw new Error("apple_signed_transaction_missing");
       const parts = data.signedTransactionInfo.split(".");
       if (parts.length !== 3) throw new Error("apple_transaction_jws_invalid");
-      return base64UrlToJson<{
+      const transaction = base64UrlToJson<{
         transactionId?: string;
         originalTransactionId?: string;
         productId?: string;
@@ -360,6 +364,9 @@ async function fetchAppleTransaction(transactionId: string) {
         revocationReason?: number;
         type?: string;
       }>(parts[1]);
+      if (!["Sandbox", "Production"].includes(transaction.environment || "")) throw new Error("apple_environment_missing");
+      assertStoreEnvironment(Deno.env.get("IAP_ENVIRONMENT"), transaction.environment === "Sandbox");
+      return transaction;
     }
     if (![400, 404].includes(response.status)) {
       throw new Error(`apple_transaction_lookup_failed_${response.status}`);

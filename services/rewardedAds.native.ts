@@ -22,7 +22,7 @@ export function rewardedAdsAvailable() {
   return true;
 }
 
-export async function showDailyRewardedAd(): Promise<RewardedAdResult> {
+export async function showDailyRewardedAd(sessionId: string): Promise<RewardedAdResult> {
   if (!rewardedAdsAvailable()) return 'unavailable';
 
   if (!(await ensureAdsConsent())) return 'unavailable';
@@ -32,6 +32,7 @@ export async function showDailyRewardedAd(): Promise<RewardedAdResult> {
 
   const rewarded = RewardedAd.createForAdRequest(adUnitId, {
     requestNonPersonalizedAdsOnly: true,
+    serverSideVerificationOptions: { userId: sessionId, customData: sessionId },
   });
 
   return await new Promise<RewardedAdResult>((resolve) => {
@@ -49,6 +50,8 @@ export async function showDailyRewardedAd(): Promise<RewardedAdResult> {
     };
 
     const unsubscribeLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => finish('unavailable'), 180000);
       void rewarded.show().catch(() => finish('unavailable'));
     });
     const unsubscribeEarned = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
@@ -61,7 +64,7 @@ export async function showDailyRewardedAd(): Promise<RewardedAdResult> {
     const unsubscribeError = rewarded.addAdEventListener(AdEventType.ERROR, () => {
       finish('unavailable');
     });
-    const timer = setTimeout(() => finish('unavailable'), 20000);
+    let timer = setTimeout(() => finish('unavailable'), 20000);
 
     rewarded.load();
   });

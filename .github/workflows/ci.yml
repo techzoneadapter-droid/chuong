@@ -41,7 +41,7 @@ jobs:
       - name: Database regression
         run: npm run test:db
       - name: Reader, monetization and deletion regression
-        run: npm run test:unit && node tests/free-preview-db.mjs && node tests/account-deletion.mjs
+        run: npm run test:unit && node tests/free-preview-db.mjs && node tests/account-deletion.mjs && npm run test:blockers
       - name: Native JavaScript bundles
         run: npx expo export --platform all --output-dir .cache/native-export
         env:

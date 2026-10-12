@@ -55,6 +55,10 @@ export default function AdminHomeScreen() {
         <View style={{ flex: 1 }}><Text style={styles.primaryTitle}>Hàng đợi báo cáo</Text><Text style={styles.primaryBody}>Xem xét bản quyền, spam, quấy rối và các báo cáo khác.</Text></View>
         <Ionicons name="chevron-forward" size={20} color="#FFF" />
       </Pressable>
+      <Pressable style={styles.secondaryCard} onPress={() => router.push('/admin/deletions')}>
+        <Ionicons name="trash-outline" size={21} color="#8F1D3F" />
+        <View style={{ flex: 1 }}><Text style={styles.secondaryTitle}>Yêu cầu xóa tài khoản</Text><Text style={styles.secondaryBody}>Khóa xử lý, rà soát lưu giữ và bằng chứng hoàn tất.</Text></View>
+      </Pressable>
       <Pressable style={styles.catalogCard} onPress={() => router.push('/admin/catalog')}>
         <View style={styles.catalogIcon}><Ionicons name="library-outline" size={21} color="#E5D1A3" /></View>
         <View style={{ flex: 1 }}><Text style={styles.catalogTitle}>Tàng Kinh Các · Kho truyện</Text><Text style={styles.catalogBody}>Admin thêm truyện, tải bìa, gắn tác giả hiển thị và nhập nhiều chương để mở rộng kho nội dung.</Text></View>

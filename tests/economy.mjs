@@ -264,5 +264,30 @@ await db.exec('reset role');
 // No app subscription source is representable in the VND ledger, even with privileged writes.
 await assert.rejects(db.exec(`insert into author_vnd_ledger(author_id,source_type,source_reference_id,currency_type,stones_spent,settlement_status) values('${author}','app_vip',gen_random_uuid(),'high',1,'pending_settlement')`));
 assert.equal((await row('select count(*) as n from author_vnd_ledger where source_type not in (\'chapter_unlock\',\'book_unlock\',\'author_gift\')')).n,0);
+// Apply the new authority on top of the real two-currency wallet/revenue graph.
+await db.exec('reset role');
+// Engagement metrics are isolated in another suite; this wallet fixture has no activity.
+await db.exec(readFileSync(new URL('202610040007_daily_cultivation_rewards.sql',migrationDir),'utf8').split('create or replace function private.daily_cultivation_metrics')[0]+'commit;');
+await db.exec(`alter table daily_cultivation_claims drop constraint daily_cultivation_claims_quest_key_check; alter table daily_cultivation_claims add constraint daily_cultivation_claims_quest_key_check check(quest_key in ('checkin','read_10m','complete_3','review_1','rewarded_ad'));`);
+await db.exec(`create function private.daily_cultivation_metrics(uuid,date) returns table(read_seconds integer,chapters_completed integer,reviews_created integer) language sql as $$ select 0,0,0 $$`);
+await db.exec(readFileSync(new URL('202610120001_account_deletion_requests.sql',migrationDir),'utf8'));
+await db.exec(readFileSync(new URL('202610120002_rewarded_ssv.sql',migrationDir),'utf8'));
+await db.exec(readFileSync(new URL('202610120003_deletion_workflow.sql',migrationDir),'utf8'));
+const adUser='10000000-0000-4000-8000-000000000099';
+await db.exec(`insert into auth.users(id) values('${adUser}')`);
+await identity(adUser);
+await db.exec('select claim_rewarded_ad_bonus()');
+const adSession=(await row('select begin_rewarded_ad_session() as data')).data.id;
+await assert.rejects(db.exec(`select credit_verified_rewarded_ad('${adSession}','economic-ad-fixture',${Date.now()})`));
+await identity(adUser,'service_role');
+await db.exec(`select credit_verified_rewarded_ad('${adSession}','economic-ad-fixture',${Date.now()}); select credit_verified_rewarded_ad('${adSession}','economic-ad-fixture',${Date.now()});`);
+await db.exec('reset role');
+const adWallet=await row(`select balance_coins,high_spirit_stones from wallet_accounts where user_id='${adUser}'`);
+assert.equal(Number(adWallet.balance_coins),10); assert.equal(Number(adWallet.high_spirit_stones),0);
+assert.equal(Number((await row(`select count(*) as n from wallet_transactions where user_id='${adUser}' and metadata->>'quest_key'='rewarded_ad'`)).n),1);
+await assert.rejects(db.exec(`delete from auth.users where id='${adUser}'`));
+await assert.rejects(db.exec(`delete from public.authors where id='${author}'`));
+await assert.rejects(db.exec(`delete from public.books where id='${book}'`));
+console.log('PASS: Phase 4B SSV credits only low currency once; wallet/gift/revenue/payout records survive rejected auth/author/book cascades');
 await db.close();
 console.log('PASS: VND snapshots, no-rate gating, low settlement, payout reservations/cancellation/payment, immutable policies, reversal/debt, VIP exclusion; legacy migration, both unlock currencies, rounding, idempotency, premium-only gifts, privacy, refunds, store reversals, rewards and wallet security');

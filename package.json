@@ -10,7 +10,7 @@
     "web": "expo start --web --port 3000 --host lan",
     "typecheck": "tsc --noEmit",
     "test:unit": "node tests/performance.mjs && node tests/performance-phase2.mjs && node tests/performance-phase3-reader.mjs && node tests/reader-gestures.mjs && node tests/reader-hotfix-tts.mjs && node tests/free-preview-policy.mjs && node tests/release-runtime.mjs && node tests/store-verifiers.mjs",
-    "test:readiness": "npm run typecheck && npm run test:unit && npm run test:ui-copy && npm run test:admin-web && npm run test:release && npm run test:db && node tests/free-preview-db.mjs && node tests/account-deletion.mjs",
+    "test:readiness": "npm run typecheck && npm run test:unit && npm run test:ui-copy && npm run test:admin-web && npm run test:release && npm run test:db && node tests/free-preview-db.mjs && node tests/account-deletion.mjs && npm run test:blockers",
     "dev": "expo start --web --port 3000 --host lan",
     "build": "expo export --platform web",
     "test:db": "node tests/database.mjs && node tests/economy.mjs && node tests/followed-updates.mjs && node tests/release-batching.mjs && node tests/author-releases.mjs",
@@ -22,7 +22,8 @@
     "test:ui-copy": "node tests/ui-copy.mjs",
     "test:admin-web": "node --check admin-web/app.js && node --check admin-web/bulk-import.js && node --check admin-web/catalog-admin.js && node --check admin-web/free-preview.js",
     "test:free-preview": "node tests/free-preview-policy.mjs && node tests/free-preview-db.mjs",
-    "test:economy": "node tests/economy.mjs"
+    "test:economy": "node tests/economy.mjs",
+    "test:blockers": "node tests/release-blockers.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -37,6 +38,7 @@
     "expo-iap": "5.8.2",
     "expo-image-picker": "~17.0.11",
     "expo-keep-awake": "~15.0.8",
+    "expo-linking": "8.0.12",
     "expo-network": "~8.0.8",
     "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.13",
@@ -49,13 +51,18 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "^0.21.0",
-    "expo-linking": "8.0.12"
+    "react-native-web": "^0.21.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.63.0",
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "postcss": "8.5.29",
+    "xcode": {
+      "uuid": "11.1.1"
+    }
   }
 }

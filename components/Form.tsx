@@ -40,7 +40,7 @@ export function FormScreen({
 }
 
 export function FormField({ label, ...props }: TextInputProps & { label: string }) {
-  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput placeholderTextColor="#9A9186" style={[styles.input, props.multiline && styles.multiline]} {...props} /></View>;
+  return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} placeholderTextColor="#9A9186" style={[styles.input, props.multiline && styles.multiline]} {...props} /></View>;
 }
 
 export function PrimaryButton({ label, onPress, loading, disabled }: { label: string; onPress: () => void; loading?: boolean; disabled?: boolean }) {

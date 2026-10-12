@@ -2446,6 +2446,12 @@ export type Database = {
     }
     Functions: {
       request_account_deletion: { Args: Record<string, never>; Returns: Json };
+      begin_rewarded_ad_session: { Args: Record<string, never>; Returns: Json };
+      get_account_deletion_status: { Args: Record<string, never>; Returns: Json };
+      admin_deletion_queue: { Args: Record<string, never>; Returns: Json };
+      get_active_ugc_policy: { Args: Record<string, never>; Returns: Json };
+      accept_ugc_policy: { Args: { p_version: string }; Returns: undefined };
+      admin_deletion_action: { Args: { p_id: string; p_action: string; p_token?: string; p_step?: string; p_evidence?: string }; Returns: Json };
       get_admin_chapters_for_editing: {
         Args: { p_book_id: string; p_chapter_id?: string | null }
         Returns: Database['public']['Tables']['chapters']['Row'][]

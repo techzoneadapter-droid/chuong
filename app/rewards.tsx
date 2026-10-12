@@ -9,7 +9,8 @@ import { xianxia } from '../constants/xianxia';
 import { useAuth } from '../contexts/AuthContext';
 import {
   claimDailyCultivation,
-  claimRewardedAdBonus,
+  beginRewardedAdSession,
+  waitForRewardedAdBonus,
   DailyCultivationState,
   DailyQuest,
   DailyQuestKey,
@@ -68,12 +69,13 @@ export default function RewardsScreen() {
           setError('Quảng cáo thưởng chỉ khả dụng trong bản Android/iOS native. Bản web preview không phát quảng cáo.');
           return;
         }
-        const adResult = await showDailyRewardedAd();
+        const sessionId = await beginRewardedAdSession();
+        const adResult = await showDailyRewardedAd(sessionId);
         if (adResult !== 'earned') {
           setError(adResult === 'closed' ? 'Bạn cần xem hết quảng cáo để nhận Hạ Phẩm Linh Thạch.' : 'Chưa tải được quảng cáo. Vui lòng thử lại sau.');
           return;
         }
-        setState(await claimRewardedAdBonus());
+        setState(await waitForRewardedAdBonus());
       } else {
         setState(await claimDailyCultivation(quest.key));
       }

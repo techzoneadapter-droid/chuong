@@ -73,6 +73,24 @@ export async function claimRewardedAdBonus(): Promise<DailyCultivationState> {
   }
 }
 
+export async function beginRewardedAdSession(): Promise<string> {
+  const { data, error } = await requireSupabase().rpc('begin_rewarded_ad_session');
+  if (error) throw toServiceError(error, 'Không thể bắt đầu xác minh quảng cáo.');
+  const id = (data as { id?: string } | null)?.id;
+  if (!id) throw new Error('Chưa có phiên xác minh quảng cáo.');
+  return id;
+}
+
+// The SDK event only starts polling. Only SSV may credit the wallet.
+export async function waitForRewardedAdBonus(): Promise<DailyCultivationState> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const state = await getDailyCultivation();
+    if (state.quests.some(quest => quest.key === 'rewarded_ad' && quest.claimed)) return state;
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }
+  throw new Error('Đang chờ máy chủ xác minh quảng cáo. Chạm cập nhật để kiểm tra lại; chưa có thưởng khi xác minh chưa thành công.');
+}
+
 export function dailyQuestProgressText(quest: DailyQuest) {
   if (quest.key === 'read_10m') {
     const currentMinutes = Math.min(10, Math.floor(quest.progress / 60));

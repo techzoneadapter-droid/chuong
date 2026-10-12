@@ -1,4 +1,4 @@
-# CHƯƠNG — Phase 4A Release Readiness
+# CHƯƠNG — Phase 4A / 4B Release Readiness
 
 Ngày kiểm toán: **12/10/2026 (Asia/Saigon)**. Repository: `techzoneadapter-droid/chuong`.
 Nhánh bàn giao: `release/chuong-v1-readiness`.
@@ -6,6 +6,57 @@ Nhánh bàn giao: `release/chuong-v1-readiness`.
 **Kết luận: đã sửa source và chuẩn bị cấu hình kiểm thử phát hành; chưa đủ bằng chứng để ký duyệt native release hoặc phát hành production.** Các mục High bên dưới phải đóng trước production. Không thực hiện mua hàng thật, deploy Supabase, migration production, gửi store submission hoặc thay đổi dữ liệu người dùng thật.
 
 Báo cáo này thay báo cáo Phase 4L cũ. Những số liệu production ngày 04/10 trong lịch sử Git không được coi là kết quả kiểm tra hiện tại.
+
+## Phase 4B — trạng thái hiện tại
+
+Owner xác nhận **chưa có staging riêng và chưa có chính sách/contact/retention đã phê duyệt**. Vì vậy chưa thể đóng toàn bộ High hoặc ký duyệt release. Không tạo staging bằng production credentials, không apply migration/deploy backend, không thử mua/quảng cáo thật. Nhánh bắt đầu sạch tại commit Phase 4A `9ff704d`, tiếp tục cùng release branch; không lặp lại các thay đổi Reader/TTS Phase 4A.
+
+### Lỗi đã đóng trong source / local fixtures
+
+| ID | Thay đổi thực tế | Bằng chứng / giới hạn |
+| --- | --- | --- |
+| B1 | RPC `claim_rewarded_ad_bonus` chỉ đọc trạng thái, không còn mint Linh Thạch; client earned callback chỉ poll trạng thái | Migration 202610120002, DB thử trực tiếp RPC không tăng balance. Backend deployed cũ chưa thay đổi. |
+| B2 | AdMob SSV Edge Function xác minh ECDSA SHA-256/DER với public keys Google, giữ nguyên raw query, reject params trùng/unsigned suffix, allowlist unit/item/amount, bind session server UUID; service-only credit, transaction unique + session lock + day claim + expiry | Crypto ephemeral fixtures và PGlite replay/cross-session/day guards; chưa callback console/native thực tế. Test ad units vẫn được giữ, không bypass SSV khi test unit không gửi callback. [Cơ sở triển khai Google SSV](https://developers.google.com/admob/android/ssv). |
+| B3 | Webhook Google purchase/subscription và Apple transaction kiểm tra sandbox/production từ fresh lookup trước mutation, đồng bộ verifier | Tests pending/canceled/account/SKU/bundle/transaction mismatch/revoked/expired, cross-environment lookup. Không giả kết quả RTDN/store sandbox end-to-end. |
+| B4 | Financial FK cascade chuyển RESTRICT cho wallet/accounts/transactions/gifts/revenue/payout graph; queue xóa sống sau auth removal; status RPC + admin queue/action + lease 30 phút + eight evidence/policy/auth completion guards | Migration 202610120003; `/admin/deletions`; own status, admin ACL, no duplicate/stale claim, missing-policy/auth denial, local completion của account không có tài chính. Không tự xóa tài khoản tài chính hoặc đổi số dư. |
+| B5 | App/web `/delete-account` hiển thị trạng thái đã ghi nhận sau reload, có refresh; xác minh qua auth.uid, một request/user | Browser + RLS fixtures. Fulfillment, SLA, provider/storage/cache purge, completion delivery cần quy trình owner/staging; H1 còn mở. |
+| B6 | Trang `/privacy`, `/terms` và liên kết Settings/deletion; versioned Terms owner-approved mới được accept, server lưu own acceptance idempotent; approved text immutable; trigger bảo vệ author/book/chapter/comment/book_review và avatar/cover Storage | Migration 202610120004 không activate policy. Public trang DRAFT; terms active hiển thị exact server text. Chính sách và disclosures tại [PRIVACY_STORE_DISCLOSURES_DRAFT.md](PRIVACY_STORE_DISCLOSURES_DRAFT.md). Admin reports/detail đã có, không tạo giao diện trùng. |
+| B7 | PostCSS 8.5.29 cùng major; uuid 11.1.1 chỉ trong xcode config tooling, giữ CommonJS v4 | 13 finding names biến mất trong online audit: 44 → 31 (23 high/8 moderate/0 critical). Không đổi Expo/RN/IAP/Ads/dev-client. [Triage từng finding](DEPENDENCY_SECURITY_PHASE4B.json). Những finding OPEN chưa được chấp nhận/miễn trừ. |
+| B8 | Form fields có accessibilityLabel; rewarded load timeout không còn cắt video ở 20 giây (20s load, 180s show); thêm regression và CI blockers | Giữ các script Expo Live Preview LAN/port 3000 và pins SDK54/RN0.81.5. Cần QA Samsung bằng Development Build hiện hữu/exact binary, chưa đo máy thật. |
+
+### High còn mở sau Phase 4B
+
+- **H1:** có intake/status/admin workflow và retention guard; chưa có retention-safe pseudonymization/fulfillment integration, thời hạn, contact/completion process, public deletion URL, remote staging. Không thể xóa account có tài chính bằng auth cascade. Xem [STAGING_RELEASE_BLOCKERS.md](STAGING_RELEASE_BLOCKERS.md).
+- **H2:** có policy pages và backend Terms acceptance/storage gate; chưa owner-approved Privacy/Terms, Data Safety/App Privacy, legal contact/audience/retention hoặc URL HTTPS public.
+- **H3:** chưa signed AAB/IPA, EAS/store signing credentials, resolved native/16 KB/iOS privacy archive và native Samsung/iOS QA. JS export không đóng mục này.
+- **H4:** exploit cấp reward từ client đã sửa trong source; chưa deploy SSV/migration staging, configure AdMob callback/allowlist/reward fields, UMP geography/device QA. Backend production cũ vẫn cần migration review trước rollout.
+- **H5:** bổ sung webhook environment guard và negative tests; chưa store products/console/license testers, RTDN/Apple sandbox refund/renewal/restore thật, staging deploy và kiểm thử event ordering trên subscription mới nhất.
+- **H6:** có hướng dẫn inventory từng truyện/dịch/bìa và luồng báo cáo/admin hiện hữu; chưa thấy hợp đồng/chứng cứ licensing, scope/expiry/takedown thực tế. Không gán quyền hợp pháp cho catalog.
+- **H7:** 31 dependency findings còn OPEN. braces/node-forge/sprintf-js latest vẫn nằm trong vulnerable range; image-size 2 có API khác Metro 1.x; decode-uri-component bản vá mới là ESM, query-string pinned dùng CJS. Không ép override thiếu tương thích, không nâng native SDK hoặc audit fix --force. Xem JSON triage; cần review/patch có chứng cứ trước release.
+
+Critical C0 và Medium/Low của Phase 4A vẫn giữ, chưa có live production/device/security evidence để đóng. Những mục B1–B8 là đóng lỗi source cụ thể, **không có nghĩa các High H1–H7 đã đóng hoàn toàn**.
+
+### Kiểm thử Phase 4B
+
+Môi trường local Windows/Node 24, Chromium backend mock/PGlite, không dùng dữ liệu thật. `npm ci --ignore-scripts` cài 874 packages từ lock; sau override uuid chạy npm install --ignore-scripts, final npm ci dry-run/offline xác nhận lock nhất quán. Expo install check PASS; Expo Doctor PASS 18/18. Route types được Expo tạo lại khi thêm routes mới.
+
+| Bài kiểm thử Phase 4B | Kết quả cuối |
+| --- | --- |
+| TypeScript, unit, UI-copy, admin JS syntax, release source audit | PASS `npm run test:readiness`; 833 static checks. |
+| Database/economy/followed/release/author/free preview/deletion | PASS; migrations mới trên PGlite, low/high currency đúng, ledger/gifts/payout không bị cascade, Reader/VIP/RLS giữ nguyên. Không phải full remote migration replay; engagement metrics là zero-activity stub trong wallet fixture. |
+| Blocker regression | PASS real ephemeral ECDSA/DER, raw signature tamper/duplicates/suffix/unit/reward/session, replay/expiry/cross-session uniqueness; deletion lease/ACL/status/policy/auth/evidence; latest Terms version + immutability + author/book/chapter/comment/book_review/cover Storage gates. |
+| Store verifier/webhook lookup mocks | PASS pending/canceled/expired/revoked, mismatched environment/account/SKU/bundle/transaction; negative states không cấp entitlement; restore regression giữ nguyên. Không có store transaction thật. |
+| Browser demo/artwork/admin | PASS 11/11, 1 intentional skip (library backend-only); policy/deletion discovery, anonymous admin denial, 20+ routes, Reader/TTS, 500-entry shelf, artwork, admin controls. |
+| Browser backend | 45 PASS lượt đầy đủ; test deletion/status reload/approved Terms PASS riêng sau sửa timeout (7.1s). Tổng 46 bài backend duy nhất PASS; không bỏ assertion. Tổng Phase 4B browser 57 PASS + 1 intentional skip. |
+| Android/iOS/web exports | PASS, `.cache/release-export-phase4b`; Android 5,645,619 bytes, iOS 5,647,571 bytes; web entry 3,011,218 bytes. SHA256: [RELEASE_BUNDLE_MANIFEST_PHASE4B.json](RELEASE_BUNDLE_MANIFEST_PHASE4B.json). Không phải AAB/IPA. |
+| Edge Function Deno typecheck | PASS cả SSV/events/consumable/subscription với official installed Supabase declarations và locked JS SDK. Canonical JSR fetch bị HTTP 403 trong môi trường này; dùng import map local, không sửa runtime imports. Sửa BufferSource typing và generic ReturnType webhook bị suy ra unknown/never. Reproduce: `DENO_BINARY` trỏ Deno CLI rồi `node scripts/check-edge-functions.mjs`. Chưa chứng minh deploy Edge runtime. |
+| Native signing/install/store sandbox/SSV console/remote staging/provider purge/Samsung Live Preview | NOT RUN. Owner chưa có staging/policy; không deploy database/Edge, không tiền/quảng cáo production. |
+
+Lượt QA đầu có lỗi locator trùng title/link trong Expo navigation và timeout tổng của test nhiều route/reload; sửa locator chính xác + timeout 60s, chạy lại thành công. Wallet fixture đầu thiếu cultivation metrics/tables, đã bổ sung đúng fixture và chạy lại database suite PASS. Không lấy các lượt thất bại làm PASS.
+
+Không thay đổi app.json/app.config/eas/start/dev/native pins trong Phase 4B. Một probe xcode generateUuid ban đầu thiếu fixture project hash, sửa fixture cho đúng: CommonJS v4 sinh ID 24 hex chars. Không coi probe đó là iOS prebuild/archive.
+
+## Phase 4A — bằng chứng nền đã hoàn thành
 
 ## 1. Bảo toàn source và các lỗi đã sửa
 
