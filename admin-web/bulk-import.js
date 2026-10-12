@@ -474,6 +474,11 @@
         return 'done';
       }
 
+      const bulkVip=Boolean(el('bulkBookVip').checked);
+      const bulkVipPrice=bulkVip?Number(el('bulkVipPrice').value):0;
+      const bulkFreePreview=window.chuongFreePreview.validate(el('bulkFreePreview').value);
+      if(bulkVip&&(!Number.isInteger(bulkVipPrice)||bulkVipPrice<=0))throw new Error('Truyện VIP cần giá Hạ Phẩm Linh Thạch nguyên dương.');
+
       const duplicates=await findDuplicateBooks(title,author);
       if(duplicates.length){
         row.scan='skipped';row.selected=false;row.message='Truyện đã tồn tại trong kho · dùng tab “Cập nhật ZIP” để bổ sung chương';
@@ -488,7 +493,7 @@
           author_id:state.ownerAuthorId,title,slug,
           description:String(row.summary||'').trim()||'Hãy khám phá.',
           credited_author_name:author,language:'vi',source_type:el('bulkSourceType').value,
-          status:'draft',visibility:'private',tags:[],is_vip:false,price_coins:0
+          status:'draft',visibility:'private',tags:[],is_vip:bulkVip,price_coins:bulkVipPrice,free_preview_chapters:bulkFreePreview
         }
       });
       bookId=books[0].id;
@@ -576,6 +581,7 @@
       ?'Mỗi ZIP được đọc tên truyện rồi đối chiếu với kho hiện có. <strong>Chương trùng số sẽ được thay nội dung, chương mới sẽ được thêm</strong>; chương cũ không có trong ZIP vẫn giữ nguyên.'
       :'Mỗi ZIP là một truyện. Hệ thống tự nhận tên, chương, tác giả và phân loại thể loại từ tên + nội dung mẫu; không có tác giả sẽ mặc định là <strong>Chuong</strong>; không có bìa vẫn nhập bình thường.';
     strategy?.classList.toggle('hidden',!updating);
+    el('bulkVipSettings')?.classList.toggle('hidden',updating);
     if(action)action.textContent=updating?'Cập nhật các truyện đã chọn':'Nhập các truyện đã chọn';
   }
 
@@ -633,6 +639,10 @@
   el('bulkZipFolder')?.addEventListener('change',event=>{addFiles(event.target.files||[]);event.target.value='';});
   el('bulkScanBtn')?.addEventListener('click',()=>void scanAll());
   el('bulkImportBtn')?.addEventListener('click',()=>void importSelected());
+  el('bulkBookVip')?.addEventListener('change',()=>{
+    el('bulkVipPriceWrap')?.classList.toggle('hidden',!el('bulkBookVip').checked);
+    if(!el('bulkBookVip').checked)el('bulkVipPrice').value='0';
+  });
   el('bulkPauseBtn')?.addEventListener('click',()=>{
     if(!bulkState.running)return;
     bulkState.paused=!bulkState.paused;
