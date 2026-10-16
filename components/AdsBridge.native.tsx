@@ -3,18 +3,20 @@ import mobileAds, { AdsConsent } from 'react-native-google-mobile-ads';
 import { useMembership } from '../hooks/useMembership';
 import { allowChapterInterstitials, disableChapterInterstitials } from '../services/chapterInterstitial';
 import { realAdsEnabled } from '../services/admobUnits';
+import { setAdSdkReady } from '../services/admobReadiness';
 
 export function AdsBridge() {
   const membership = useMembership();
   const initialized = useRef(false);
 
   useEffect(() => {
-    if (membership.loading) return;
+    if (membership.loading) { setAdSdkReady(false); disableChapterInterstitials(); return; }
     if (!membership.showAds || (!__DEV__ && !realAdsEnabled())) {
       disableChapterInterstitials();
+      setAdSdkReady(false);
       return;
     }
-    if (initialized.current) { allowChapterInterstitials(); return; }
+    if (initialized.current) { setAdSdkReady(true); allowChapterInterstitials(); return; }
 
     let active = true;
     const start = async () => {
@@ -26,6 +28,7 @@ export function AdsBridge() {
           await mobileAds().initialize();
           if (!active) return;
           initialized.current = true;
+          setAdSdkReady(true);
           allowChapterInterstitials();
         } catch {
           // Ad failures must never block the reading experience.
