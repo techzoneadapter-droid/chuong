@@ -63,6 +63,7 @@ export default function RewardsScreen() {
 
   const claim = async (quest: DailyQuest) => {
     if (quest.claimed || claiming) return;
+    if (!user) { setError('Vui lòng đăng nhập để xem quảng cáo nhận thưởng.'); return; }
     setClaiming(quest.key);
     setError('');
     setNotice('');
