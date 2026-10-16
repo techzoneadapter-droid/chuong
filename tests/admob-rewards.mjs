@@ -15,7 +15,7 @@ await db.exec([
   "create function private.daily_cultivation_metrics(uuid,date) returns table(read_seconds integer,chapters_completed integer,reviews_created integer) language sql as $$select 0,0,0$$;",
   "create function private.credit_daily_cultivation_reward(uuid,date,text,integer) returns bigint language plpgsql security definer set search_path='' as $$ declare balance bigint; begin insert into public.wallet_accounts(user_id,balance_coins) values($1,$4) on conflict(user_id) do update set balance_coins=public.wallet_accounts.balance_coins+$4 returning balance_coins into balance; return balance; end; $$;",
   "grant usage on schema public,auth to authenticated,service_role;",
-  "grant select on public.wallet_accounts to authenticated;",
+  "grant select on public.wallet_accounts to authenticated,service_role;",
   "grant select on public.daily_cultivation_claims to authenticated;",
 ].join('\n'));
 const migration = readFileSync(new URL('../supabase/migrations/202610160002_admob_verified_rewards.sql', import.meta.url), 'utf8');
