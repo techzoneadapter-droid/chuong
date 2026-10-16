@@ -15,3 +15,17 @@ Payout requests lock the author row, verify available VND after all reservations
 Refunds preserve the source and add one reversal of the original settled amount. A settled low reversal targets its settlement row. Reversals after payment create an adjustment/debt through the ledger balance; paid requests keep their original amounts. Future earnings offset debt. Actual bank transfers still take place outside this app; Admin records the transfer reference after approval.
 
 `npm run test:db` runs foundation and economy tests in disposable local PGlite databases, including both new migrations and the existing wallet RPCs. Coverage includes empty gift history, migration of unpriced/refunded history, high chapter/book/gift snapshots, low pending/settlement/refund, forbidden subscription sources, reservations, retries, overlapping requests, cancellation/payment, post-payment debt, policy changes and unchanged purchased entitlements. PGlite serializes overlapping calls; this is not a multi-session production load test. No production connection or financial test data is used.
+
+## Author-visible source separation (2026-10-16)
+
+The server dashboard RPC returns an additive `revenue_channels` object aggregated over **all** matching author ledger entries, not just the most recent 100 transactions:
+
+- `paid_unlock_vnd`: author VND earned from chapters/books unlocked with **Thượng Phẩm** (purchased coins).
+- `paid_gift_vnd`: author VND earned from premium-coin gifts; shown separately from paid reading.
+- `low_pool_vnd`: author VND allocated from the **Hạ Phẩm** revenue pool after Admin closes an actual revenue period. Hạ Phẩm is acquired via rewarded ads and free quests, so this is **not** a direct per-view AdMob attribution.
+
+The figures include immutable refund/reversal adjustments. Pending low-stone transactions, unpriced historical rows and unused prepaid stones are excluded from earned VND. The total of all three channels must reconcile with `total_vnd`. Payout/reservation math and author share percentages are unchanged. This is a reporting-only server RPC extension.
+
+**Important operational control:** the Admin still manually supplies `actual_revenue_pool_vnd` to settle a period; AdMob income is not automatically imported or authenticated into this ledger. Admin must reconcile with **actual reported AdMob revenue** (net of adjustments, and with consistent period boundaries), document the basis for author allocations and not present the low-stone pool as guaranteed money before settlement. If an app-side database migration is not yet deployed, the author page shows a clear pending-report message rather than estimating lifetime income from paginated recent rows.
+
+Migration: `202610160001_author_revenue_channels.sql`. Apply and verify this read-only RPC update before treating the three totals as live; verify the same RPC's author-only access and ledger reconciliation with `npm run test:db`.

@@ -69,6 +69,7 @@ await db.exec('reset role');
 await db.exec(`update wallet_accounts set high_spirit_stones=0 where user_id='${reader}'`);
 await db.exec(readFileSync(new URL('202610050018_author_vnd_settlement.sql',migrationDir),'utf8'));
 await db.exec(readFileSync(new URL('202610050019_author_gift_vnd_policy.sql',migrationDir),'utf8'));
+await db.exec(readFileSync(new URL('202610160001_author_revenue_channels.sql',migrationDir),'utf8'));
 const legacyVnd = await row(`select * from author_vnd_ledger where source_reference_id='${legacyEnt.id}' and entry_type='sale'`);
 assert.equal(legacyVnd.settlement_status,'legacy_pending_settlement');
 assert.equal(legacyVnd.author_earnings_vnd,null);
@@ -190,6 +191,10 @@ assert.equal(vnd.ledger.find(l => l.source_reference_id === lowUnlock.entitlemen
 assert.equal(Number(vnd.ledger.find(l => l.source_reference_id === bookUnlock.entitlement_id && l.entry_type === 'sale').author_earnings_vnd),Math.floor(53*123*.6));
 assert.equal(Number(vnd.ledger.find(l => l.source_reference_id === gift.gift_id).author_earnings_vnd),4920);
 assert.equal(Number(vnd.available_payout_vnd),4920,'refunded high sales and pending low sales cannot be withdrawn');
+assert.equal(Number(vnd.revenue_channels.paid_unlock_vnd),0,'refunded paid unlocks do not count as earnings');
+assert.equal(Number(vnd.revenue_channels.paid_gift_vnd),4920,'premium gifts are reported separately');
+assert.equal(Number(vnd.revenue_channels.low_pool_vnd),0,'unsettled low stones are not labelled as ad earnings');
+assert.equal(Number(vnd.total_vnd),Object.values(vnd.revenue_channels).reduce((sum,amount) => sum+Number(amount),0),'channel totals reconcile to the existing author ledger');
 await assert.rejects(db.exec(`select author_request_payout_vnd(-1,'','negative-payout-test')`),/INVALID_PAYOUT_AMOUNT/);
 await assert.rejects(db.exec(`select author_request_payout_vnd(5000,'','excess-payout-test')`),/INSUFFICIENT_REQUESTABLE_EARNINGS/);
 const payout = await row(`select * from author_request_payout_vnd(4920,'','vnd-payout-one')`);
@@ -220,10 +225,13 @@ assert.equal(Number((await row(`select * from author_payouts where id='${paidReq
 await db.exec(`select admin_settle_author_period('2020-01-01','2030-01-01',100000)`);
 vnd = (await row(`select get_author_vnd_dashboard('${author}') as data`)).data;
 assert.equal(Number(vnd.available_payout_vnd),60000,'actual low creator pool is now withdrawable');
+assert.equal(Number(vnd.revenue_channels.low_pool_vnd),60000,'settled low-stone pool is reported separately');
 await assert.rejects(db.exec(`select admin_settle_author_period('2020-01-01','2030-01-01',100000)`),/NO_PENDING_LOW_REVENUE/);
 await db.exec(`select admin_refund_entitlement('chapter','${lowUnlock.entitlement_id}','Settled low refund','settled-low-refund');
 select admin_refund_entitlement('chapter','${lowUnlock.entitlement_id}','Settled low refund','settled-low-refund-again');`);
+const afterLowRefund = (await row(`select get_author_vnd_dashboard('${author}') as data`)).data;
 assert.equal(Number((await row(`select get_author_vnd_dashboard('${author}') as data`)).data.available_payout_vnd),0,'settled low refund reverses exactly once');
+assert.equal(Number(afterLowRefund.revenue_channels.low_pool_vnd),0,'low-stone refunds remove earnings from the correct channel');
 // A refund after actual payment creates a debt adjustment; it never rewrites paid totals.
 await db.exec(`update books set price_coins=105,is_vip=true where id='${book}'`);
 await identity(reader);

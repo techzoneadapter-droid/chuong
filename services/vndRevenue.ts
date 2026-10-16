@@ -2,7 +2,16 @@ import { requireSupabase } from '../lib/supabase';
 import { VndPolicy, VndLedger, Json } from '../types/database';
 import { toServiceError } from './errors';
 export type { VndPolicy, VndLedger };
+export type VndRevenueChannels = {
+ // Full-ledger, server-aggregated VND; includes refunds/adjustments, excludes unpriced pending transactions.
+ paid_unlock_vnd: number;
+ paid_gift_vnd: number;
+ low_pool_vnd: number;
+};
+
 export type VndDashboard = {
+ // Optional until the additive SQL migration reaches production. Never infer lifetime totals from 100 ledger rows.
+ revenue_channels?: VndRevenueChannels;
  policy: VndPolicy; total_vnd: number; paid_vnd: number; reserved_vnd: number;
  available_payout_vnd: number; debt_vnd: number; pending_count: number; pending_low_stones: number;
  breakdown: Partial<Record<VndLedger['source_type'], number>>; ledger: VndLedger[];

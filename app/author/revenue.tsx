@@ -69,6 +69,21 @@ export default function AuthorRevenueScreen() {
         <Text style={styles.heroValue}>{formatVnd(data.total_vnd)}</Text>
         <Text style={styles.heroBody}>Doanh thu đã chốt bằng VND. App VIP không tạo doanh thu tác giả.</Text>
       </View>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>Thu nhập theo nguồn</Text>
+      </View>
+      {data.revenue_channels ? <>
+        <View style={styles.grid}>
+          <Metric label="Mở khóa bằng Thượng Phẩm (tiền nạp)" value={data.revenue_channels.paid_unlock_vnd} />
+          <Metric label="Quỹ Hạ Phẩm đã đối soát" value={data.revenue_channels.low_pool_vnd} />
+          <Metric label="Quà tặng bằng Thượng Phẩm" value={data.revenue_channels.paid_gift_vnd} />
+        </View>
+        <View style={styles.channelNotice}>
+          <Text style={styles.channelNoticeText}>Tiền nạp chỉ tạo thu nhập tác giả khi độc giả dùng Thượng Phẩm để mua chương hoặc truyện. Hạ Phẩm có thể kiếm từ quảng cáo và nhiệm vụ miễn phí; thu nhập Hạ Phẩm chỉ được ghi bằng VND sau khi NVB đối soát quỹ doanh thu thực tế, không quy đổi cố định từng Linh Thạch. Các khoản hoàn tiền được trừ đúng nguồn.</Text>
+        </View>
+      </> : <View style={styles.channelNotice}>
+        <Text style={styles.channelNoticeText}>Đang chờ cập nhật báo cáo tách nguồn thu trên máy chủ. Tổng tiền bên dưới vẫn lấy từ sổ cái; CHƯƠNG không suy đoán số tiền quảng cáo từ lịch sử giao dịch gần đây.</Text>
+      </View>}
       <Pressable style={styles.payoutCta} onPress={() => router.push('/author/payout')}>
         <View style={styles.payoutCtaIcon}><Ionicons name="cash-outline" size={20} color="#8F1D3F" /></View>
         <View style={{ flex: 1 }}><Text style={styles.payoutCtaTitle}>Yêu cầu rút doanh thu</Text><Text style={styles.payoutCtaBody}>Tạo yêu cầu · KYC/thuế · Theo dõi trạng thái thanh toán</Text></View>
@@ -93,7 +108,7 @@ export default function AuthorRevenueScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>{item.author_earnings_vnd == null ? 'Đang đối soát' : `${item.author_earnings_vnd >= 0 ? '+' : ''}${formatVnd(item.author_earnings_vnd)}`}</Text>
           <Text style={styles.rowSub}>{item.description || (item.source_type === 'author_gift' ? 'Quà độc giả' : item.source_type === 'book_unlock' ? 'Mở khóa cả truyện' : 'Mở khóa chương')}</Text>
-          <Text style={styles.rowSub}>{spiritCurrencyLabel(item.currency_type)} · {new Date(item.created_at).toLocaleString('vi-VN')}{item.settlement_status === 'legacy_pending_settlement' ? ' · Dữ liệu cũ chờ đối soát' : ''}</Text>
+          <Text style={styles.rowSub}>{item.currency_type === 'high' ? (item.source_type === 'author_gift' ? 'Quà tặng bằng tiền nạp' : 'Mở khóa bằng tiền nạp') : 'Giao dịch Hạ Phẩm / quỹ đối soát'} · {spiritCurrencyLabel(item.currency_type)} · {new Date(item.created_at).toLocaleString('vi-VN')}{item.settlement_status === 'legacy_pending_settlement' ? ' · Dữ liệu cũ chờ đối soát' : ''}</Text>
         </View>
       </View>)}
 
@@ -129,6 +144,8 @@ const styles = StyleSheet.create({
   metric: { width: '48%', flexGrow: 1, backgroundColor: '#FFFDFC', borderWidth: 1, borderColor: '#E5D8D1', borderRadius: 15, padding: 14 },
   metricValue: { color: '#2B2226', fontSize: 16, fontWeight: '900' },
   metricLabel: { color: '#7D7176', fontSize: 10, marginTop: 4 },
+  channelNotice: { marginTop: 10, borderRadius: 14, backgroundColor: '#F0E1E5', padding: 14 },
+  channelNoticeText: { color: '#65575D', fontSize: 10, lineHeight: 16 },
   policy: { marginTop: 14, borderRadius: 16, padding: 14, flexDirection: 'row', gap: 10, borderWidth: 1 },
   policyActive: { backgroundColor: '#F1E8E4', borderColor: '#E1D1CB' },
   policyInactive: { backgroundColor: '#F8E8EB', borderColor: '#E7C9D2' },
