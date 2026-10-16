@@ -63,13 +63,15 @@ export async function claimDailyCultivation(key: DailyQuestKey): Promise<DailyCu
   }
 }
 
-export async function claimRewardedAdBonus(): Promise<DailyCultivationState> {
+// Starts an authenticated, expiring SSV ticket. No wallet credit occurs here.
+export async function beginRewardedAdSession(): Promise<string> {
   try {
-    const { data, error } = await requireSupabase().rpc('claim_rewarded_ad_bonus');
+    const { data, error } = await requireSupabase().rpc('begin_rewarded_ad_session');
     if (error) throw error;
-    return mapState(data);
+    if (typeof data !== 'string') throw new Error('invalid_reward_session');
+    return data;
   } catch (error) {
-    throw toServiceError(error, 'Chưa thể cộng thưởng quảng cáo.');
+    throw toServiceError(error, 'Chưa thể bắt đầu quảng cáo. Vui lòng thử lại sau.');
   }
 }
 
