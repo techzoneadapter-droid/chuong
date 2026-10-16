@@ -11,6 +11,7 @@ import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
 import { useReadingAnalytics } from '../../hooks/useReadingAnalytics';
 import { messageForError } from '../../services/errors';
 import { AdBanner } from '../../components/AdBanner';
+import { onFinishedChapterAdvance } from '../../services/chapterInterstitial';
 import { AuthorGiftSheet } from '../../components/AuthorGiftSheet';
 import { Comments } from '../../components/Comments';
 import { BottomSheet } from '../../components/BottomSheet';
@@ -238,6 +239,10 @@ export default function ReaderScreen() {
 
   const goChapter = (number: number) => {
     if (!book.chapters.some((item) => item.number === number)) return;
+    // Show only at an intentional, finished NEXT-chapter checkpoint. Never interrupt offline reading.
+    if (number === nextNumber && readingProgress >= 90 && !lockedContent && !offlineReading) {
+      onFinishedChapterAdvance();
+    }
     void sync.flush();
     void analytics.flush();
     setProgressReady(false);
