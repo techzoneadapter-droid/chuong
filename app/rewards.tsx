@@ -7,9 +7,10 @@ import { LoadingState, RetryState } from '../components/States';
 import { XianxiaBackdrop } from '../components/XianxiaBackdrop';
 import { xianxia } from '../constants/xianxia';
 import { useAuth } from '../contexts/AuthContext';
+import { useMembership } from '../hooks/useMembership';
 import {
   claimDailyCultivation,
-  claimRewardedAdBonus,
+  beginRewardedAdSession,
   DailyCultivationState,
   DailyQuest,
   DailyQuestKey,
@@ -29,12 +30,14 @@ const questIcon: Record<DailyQuestKey, keyof typeof Ionicons.glyphMap> = {
 export default function RewardsScreen() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const membership = useMembership();
   const [state, setState] = useState<DailyCultivationState | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [claiming, setClaiming] = useState<DailyQuestKey | null>(null);
   const [error, setError] = useState('');
-  const [adAvailable] = useState(() => rewardedAdsAvailable());
+  const [notice, setNotice] = useState('');
+  const adAvailable = !membership.loading && membership.showAds && rewardedAdsAvailable();
 
   const load = useCallback(async (refresh = false) => {
     if (!user) return;
@@ -62,18 +65,22 @@ export default function RewardsScreen() {
     if (quest.claimed || claiming) return;
     setClaiming(quest.key);
     setError('');
+    setNotice('');
     try {
       if (quest.key === 'rewarded_ad') {
         if (!adAvailable) {
           setError('Quảng cáo thưởng chỉ khả dụng trong bản Android/iOS native. Bản web preview không phát quảng cáo.');
           return;
         }
-        const adResult = await showDailyRewardedAd();
+        const ticket = await beginRewardedAdSession();
+        const adResult = await showDailyRewardedAd(user.id, ticket);
         if (adResult !== 'earned') {
           setError(adResult === 'closed' ? 'Bạn cần xem hết quảng cáo để nhận Hạ Phẩm Linh Thạch.' : 'Chưa tải được quảng cáo. Vui lòng thử lại sau.');
           return;
         }
-        setState(await claimRewardedAdBonus());
+        // Client ad events NEVER add money. A signed Google SSV callback does.
+        setNotice('Đã xem xong. Đang chờ Google xác minh 5 Hạ Phẩm. Bạn có thể kéo xuống làm mới số dư.');
+        await load(true);
       } else {
         setState(await claimDailyCultivation(quest.key));
       }
@@ -116,6 +123,7 @@ export default function RewardsScreen() {
       contentContainerStyle={styles.page}
     >
       {error ? <Pressable onPress={() => load(true)}><Text style={styles.error}>{error} · Chạm để cập nhật lại</Text></Pressable> : null}
+      {notice ? <View style={styles.note}><Text style={styles.noteBody}>{notice}</Text></View> : null}
 
       <View style={styles.hero}>
         <View style={styles.heroSeal}><Ionicons name="flame-outline" size={26} color={xianxia.goldSoft} /></View>
