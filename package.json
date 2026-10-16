@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "expo start --web --port 3000 --host lan",
     "build": "expo export --platform web",
-    "test:db": "node tests/database.mjs && node tests/economy.mjs && node tests/followed-updates.mjs && node tests/release-batching.mjs && node tests/author-releases.mjs",
+    "test:db": "node tests/database.mjs && node tests/economy.mjs && node tests/followed-updates.mjs && node tests/release-batching.mjs && node tests/author-releases.mjs && npm run test:admob",
     "test:web": "playwright test",
     "native:android": "expo run:android",
     "native:ios": "expo run:ios",
@@ -19,7 +19,8 @@
     "verify": "npm run typecheck && npm run test:ui-copy && npm run test:admin-web && npm run test:release && npm run test:db && npm run test:economy && npm run build",
     "test:ui-copy": "node tests/ui-copy.mjs",
     "test:admin-web": "node --check admin-web/app.js && node --check admin-web/bulk-import.js && node --check admin-web/catalog-admin.js",
-    "test:economy": "node tests/economy.mjs"
+    "test:economy": "node tests/economy.mjs",
+    "test:admob": "node tests/admob-rewards.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
