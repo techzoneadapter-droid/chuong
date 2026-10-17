@@ -1,4 +1,5 @@
 import { PerformanceDiagnostics } from '../components/PerformanceDiagnostics';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
@@ -68,7 +69,7 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: '#F8F2E9', alignItems: 'center', justifyContent: 'center', gap: 12 }}><ActivityIndicator color="#315247" /><Text>Đang mở CHƯƠNG…</Text></View>;
 
   return (
-    <SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider>
       <PerformanceDiagnostics><AuthProvider>
         <PushNotificationBridge />
         <OfflineSyncBridge />
@@ -77,6 +78,6 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />
       </AuthProvider></PerformanceDiagnostics>
-    </SafeAreaProvider>
+    </SafeAreaProvider></GestureHandlerRootView>
   );
 }

@@ -157,6 +157,7 @@ export interface ReaderSettings {
   theme: ReaderTheme;
   padding: number;
   mode: ReaderMode;
+  pageEffect?: 'book' | 'slide' | 'none';
   autoScrollSpeed: ReaderAutoScrollSpeed;
   keepAwake: boolean;
   horizontalChapterGestures?: boolean;

@@ -1,4 +1,4 @@
-type Stage = 'catalog' | 'chapter-and-text' | 'open-to-ready' | 'ready-to-layout' | 'tts-prepare';
+type Stage = 'catalog' | 'chapter-and-text' | 'open-to-ready' | 'ready-to-layout' | 'tts-prepare' | 'page-turn-settle';
 type Sample = { stage: Stage; ms: number };
 const samples: Sample[] = [];
 let recording = false;
@@ -12,7 +12,7 @@ if (__DEV__) {
     clear: () => { samples.length = 0; },
     report: () => {
       const report: Record<string, unknown> = { mode: 'development', note: 'JS/layout callback durations; not native UI frames or heap' };
-      for (const stage of ['catalog', 'chapter-and-text', 'open-to-ready', 'ready-to-layout', 'tts-prepare']) {
+      for (const stage of ['catalog', 'chapter-and-text', 'open-to-ready', 'ready-to-layout', 'tts-prepare', 'page-turn-settle']) {
         const values = samples.filter(sample => sample.stage === stage).map(sample => sample.ms).sort((a, b) => a - b);
         report[stage] = { samples: values.length, p50Ms: values[Math.floor((values.length - 1) * .5)] ?? 0,
           p95Ms: values[Math.floor((values.length - 1) * .95)] ?? 0, maxMs: values[values.length - 1] ?? 0 };
@@ -24,6 +24,11 @@ if (__DEV__) {
 
 export function recordReaderDuration(stage: Stage, started: number) {
   if (!__DEV__ || !recording) return;
-  samples.push({ stage, ms: Math.max(0, performance.now() - started) });
+  recordReaderElapsed(stage, performance.now() - started);
+}
+
+export function recordReaderElapsed(stage: Stage, ms: number) {
+  if (!__DEV__ || !recording) return;
+  samples.push({ stage, ms: Math.max(0, ms) });
   if (samples.length > 200) samples.shift();
 }

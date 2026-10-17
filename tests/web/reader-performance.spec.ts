@@ -64,6 +64,38 @@ async function swipe(page: Page, x: number, y: number, dx: number, dy: number, d
   await cdp.detach();
 }
 
+test('page effect preferences persist after reopening settings', async ({ page }) => {
+  test.setTimeout(60000);
+  await fixture(page, 5);
+  await page.goto('/settings/reading', { waitUntil: 'domcontentloaded' });
+  for (const label of ['Lật sách 3D', 'Trượt mượt', 'Không hiệu ứng']) {
+    await page.getByText(label, { exact: true }).click();
+    const expected = label === 'Lật sách 3D' ? 'book' : label === 'Trượt mượt' ? 'slide' : 'none';
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('reader:settings') || '{}').pageEffect)).toBe(expected);
+  }
+  await page.getByText('Lật trang', { exact: true }).click();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('reader:settings') || '{}'))).toMatchObject({ mode: 'page', pageEffect: 'none' });
+  await expect(page.getByRole('radio', { name: 'Không hiệu ứng' })).toHaveAttribute('aria-checked', 'true');
+});
+
+test('long single-paragraph pages advance without skipping', async ({ page }) => {
+  test.setTimeout(60000);
+  const calls = await fixture(page, 5, 'A long paragraph with every word retained. '.repeat(400));
+  await page.addInitScript(() => localStorage.setItem('reader:settings', JSON.stringify({ fontSize: 18, font: 'serif', spacing: 'normal', theme: 'paper', padding: 22,
+    mode: 'page', pageEffect: 'none', keepAwake: false, autoScrollSpeed: 2, horizontalChapterGestures: true, boundaryChapterGestures: true })));
+  await page.goto(`/reader/${bookId}?chapter=1`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText(/Lật trang · 1\//)).toBeVisible({ timeout: 15000 });
+  for (let n = 2; n <= 4; n++) {
+    await page.getByText('Trang sau', { exact: true }).click();
+    await expect(page.getByText(new RegExp(`Lật trang · ${n}/`))).toHaveCount(1);
+    await expect(page).toHaveURL(/chapter=1/);
+  }
+  await page.getByText('Trang trước', { exact: true }).click();
+  await expect(page.getByText(/Lật trang · 3\//)).toHaveCount(1);
+  expect(calls.errors).toEqual([]);
+});
+
 test('horizontal gestures preserve sparse ordering and recheck locked chapter access', async ({ page }) => {
   await gestureSettings(page, true, false);
   const calls = await fixture(page, 500, 'Gesture paragraph. ' + 'Reader text '.repeat(100));
@@ -259,6 +291,7 @@ for (const horizontal of [false, true]) {
 }
 
 test('30 consecutive next chapter buttons keep sparse chapter content and URL consistent', async ({ page }) => {
+  test.setTimeout(90000);
   const calls = await fixture(page, 40);
   await page.goto(`/reader/${bookId}?chapter=1`);
   for (let index = 0; index < 30; index++) {

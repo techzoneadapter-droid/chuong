@@ -3,13 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "main": "expo-router/entry",
+  "reanimated": {
+    "staticFeatureFlags": {
+      "ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS": true
+    }
+  },
   "scripts": {
     "start": "expo start --web --port 3000 --host lan",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web --port 3000 --host lan",
     "typecheck": "tsc --noEmit",
-    "test:performance": "node tests/performance.mjs && node tests/performance-phase2.mjs && node tests/performance-phase3-reader.mjs && node tests/reader-gestures.mjs && node tests/request-transport.mjs && node tests/tts-discovery.mjs",
+    "test:performance": "node tests/performance.mjs && node tests/performance-phase2.mjs && node tests/performance-phase3-reader.mjs && node tests/reader-gestures.mjs && node tests/page-turn.mjs && node tests/request-transport.mjs && node tests/tts-discovery.mjs",
     "dev": "expo start --web --port 3000 --host lan",
     "build": "expo export --platform web",
     "test:db": "node tests/database.mjs && node tests/economy.mjs && node tests/followed-updates.mjs && node tests/release-batching.mjs && node tests/author-releases.mjs && npm run test:admob",
@@ -44,11 +49,14 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
     "react-native-google-mobile-ads": "16.3.4",
+    "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "^0.21.0",
+    "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

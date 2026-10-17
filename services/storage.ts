@@ -9,10 +9,11 @@ export const defaultReaderSettings: ReaderSettings = {
   theme: 'paper',
   padding: 22,
   mode: 'scroll',
+  pageEffect: 'book',
   autoScrollSpeed: 2,
   keepAwake: false,
   horizontalChapterGestures: true,
-  boundaryChapterGestures: false,
+  boundaryChapterGestures: true,
   gestureSensitivity: 'medium',
   previousChapterLanding: 'restore'
 };
