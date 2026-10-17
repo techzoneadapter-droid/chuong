@@ -1,2 +1,7 @@
 [functions.ai-generate-cover]
 verify_jwt = false
+
+# AdMob invokes signed GET callbacks without a Supabase bearer token.
+# The function verifies Google's ECDSA signature BEFORE any wallet credit.
+[functions.admob-ssv]
+verify_jwt = false

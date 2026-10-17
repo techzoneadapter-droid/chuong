@@ -1,7 +1,8 @@
+import { mapConcurrent } from '../../lib/asyncWork';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState } from '../../components/States';
 import { ArtIcon, AssetBookCover, ButtonArt } from '../../components/Artwork';
@@ -9,9 +10,9 @@ import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
 import { xianxia } from '../../constants/xianxia';
 import { artwork } from '../../constants/artwork';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBooks } from '../../services/books';
+import { getBooksByIds } from '../../services/books';
 import { getChaptersByBook } from '../../services/chapters';
-import { getLibrary, getReadingProgress, removeFromLibrary, setLibraryStatus, mergeLocalLibrary } from '../../services/library';
+import { getLibrary, getReadingProgressForBooks, removeFromLibrary, setLibraryStatus, mergeLocalLibrary } from '../../services/library';
 import { Book, LibraryEntry, LibraryStatus, ReadingProgress } from '../../types';
 
 const tabs: { value: LibraryStatus; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -22,55 +23,85 @@ const tabs: { value: LibraryStatus; label: string; icon: keyof typeof Ionicons.g
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [active, setActive] = useState<LibraryStatus>('reading');
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [bookMap, setBookMap] = useState<Record<string, Book>>({});
+  const [chapterOrdinals, setChapterOrdinals] = useState<Record<string, number>>({});
   const [progressMap, setProgressMap] = useState<Record<string, ReadingProgress | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const requestId = useRef(0);
 
   const load = useCallback(async () => {
+    if (authLoading) return;
+    const request = ++requestId.current;
     setLoading(true);
     setError('');
     try {
-      const [library, booksResult] = await Promise.all([getLibrary(user?.id), getBooks()]);
-      const map = Object.fromEntries(booksResult.data.map((book) => [book.id, book]));
-      await Promise.all(library.map(async (entry) => {
+      const library = await getLibrary(user?.id);
+      if (request !== requestId.current) return;
+      const ids = [...new Set(library.map((entry) => entry.bookId))];
+      const batches = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) => ids.slice(index * 100, index * 100 + 100));
+      const [bookGroups, progress] = await Promise.all([
+        mapConcurrent(batches, 2, (batch) => getBooksByIds(batch)),
+        getReadingProgressForBooks(ids, user?.id),
+      ]);
+      if (request !== requestId.current) return;
+      const map = Object.fromEntries(bookGroups.flat().filter((book) => !book.visibility || (book.visibility === 'public' && book.backendStatus !== 'draft')).map((book) => [book.id, book]));
+      const ordinals: Record<string, number> = {};
+      await mapConcurrent(library, 3, async (entry) => {
+        if (request !== requestId.current) return;
         const book = map[entry.bookId];
         if (book) {
           const chapters = await getChaptersByBook(book.id);
-          map[book.id] = { ...book, chapters: chapters.data, totalChapters: chapters.data.length };
+          ordinals[book.id] = Math.max(0, chapters.data.findIndex((chapter) => chapter.number === progress[book.id]?.chapterNumber));
+          map[book.id] = { ...book, chapters: [], totalChapters: chapters.data.length };
         }
-      }));
+      });
+      if (request !== requestId.current) return;
       setEntries(library);
       setBookMap(map);
-      const progress = await Promise.all(library.map(async (entry) => [entry.bookId, await getReadingProgress(entry.bookId, user?.id)] as const));
-      setProgressMap(Object.fromEntries(progress));
+      setProgressMap(progress);
+      setChapterOrdinals(ordinals);
     } catch (cause) {
+      if (request !== requestId.current) return;
       setError(cause instanceof Error ? cause.message : 'Không thể tải tủ sách.');
     } finally {
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useFocusEffect(useCallback(() => { void load(); return () => { ++requestId.current; }; }, [load]));
 
-  const update = async (bookId: string, status: LibraryStatus) => {
+  const update = useCallback(async (bookId: string, status: LibraryStatus) => {
     setEntries((items) => items.map((item) => item.bookId === bookId ? { ...item, status } : item));
     try { await setLibraryStatus(bookId, status, user?.id); } catch { void load(); }
-  };
+  }, [user?.id, load]);
 
-  const remove = async (bookId: string) => {
+  const remove = useCallback(async (bookId: string) => {
     setEntries((items) => items.filter((item) => item.bookId !== bookId));
     try { await removeFromLibrary(bookId, user?.id); } catch { void load(); }
-  };
+  }, [user?.id, load]);
 
-  const visible = entries.filter((entry) => entry.status === active);
+  const visible = useMemo(() => entries.filter((entry) => entry.status === active), [entries, active]);
+
+  const renderEntry = useCallback(({ item: entry }: { item: LibraryEntry }) => <LibraryBookRow
+    entry={entry} book={bookMap[entry.bookId]} progress={progressMap[entry.bookId]}
+    chapterOrdinal={chapterOrdinals[entry.bookId] ?? 0} remove={remove} update={update}
+  />, [bookMap, progressMap, chapterOrdinals, remove, update]);
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <XianxiaBackdrop />
-    <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+    <FlatList
+      data={loading || error ? [] : visible}
+      keyExtractor={(entry) => entry.bookId}
+      renderItem={renderEntry}
+      contentContainerStyle={styles.page}
+      showsVerticalScrollIndicator={false}
+      initialNumToRender={5} maxToRenderPerBatch={4} windowSize={5} removeClippedSubviews={false}
+      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      ListHeaderComponent={<View style={{ paddingBottom: !loading && !error && visible.length ? 2 : 0 }}>
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>TỦ LINH THƯ</Text>
@@ -109,44 +140,11 @@ export default function LibraryScreen() {
         })}
       </ScrollView>
 
-      {loading ? <LoadingState label="Đang mở Tủ Linh Thư…" />
+      </View>}
+      ListEmptyComponent={loading ? <LoadingState label="Đang mở Tủ Linh Thư…" />
         : error ? <View><EmptyState title="Không tải được tủ sách" detail={error} /><Pressable style={styles.retryButton} onPress={load}><Text style={styles.retry}>Thử lại</Text></Pressable></View>
-        : visible.length === 0 ? <EmptyState title="Tủ này còn trống" detail="Thêm truyện từ trang chi tiết để hành trình đọc xuất hiện tại đây." />
-        : <View style={styles.books}>{visible.map((entry) => {
-          const book = bookMap[entry.bookId];
-          if (!book) return <View key={entry.bookId} style={styles.missingRow}><Text style={styles.chapter}>Truyện không còn công khai.</Text><Pressable onPress={() => remove(entry.bookId)}><Text style={styles.removeText}>Xóa khỏi tủ</Text></Pressable></View>;
-          const progress = progressMap[entry.bookId];
-          const overall = progress ? Math.min(100, ((Math.max(0, book.chapters.findIndex((chapter) => chapter.number === progress.chapterNumber))) + progress.progressPercent / 100) / Math.max(1, book.totalChapters) * 100) : 0;
-          return <Pressable onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })} style={({ pressed }) => [styles.row, pressed && styles.pressed]} key={entry.bookId}>
-            <View style={styles.coverFrame}>
-              <View style={styles.cover}>
-                <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
-                <View pointerEvents="none" style={styles.coverShade} />
-                <View style={styles.coverSeal}><Ionicons name="bookmark-outline" size={13} color={xianxia.goldSoft} /></View>
-              </View>
-            </View>
-            <View style={styles.meta}>
-              <View style={styles.bookTop}>
-                <View style={{ flex: 1 }}>
-                  <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
-                  <Text numberOfLines={1} style={styles.author}>{book.author} · {book.genre}</Text>
-                </View>
-                <Pressable hitSlop={10} style={styles.closeButton} onPress={() => remove(book.id)}><Ionicons name="close" size={16} color={xianxia.muted} /></Pressable>
-              </View>
-              <Text style={styles.chapter}>{progress ? `Chương ${progress.chapterNumber} · ${Math.round(progress.progressPercent)}% chương` : `${book.totalChapters} chương`}</Text>
-              <View style={styles.track}><View style={[styles.fill, { width: `${overall}%` }]} /></View>
-              <View style={styles.readRow}>
-                <Pressable style={styles.readButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: book.id, chapter: progress?.chapterNumber ?? 1 } })}>
-                  <ButtonArt />
-                  <Ionicons name="book-outline" size={14} color={xianxia.goldSoft} /><Text style={styles.readText}>Đọc tiếp</Text>
-                </Pressable>
-                <Text style={styles.percent}>{Math.round(overall)}%</Text>
-              </View>
-              <View style={styles.statuses}>{tabs.map((tab) => <Pressable key={tab.value} onPress={() => update(book.id, tab.value)}><Text style={[styles.status, entry.status === tab.value && styles.statusActive]}>{tab.label}</Text></Pressable>)}</View>
-            </View>
-          </Pressable>;
-        })}</View>}
-
+        : <EmptyState title="Tủ này còn trống" detail="Thêm truyện từ trang chi tiết để hành trình đọc xuất hiện tại đây." />}
+      ListFooterComponent={
       <View style={styles.explorePanel}>
         <Image source={artwork.banner} resizeMode="cover" style={styles.exploreImage} />
         <View style={styles.exploreShade} />
@@ -162,9 +160,47 @@ export default function LibraryScreen() {
           </Pressable>
         </View>
       </View>
-    </ScrollView>
+      }
+    />
   </SafeAreaView>;
 }
+
+const LibraryBookRow = memo(function LibraryBookRow({ entry, book, progress, chapterOrdinal, remove, update }: {
+  entry: LibraryEntry; book?: Book; progress?: ReadingProgress | null; chapterOrdinal: number;
+  remove: (bookId: string) => Promise<void>; update: (bookId: string, status: LibraryStatus) => Promise<void>;
+}) {
+  const router = useRouter();
+  if (!book) return <View key={entry.bookId} style={styles.missingRow}><Text style={styles.chapter}>Truyện không còn công khai.</Text><Pressable onPress={() => remove(entry.bookId)}><Text style={styles.removeText}>Xóa khỏi tủ</Text></Pressable></View>;
+  const overall = progress ? Math.min(100, ((chapterOrdinal) + progress.progressPercent / 100) / Math.max(1, book.totalChapters) * 100) : 0;
+  return <Pressable onPress={() => router.push({ pathname: '/book/[id]', params: { id: book.id } })} style={({ pressed }) => [styles.row, pressed && styles.pressed]} key={entry.bookId}>
+    <View style={styles.coverFrame}>
+      <View style={styles.cover}>
+        <AssetBookCover bookId={book.id} title={book.title} coverUrl={book.coverUrl} style={StyleSheet.absoluteFillObject} />
+        <View pointerEvents="none" style={styles.coverShade} />
+        <View style={styles.coverSeal}><Ionicons name="bookmark-outline" size={13} color={xianxia.goldSoft} /></View>
+      </View>
+    </View>
+    <View style={styles.meta}>
+      <View style={styles.bookTop}>
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
+          <Text numberOfLines={1} style={styles.author}>{book.author} · {book.genre}</Text>
+        </View>
+        <Pressable hitSlop={10} style={styles.closeButton} onPress={() => remove(book.id)}><Ionicons name="close" size={16} color={xianxia.muted} /></Pressable>
+      </View>
+      <Text style={styles.chapter}>{progress ? `Chương ${progress.chapterNumber} · ${Math.round(progress.progressPercent)}% chương` : `${book.totalChapters} chương`}</Text>
+      <View style={styles.track}><View style={[styles.fill, { width: `${overall}%` }]} /></View>
+      <View style={styles.readRow}>
+        <Pressable style={styles.readButton} onPress={() => router.push({ pathname: '/reader/[bookId]', params: { bookId: book.id, chapter: progress?.chapterNumber ?? 1 } })}>
+          <ButtonArt />
+          <Ionicons name="book-outline" size={14} color={xianxia.goldSoft} /><Text style={styles.readText}>Đọc tiếp</Text>
+        </Pressable>
+        <Text style={styles.percent}>{Math.round(overall)}%</Text>
+      </View>
+      <View style={styles.statuses}>{tabs.map((tab) => <Pressable key={tab.value} onPress={() => update(book.id, tab.value)}><Text style={[styles.status, entry.status === tab.value && styles.statusActive]}>{tab.label}</Text></Pressable>)}</View>
+    </View>
+  </Pressable>;
+});
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: xianxia.paper },

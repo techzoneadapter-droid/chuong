@@ -9,8 +9,13 @@ export const defaultReaderSettings: ReaderSettings = {
   theme: 'paper',
   padding: 22,
   mode: 'scroll',
+  pageEffect: 'book',
   autoScrollSpeed: 2,
-  keepAwake: false
+  keepAwake: false,
+  horizontalChapterGestures: true,
+  boundaryChapterGestures: true,
+  gestureSensitivity: 'medium',
+  previousChapterLanding: 'restore'
 };
 
 const memory = new Map<string, string>();

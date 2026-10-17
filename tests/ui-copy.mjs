@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
 const roots = ['app', 'components', 'constants', 'data', 'hooks', 'services'];
@@ -22,7 +23,7 @@ function walk(dir) {
       if (!han.test(line)) return;
       const chars = [...new Set([...line].filter((char) => han.test(char)))].join('');
       findings.push({
-        file: relative(new URL('../', import.meta.url).pathname, path).replaceAll(String.fromCharCode(92), '/'),
+        file: relative(fileURLToPath(root), path).replaceAll(String.fromCharCode(92), '/'),
         line: index + 1,
         chars,
         text: line.trim().slice(0, 220),
@@ -31,7 +32,7 @@ function walk(dir) {
   }
 }
 
-for (const name of roots) walk(new URL('../' + name, import.meta.url).pathname);
+for (const name of roots) walk(fileURLToPath(new URL(name, root)));
 
 if (findings.length) {
   console.error('UI COPY AUDIT FAILED: found Han/CJK characters in runtime source.');

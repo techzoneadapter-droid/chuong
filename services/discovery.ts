@@ -1,3 +1,4 @@
+import { createSingleFlight } from '../lib/asyncWork';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { books as demoBooks } from '../data/books';
 import { supabase } from '../lib/supabase';
@@ -30,6 +31,8 @@ export type GenreCount = {
   genre: string;
   count: number;
 };
+
+const pendingPublicRequests = createSingleFlight();
 
 const HISTORY_KEY = 'chuong:search-history:v1';
 
@@ -73,7 +76,11 @@ function demoSearch(input: DiscoveryQuery): DiscoveryResult {
   return { books: rows.slice(offset, offset + limit), total, mode: 'demo' };
 }
 
-export async function searchDiscovery(input: DiscoveryQuery = {}): Promise<DiscoveryResult> {
+export function searchDiscovery(input: DiscoveryQuery = {}): Promise<DiscoveryResult> {
+  return pendingPublicRequests('search:' + JSON.stringify(input), () => searchDiscoveryImpl(input));
+}
+
+async function searchDiscoveryImpl(input: DiscoveryQuery): Promise<DiscoveryResult> {
   if (!supabase) return demoSearch(input);
 
   try {
@@ -82,10 +89,11 @@ export async function searchDiscovery(input: DiscoveryQuery = {}): Promise<Disco
     const hasFilters = Boolean(input.query?.trim() || input.genre?.trim() || (input.access && input.access !== 'all') || (input.status && input.status !== 'all'));
 
     if (!hasFilters && rankingKinds.has(requestedSort)) {
-      const ranked = await getPublicBookRankings(requestedSort as PublicRankingKind, Math.max(1, Math.min(input.limit ?? 30, 50)));
+      const ranked = await getPublicBookRankings(requestedSort as PublicRankingKind, 50);
+      const take = Math.max(1, Math.min(input.limit ?? 30, 50));
       const offset = Math.max(0, input.offset ?? 0);
       return {
-        books: ranked.slice(offset).map((item) => item.book),
+        books: ranked.slice(offset, offset + take).map((item) => item.book),
         total: ranked.length,
         mode: 'supabase',
       };
@@ -128,7 +136,11 @@ export async function searchDiscovery(input: DiscoveryQuery = {}): Promise<Disco
   }
 }
 
-export async function getDiscoveryGenres(limit = 30): Promise<GenreCount[]> {
+export function getDiscoveryGenres(limit = 30): Promise<GenreCount[]> {
+  return pendingPublicRequests('genres:' + limit, () => getDiscoveryGenresImpl(limit));
+}
+
+async function getDiscoveryGenresImpl(limit: number): Promise<GenreCount[]> {
   if (!supabase) {
     const counts = new Map<string, number>();
     for (const book of demoBooks) counts.set(book.genre, (counts.get(book.genre) ?? 0) + 1);

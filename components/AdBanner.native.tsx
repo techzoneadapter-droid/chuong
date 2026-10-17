@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { useMembership } from '../hooks/useMembership';
 import { xianxia } from '../constants/xianxia';
+import { CHUONG_ANDROID_BANNER_ID, realAdsEnabled } from '../services/admobUnits';
+import { isAdSdkReady, subscribeAdSdkReady } from '../services/admobReadiness';
 
 function configuredBannerId() {
-  if (Platform.OS === 'android') return process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || '';
+  if (Platform.OS === 'android') return process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID || CHUONG_ANDROID_BANNER_ID;
   if (Platform.OS === 'ios') return process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID || '';
   return '';
 }
@@ -13,11 +15,14 @@ function configuredBannerId() {
 export function AdBanner({ dark = false, compact = false }: { dark?: boolean; compact?: boolean }) {
   const membership = useMembership();
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(() => isAdSdkReady());
+  useEffect(() => subscribeAdSdkReady(setReady), []);
 
-  if (membership.loading || !membership.showAds) return null;
+  if (!ready || membership.loading || !membership.showAds || (!__DEV__ && !realAdsEnabled())) return null;
 
   const productionId = configuredBannerId();
-  const unitId = __DEV__ || !productionId ? TestIds.BANNER : productionId;
+  const unitId = __DEV__ ? TestIds.BANNER : productionId;
+  if (!unitId) return null;
 
   if (failed) {
     return (

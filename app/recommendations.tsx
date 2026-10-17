@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, RetryState } from '../components/States';
 import { AssetBookCover, ArtIcon } from '../components/Artwork';
@@ -86,11 +86,16 @@ export default function RecommendationsScreen() {
       <View style={styles.iconButton} />
     </View>
 
-    <ScrollView
+    <FlatList
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load(true); }} />}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.page}
-    >
+
+      data={items}
+      keyExtractor={(item) => item.book.id}
+      initialNumToRender={5} maxToRenderPerBatch={4} windowSize={5} removeClippedSubviews={false}
+      ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
+      ListHeaderComponent={<View style={{ paddingBottom: items.length ? 14 : 0 }}>
       <View style={styles.hero}>
         <ArtIcon source={artwork.lotus} size={58} />
         <View style={styles.heroIcon}><Ionicons name="sparkles" size={22} color={xianxia.goldSoft} /></View>
@@ -117,8 +122,9 @@ export default function RecommendationsScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {!items.length ? <EmptyState title="Chưa có đề xuất" detail="Hãy khám phá thêm truyện rồi quay lại." /> : <View style={styles.list}>
-        {items.map((item, index) => <Pressable
+      </View>}
+      ListEmptyComponent={<EmptyState title="Chưa có đề xuất" detail="Hãy khám phá thêm truyện rồi quay lại." />}
+      renderItem={({ item, index }) => <Pressable
           key={item.book.id}
           onPress={() => router.push({ pathname: '/book/[id]', params: { id: item.book.id } })}
           style={({ pressed }) => [styles.card, pressed && styles.pressed]}
@@ -160,9 +166,8 @@ export default function RecommendationsScreen() {
             <Ionicons name="close" size={16} color={xianxia.cinnabar} />
             <Text style={styles.hideText}>Ẩn</Text>
           </Pressable> : <Ionicons name="chevron-forward" size={18} color={xianxia.muted} />}
-        </Pressable>)}
-      </View>}
-    </ScrollView>
+        </Pressable>}
+    />
   </SafeAreaView>;
 }
 

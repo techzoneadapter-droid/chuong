@@ -61,7 +61,8 @@ export function AssetBookCover({
     return <Image
       accessible
       accessibilityLabel={`Bìa truyện ${title}`}
-      source={{ uri: coverUrl }}
+      source={{ uri: coverUrl, cache: 'default' }}
+      resizeMethod="resize"
       resizeMode={resizeMode}
       style={style}
     />;

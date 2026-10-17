@@ -156,6 +156,32 @@ function mapProgressRow(data: {
   };
 }
 
+// Library screens need one batched snapshot rather than a request/cache parse per book.
+export async function getReadingProgressForBooks(bookIds: string[], userId?: string): Promise<Record<string, ReadingProgress | null>> {
+  const cache = await readProgressCache(userId);
+  const ids = [...new Set(bookIds)];
+  const result: Record<string, ReadingProgress | null> = Object.fromEntries(ids.map((id) => [id, cache[id] ?? null]));
+  if (!supabase || !userId || !ids.length || !(await isInternetReachable())) return result;
+  const updates: Record<string, ReadingProgress> = {};
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const batch = ids.slice(offset, offset + 100);
+    const { data, error } = await supabase.from('reading_progress').select('*')
+      .eq('user_id', userId).in('book_id', batch).order('book_id').range(0, batch.length - 1);
+    if (error) {
+      // Match single-book fallback: use available local progress on a failed request.
+      if (batch.some((id) => !cache[id])) throw toServiceError(error, 'Không thể tải tiến độ đọc.');
+      continue;
+    }
+    for (const row of data ?? []) {
+      const mapped = mapProgressRow(row);
+      updates[mapped.bookId] = mapped;
+      result[mapped.bookId] = mapped;
+    }
+  }
+  if (Object.keys(updates).length) await writeProgressCache({ ...await readProgressCache(userId), ...updates }, userId);
+  return result;
+}
+
 export async function getReadingProgress(bookId: string, userId?: string): Promise<ReadingProgress | null> {
   const cache = await readProgressCache(userId);
   if (!supabase || !userId) return cache[bookId] ?? null;

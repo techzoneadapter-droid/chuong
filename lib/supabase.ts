@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 import { Database } from '../types/database';
+import { createRequestTransport } from './requestTransport';
 
 // Supabase publishable keys are designed for browser/mobile/public source.
 // RLS remains the security boundary. Environment variables can override these
@@ -32,19 +33,7 @@ export const isSupabaseConfigured = Boolean(
 export const supabase: SupabaseClient<Database> | null = isSupabaseConfigured
   ? createClient<Database>(supabaseUrl, supabasePublishableKey, {
       global: {
-        fetch: async (input, init) => {
-          const controller = new AbortController();
-          const cancel = () => controller.abort();
-          if (init?.signal?.aborted) cancel();
-          else init?.signal?.addEventListener('abort', cancel, { once: true });
-          const timer = setTimeout(cancel, 15000);
-          try {
-            return await fetch(input, { ...init, signal: controller.signal });
-          } finally {
-            clearTimeout(timer);
-            init?.signal?.removeEventListener('abort', cancel);
-          }
-        },
+        fetch: createRequestTransport((input, init) => fetch(input, init)),
       },
       auth: {
         storage: Platform.OS === 'web' ? undefined : AsyncStorage,

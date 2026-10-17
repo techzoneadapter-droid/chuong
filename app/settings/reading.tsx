@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArtDivider, ButtonArt } from '../../components/Artwork';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
@@ -75,6 +75,19 @@ export default function ReadingSettingsScreen() {
 
         <Label title="Chế độ đọc" />
         <Segment options={[['scroll', 'Cuộn dọc'], ['page', 'Lật trang']]} value={settings.mode} onChange={(value) => update('mode', value as ReaderMode)} />
+        <Label title="Hiệu ứng chuyển trang" />
+        <Segment options={[['book', 'Lật sách 3D'], ['slide', 'Trượt mượt'], ['none', 'Không hiệu ứng']]} value={settings.pageEffect ?? 'book'} onChange={(value) => update('pageEffect', value as ReaderSettings['pageEffect'])} />
+        <Text style={styles.noteText}>Thiết bị cấu hình thấp tự giảm 3D thành trượt để giữ độ mượt.</Text>
+
+        <Label title="Vuốt ngang chuyển chương" />
+        <Switch accessibilityLabel="Vuốt ngang chuyển chương" value={settings.horizontalChapterGestures ?? true} onValueChange={(value) => update('horizontalChapterGestures', value)} trackColor={{ false: '#D7CFC1', true: '#79988B' }} />
+        <Label title="Kéo vượt đầu/cuối chuyển chương" />
+        <Switch accessibilityLabel="Kéo vượt đầu/cuối chuyển chương" value={settings.boundaryChapterGestures ?? true} onValueChange={(value) => update('boundaryChapterGestures', value)} trackColor={{ false: '#D7CFC1', true: '#79988B' }} />
+        <Label title="Độ nhạy cử chỉ" />
+        <Segment options={[['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']]} value={settings.gestureSensitivity ?? 'medium'} onChange={(value) => update('gestureSensitivity', value as NonNullable<ReaderSettings['gestureSensitivity']>)} />
+        <Label title="Khi về chương trước" />
+        <Segment options={[['restore', 'Vị trí đã đọc'], ['end', 'Cuối chương']]} value={settings.previousChapterLanding ?? 'restore'} onChange={(value) => update('previousChapterLanding', value as NonNullable<ReaderSettings['previousChapterLanding']>)} />
+        <Text style={styles.noteText}>Lật trang: vuốt hoặc chạm mép để lật từng trang. Cuộn dọc: kéo tiếp khi đã ở đầu/cuối nội dung để chuyển chương. Có thể tắt các cử chỉ ở trên.</Text>
       </View>
 
       <View style={styles.note}><Ionicons name="checkmark-circle-outline" size={19} color={xianxia.jadeDeep} /><Text style={styles.noteText}>Thay đổi được lưu tự động. Reader sẽ dùng đúng thiết lập này ngay lần mở tiếp theo và bạn vẫn có thể chỉnh nhanh khi đang đọc.</Text></View>
@@ -93,7 +106,7 @@ function Label({ title, value }: { title: string; value?: string }) {
 }
 
 function Segment({ options, value, onChange }: { options: readonly (readonly [string, string])[]; value: string; onChange: (value: string) => void }) {
-  return <View style={styles.segment}>{options.map(([id, label]) => <Pressable key={id} onPress={() => onChange(id)} style={[styles.segmentItem, value === id && styles.segmentActive]}><Text style={[styles.segmentText, value === id && styles.segmentTextActive]}>{label}</Text></Pressable>)}</View>;
+  return <View style={styles.segment}>{options.map(([id, label]) => <Pressable key={id} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: value === id }} aria-checked={value === id} onPress={() => onChange(id)} style={[styles.segmentItem, value === id && styles.segmentActive]}><Text style={[styles.segmentText, value === id && styles.segmentTextActive]}>{label}</Text></Pressable>)}</View>;
 }
 
 const styles = StyleSheet.create({

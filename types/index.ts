@@ -157,8 +157,13 @@ export interface ReaderSettings {
   theme: ReaderTheme;
   padding: number;
   mode: ReaderMode;
+  pageEffect?: 'book' | 'slide' | 'none';
   autoScrollSpeed: ReaderAutoScrollSpeed;
   keepAwake: boolean;
+  horizontalChapterGestures?: boolean;
+  boundaryChapterGestures?: boolean;
+  gestureSensitivity?: 'low' | 'medium' | 'high';
+  previousChapterLanding?: 'restore' | 'end';
 }
 
 export interface CommentItem {

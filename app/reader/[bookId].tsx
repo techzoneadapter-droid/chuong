@@ -1,16 +1,26 @@
+import { createReaderEngine } from '../../lib/readerEngine';
+import { paginateReader } from '../../lib/readerPagination';
+import { scheduleIdle } from '../../lib/scheduleIdle';
+import { recordReaderDuration } from '../../lib/readerPerformance';
+import { isSupabaseConfigured } from '../../lib/supabase';
+import { getConnectivityState, isInternetReachable } from '../../services/connectivity';
 import { premiumPrice, SpiritCurrency } from '../../services/spiritStones';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, NativeScrollEvent, NativeSyntheticEvent, PanResponder, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ReaderMotion } from '../../components/ReaderMotion';
+import { ReaderPressable } from '../../components/ReaderPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LoadingState, EmptyState, RetryState } from '../../components/States';
 import { useReadingProgressSync } from '../../hooks/useReadingProgressSync';
+import { useReaderGestures } from '../../hooks/useReaderGestures';
 import { useReadingAnalytics } from '../../hooks/useReadingAnalytics';
 import { messageForError } from '../../services/errors';
 import { AdBanner } from '../../components/AdBanner';
+import { onFinishedChapterAdvance } from '../../services/chapterInterstitial';
 import { AuthorGiftSheet } from '../../components/AuthorGiftSheet';
 import { Comments } from '../../components/Comments';
 import { BottomSheet } from '../../components/BottomSheet';
@@ -34,7 +44,7 @@ import { getOfflineBookSnapshot } from '../../services/offlineDownloads';
 import { useAuth } from '../../contexts/AuthContext';
 import { SLEEP_TIMERS, SleepTimer, TTS_SPEEDS, TTS_VOICES, TtsVoice } from '../../services/tts';
 import { Book, Chapter, ReaderAutoScrollSpeed, ReaderFont, ReaderMode, ReaderSettings, ReaderSpacing, ReaderTheme } from '../../types';
-import { displayChapterTitle, stripLeadingChapterMarker } from '../../services/contentText';
+import { displayChapterTitle } from '../../services/contentText';
 
 type Sheet = ReaderTool | null;
 type Bookmark = { chapter: number; progress: number; updatedAt: string };
@@ -50,15 +60,26 @@ export default function ReaderScreen() {
   const params = useLocalSearchParams<{ bookId: string; chapter?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const windowSize = useWindowDimensions();
+  const { user, loading: authLoading } = useAuth();
   const [book, setBook] = useState<Book>(() => getDemoBook(params.bookId));
   const initialChapter = Math.min(book.totalChapters, Math.max(1, Number(params.chapter) || 1));
   const [chapterNumber, setChapterNumber] = useState(initialChapter);
+  // Local navigation is authoritative; URL updates mirror it instead of driving it.
+  const [requestedChapter, setRequestedChapter] = useState(params.chapter);
+  useEffect(() => { setRequestedChapter(params.chapter); }, [params.bookId, params.chapter]);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [readerFocused, setReaderFocused] = useState(false);
+  useFocusEffect(useCallback(() => {
+    setReaderFocused(true);
+    return () => setReaderFocused(false);
+  }, []));
+  const [audioInitialized, setAudioInitialized] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [settings, setSettings] = usePersistentState<ReaderSettings>('reader:settings', defaultReaderSettings);
   const [bookmarked, setBookmarked] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
+  const [preparedContent, setPreparedContent] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [lockedContent, setLockedContent] = useState<ContentLockedError | null>(null);
@@ -77,18 +98,70 @@ export default function ReaderScreen() {
   const [sharingQuote, setSharingQuote] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
   const scrollRef = useRef<ScrollView>(null);
+  const pageMotion = useRef<((direction: 'previous' | 'next', commit: () => void) => void) | null>(null);
+  const readingGeometry = useRef<((textBottom: number) => void) | null>(null);
+  const readingTextRef = useRef<View | null>(null);
   const scrollPosition = useRef(0);
+  const navigationPending = useRef(false);
+  const textBounds = useRef({ bottom: 0, viewport: 0 });
+  const recentPositions = useRef(new Map<number, { scrollPosition: number; progressPercent: number }>());
+  const arrival = useRef<{ number: number; end: boolean; position?: { scrollPosition: number; progressPercent: number } } | null>(null);
+  const pendingRestore = useRef<{ number: number; y: number; end?: boolean } | null>(null);
+  const modeRestore = useRef<{ number: number; percent: number } | null>(null);
+  const previousReaderMode = useRef(settings.mode);
+  const pendingLayout = useRef<{ number: number; started: number } | null>(null);
+  const resumeAudio = useRef(false);
+  const consumeAudioResume = useCallback(() => { resumeAudio.current = false; }, []);
+  const readerEngine = useMemo(() => {
+    let canonicalBookId = params.bookId;
+    return createReaderEngine({
+      loadCatalog: async () => {
+        if (isSupabaseConfigured && !(await getConnectivityState()).connected) {
+          const offlineBook = await getOfflineBookSnapshot(params.bookId);
+          if (!offlineBook) throw new Error('Không có kết nối mạng.');
+          canonicalBookId = offlineBook.id;
+          return { hydrated: offlineBook, localOnly: true };
+        }
+        try {
+          const result = await getBookById(params.bookId);
+          if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
+          canonicalBookId = result.data.id;
+          const chapters = await getChaptersByBook(result.data.id);
+          return { hydrated: { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length },
+            localOnly: result.mode === 'offline' || chapters.mode === 'offline' };
+        } catch (cause) {
+          const offlineBook = await getOfflineBookSnapshot(params.bookId);
+          if (!offlineBook) throw cause;
+          canonicalBookId = offlineBook.id;
+          return { hydrated: offlineBook, localOnly: true };
+        }
+      },
+      cacheCatalog: (catalog) => !catalog.localOnly,
+      loadChapter: (number, signal) => getChapter(canonicalBookId, number, signal),
+    });
+  }, [params.bookId, user?.id, reload]);
+  const loadedRoute = useRef<{ engine: typeof readerEngine; chapter?: string } | null>(null);
+  useEffect(() => {
+    resumeAudio.current = false;
+    recentPositions.current.clear();
+    arrival.current = null;
+    navigationPending.current = false;
+    return () => readerEngine.dispose();
+  }, [readerEngine]);
 
-  const selectedChapter = book.chapters.find((item) => item.number === chapterNumber);
+  useEffect(() => { if (sheet === 'audio') setAudioInitialized(true); }, [sheet]);
+
+  const chapterIndex = useMemo(() => book.chapters.findIndex((item) => item.number === chapterNumber), [book.chapters, chapterNumber]);
+  const selectedChapter = book.chapters[chapterIndex];
   const chapter = selectedChapter ?? { number: chapterNumber, title: '', content: '', id: undefined };
   const chapterDisplayTitle = displayChapterTitle(chapter.title, chapterNumber);
-  const chapterIndex = book.chapters.findIndex((item) => item.number === chapterNumber);
   const previousNumber = book.chapters[chapterIndex - 1]?.number;
   const nextNumber = book.chapters[chapterIndex + 1]?.number;
-  const sync = useReadingProgressSync({ bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress, scrollPosition: scrollPosition.current }, user?.id, progressReady && Boolean(selectedChapter));
+  const chapterReady = progressReady && loadedRoute.current?.engine === readerEngine && loadedRoute.current.chapter === requestedChapter;
+  const sync = useReadingProgressSync({ bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress, scrollPosition: scrollPosition.current }, user?.id, chapterReady && Boolean(selectedChapter), () => scrollPosition.current);
   const analytics = useReadingAnalytics(
     { bookId: book.id, chapterId: chapter.id, chapterNumber, progressPercent: readingProgress },
-    progressReady && Boolean(selectedChapter?.id) && !offlineReading && !lockedContent
+    chapterReady && Boolean(selectedChapter?.id) && !offlineReading && !lockedContent
   );
   const exitReader = () => {
     void sync.flush();
@@ -99,30 +172,14 @@ export default function ReaderScreen() {
     }
     router.replace({ pathname: '/book/[id]', params: { id: book.id } });
   };
-  const content = useMemo(() => {
-    if (!chapter.content) return getChapterContent(chapterNumber);
-    const cleaned = stripLeadingChapterMarker(chapter.content, chapterNumber);
-    return cleaned.split(/\n\s*\n/).filter(Boolean);
-  }, [chapter.content, chapterNumber]);
+  const content = preparedContent;
+  const audioText = useMemo(() => audioInitialized || sheet === 'audio' ? content.join('\n\n') : '', [audioInitialized, sheet === 'audio', content]);
   const pagedContent = useMemo(() => {
+    if (settings.mode !== 'page') return [];
     const spacingFactor = settings.spacing === 'compact' ? 1.12 : settings.spacing === 'relaxed' ? .82 : 1;
     const target = Math.max(520, Math.round(1120 * (18 / settings.fontSize) * spacingFactor));
-    const pages: string[][] = [];
-    let current: string[] = [];
-    let size = 0;
-    for (const paragraph of content) {
-      const nextSize = size + paragraph.length + 2;
-      if (current.length && nextSize > target) {
-        pages.push(current);
-        current = [];
-        size = 0;
-      }
-      current.push(paragraph);
-      size += paragraph.length + 2;
-    }
-    if (current.length || !pages.length) pages.push(current);
-    return pages;
-  }, [content, settings.fontSize, settings.spacing]);
+    return paginateReader(content, target);
+  }, [content, settings.fontSize, settings.spacing, settings.mode]);
   const visibleContent = settings.mode === 'page' ? (pagedContent[pageIndex] ?? pagedContent[0] ?? []) : content;
   const bookmark: Bookmark | null = bookmarked ? { chapter: chapterNumber, progress: readingProgress, updatedAt: new Date().toISOString() } : null;
   const palette = themes[settings.theme];
@@ -131,9 +188,9 @@ export default function ReaderScreen() {
   const fontFamily = settings.font === 'serif' ? 'Georgia' : settings.font === 'sans' ? 'Arial' : undefined;
   const filteredChapters = useMemo(() => {
     const value = chapterSearch.trim().toLowerCase().replace('chương', '').trim();
-    if (!value) return book.chapters.slice(Math.max(0, chapterNumber - 5), Math.min(book.totalChapters, chapterNumber + 5));
+    if (!value) return book.chapters.slice(Math.max(0, chapterIndex - 4), chapterIndex + 6);
     return book.chapters.filter((item) => String(item.number).includes(value) || item.title.toLowerCase().includes(value)).slice(0, 30);
-  }, [book.chapters, book.totalChapters, chapterNumber, chapterSearch]);
+  }, [book.chapters, chapterIndex, chapterSearch]);
 
   useEffect(() => {
     if (!lockedContent || lockedContent.kind !== 'chapter' || !selectedChapter?.earlyAccessUntil) return;
@@ -147,58 +204,69 @@ export default function ReaderScreen() {
   }, [lockedContent, selectedChapter?.earlyAccessUntil]);
 
   useEffect(() => {
+    if (authLoading) return;
     let active = true;
+    const request = new AbortController();
     setProgressReady(false);
     setLoading(true);
     setLoadError('');
     setLockedContent(null);
     setUnlockError('');
 
+    const opened = performance.now();
     const load = async () => {
       try {
-        let hydrated: Book;
-        let localOnly = false;
-
-        try {
-          const result = await getBookById(params.bookId);
+        const catalogStarted = performance.now();
+        let catalog = await readerEngine.catalog();
+        if (!active) return;
+        const explicitChapter = Number(requestedChapter);
+        if (explicitChapter && !catalog.hydrated.chapters.some(item => item.number === explicitChapter)) {
+          // A publication link may target a chapter newer than the cached metadata snapshot.
+          catalog = await readerEngine.catalog(true);
           if (!active) return;
-          if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
-
-          const chapters = await getChaptersByBook(result.data.id);
-          if (!active) return;
-          hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length };
-        } catch (networkOrCatalogError) {
-          const offlineBook = await getOfflineBookSnapshot(params.bookId);
-          if (!offlineBook) throw networkOrCatalogError;
-          hydrated = offlineBook;
-          localOnly = true;
+        }
+        recordReaderDuration('catalog', catalogStarted);
+        const hydrated = catalog.hydrated;
+        let localOnly = catalog.localOnly;
+        if (explicitChapter && !hydrated.chapters.some(item => item.number === explicitChapter)) {
+          throw new Error(`Chương ${explicitChapter} chưa được xuất bản hoặc không còn khả dụng.`);
         }
 
-        const saved = await getReadingProgress(hydrated.id, user?.id).catch(() => null);
-        const requested = Number(params.chapter) || saved?.chapterNumber;
+        // History never gates chapter-to-chapter navigation; only initial resume needs it.
+        const saved = arrival.current ? null : await getReadingProgress(hydrated.id, user?.id).catch(() => null);
+        const requested = Number(requestedChapter) || saved?.chapterNumber;
         const targetChapter = requested && hydrated.chapters.some((item) => item.number === requested)
           ? requested
           : hydrated.chapters[0]?.number ?? 1;
 
+        if (!active) return;
         setBook(hydrated);
-        setChapterNumber(targetChapter);
+        void getBookmarks(hydrated.id, user?.id).then((marks) => {
+          if (active) setBookmarked(marks.some((item) => item.chapterNumber === targetChapter));
+        }).catch(() => undefined);
 
         let selected: Awaited<ReturnType<typeof getChapter>> | null = null;
+        let paragraphs: string[] = [];
         try {
-          selected = hydrated.chapters.length ? await getChapter(hydrated.id, targetChapter) : null;
+          if (hydrated.chapters.length) {
+            const chapterStarted = performance.now();
+            const loaded = await readerEngine.read(targetChapter, request.signal);
+            if (!active) return;
+            recordReaderDuration('chapter-and-text', chapterStarted);
+            selected = loaded.result;
+            paragraphs = loaded.paragraphs;
+          }
         } catch (cause) {
           if (cause instanceof ContentLockedError) {
             if (!active) return;
+            resumeAudio.current = false;
+            setChapterNumber(targetChapter);
             setLockedContent(cause);
+            setWalletBalance(null); setPremiumBalance(null);
             if (user) {
-              try {
-                const wallet = await getWallet(user.id);
+              void getWallet(user.id).then((wallet) => {
                 if (active) { setWalletBalance(wallet.low_spirit_stones); setPremiumBalance(wallet.high_spirit_stones); }
-              } catch {
-                if (active) { setWalletBalance(null); setPremiumBalance(null); }
-              }
-            } else {
-              setWalletBalance(null); setPremiumBalance(null);
+              }).catch(() => undefined);
             }
             return;
           }
@@ -209,40 +277,81 @@ export default function ReaderScreen() {
         if (hydrated.chapters.length && !selected?.data) throw new Error('Chương này chưa được xuất bản hoặc không còn khả dụng.');
 
         localOnly = localOnly || selected?.mode === 'offline';
+        setChapterNumber(targetChapter);
         setOfflineReading(localOnly);
+        setPreparedContent(selected?.data?.content ? paragraphs : getChapterContent(targetChapter));
         setBook({
           ...hydrated,
           chapters: hydrated.chapters.map((item) =>
             item.number === targetChapter && selected?.data ? selected.data : item
           ),
         });
-        setReadingProgress(saved?.chapterNumber === targetChapter ? saved.progressPercent : 0);
-        scrollPosition.current = saved?.chapterNumber === targetChapter ? saved.scrollPosition : 0;
-        const marks = await getBookmarks(hydrated.id, user?.id).catch(() => []);
+        const landing = arrival.current?.number === targetChapter ? arrival.current : null;
+        const restored = landing ? landing.position : saved?.chapterNumber === targetChapter ? saved : null;
+        setReadingProgress(landing?.end ? 100 : restored?.progressPercent ?? 0);
+        scrollPosition.current = landing?.end ? 0 : restored?.scrollPosition ?? 0;
+        arrival.current = null;
         if (!active) return;
-        setBookmarked(marks.some((item) => item.chapterNumber === targetChapter));
+        pendingRestore.current = landing?.end ? { number: targetChapter, y: 0, end: true }
+          : scrollPosition.current > 0 ? { number: targetChapter, y: scrollPosition.current } : null;
+        pendingLayout.current = { number: targetChapter, started: performance.now() };
+        loadedRoute.current = { engine: readerEngine, chapter: requestedChapter };
         setProgressReady(true);
-        if (scrollPosition.current > 0) {
-          setTimeout(() => scrollRef.current?.scrollTo({ y: scrollPosition.current, animated: false }), 80);
-        }
+        recordReaderDuration('open-to-ready', opened);
       } catch (cause) {
-        if (active) setLoadError(messageForError(cause, 'Không thể tải nội dung.'));
+        if (active) { resumeAudio.current = false; setLoadError(messageForError(cause, 'Không thể tải nội dung.')); }
       } finally {
-        if (active) setLoading(false);
+        if (active) { navigationPending.current = false; setLoading(false); }
       }
     };
 
     load();
-    return () => { active = false; };
-  }, [params.bookId, params.chapter, user?.id, reload]);
+    return () => { active = false; request.abort(); pendingRestore.current = null; modeRestore.current = null; pendingLayout.current = null; };
+  }, [authLoading, params.bookId, requestedChapter, user?.id, reload, readerEngine]);
 
-  const goChapter = (number: number) => {
+  useFocusEffect(useCallback(() => {
+    if (loading || !progressReady || offlineReading || lockedContent || book.isVip) return;
+    let active = true;
+    let cancelIdle: (() => void) | undefined;
+    const timer = setTimeout(() => {
+      cancelIdle = scheduleIdle(() => {
+        void (async () => {
+          if (!(await isInternetReachable())) return;
+          // One speculative request at a time, at most the two actual adjacent free chapters.
+          for (const number of [nextNumber, previousNumber]) {
+            if (!active || AppState.currentState !== 'active') return;
+            const metadata = book.chapters.find(item => item.number === number);
+            if (!metadata || metadata.access !== 'free' || metadata.configuredVip || readerEngine.hasPrepared(metadata.number)) continue;
+            await readerEngine.read(metadata.number).catch(() => undefined);
+          }
+        })();
+      });
+    }, 500);
+    return () => { active = false; clearTimeout(timer); cancelIdle?.(); };
+  }, [loading, progressReady, offlineReading, lockedContent, book.isVip, book.chapters, nextNumber, previousNumber, readerEngine]));
+
+  const goChapter = (number: number, continueAudio = false, animate = true) => {
+    if (loading || navigationPending.current) return;
     if (!book.chapters.some((item) => item.number === number)) return;
+    if (number === chapterNumber) { setSheet(null); setChapterSearch(''); return; }
+    if (animate && readerFocused && AppState.currentState === 'active' && !sheet && pageMotion.current) {
+      pageMotion.current(number > chapterNumber ? 'next' : 'previous', () => goChapter(number, continueAudio, false));
+      return;
+    }
+    const showBoundaryAd = number === nextNumber && readingProgress >= 90 && !lockedContent && !offlineReading;
+    navigationPending.current = true;
+    recentPositions.current.delete(chapterNumber);
+    recentPositions.current.set(chapterNumber, { scrollPosition: scrollPosition.current, progressPercent: readingProgress });
+    if (recentPositions.current.size > 3) recentPositions.current.delete(recentPositions.current.keys().next().value!);
+    const backwards = number === previousNumber;
+    arrival.current = { number, end: backwards && (settings.mode === 'page' || settings.previousChapterLanding === 'end'),
+      position: backwards ? recentPositions.current.get(number) : undefined };
     void sync.flush();
     void analytics.flush();
+    resumeAudio.current = continueAudio;
     setProgressReady(false);
+    setLoading(true);
     const next = number;
-    setChapterNumber(next);
     setSheet(null);
     setChapterSearch('');
     setReadingProgress(0);
@@ -250,8 +359,52 @@ export default function ReaderScreen() {
     setBookmarked(false);
     setAutoScrolling(false);
     scrollPosition.current = 0;
+    setRequestedChapter(String(next));
     router.setParams({ chapter: String(next) });
+    // A synchronously failing native ad must never interrupt the navigation above.
+    if (showBoundaryAd) { try { onFinishedChapterAdvance(); } catch { /* Reading continues. */ } }
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+  };
+
+  const restoreReaderPosition = () => {
+    const restore = pendingRestore.current;
+    if (restore?.number !== chapterNumber || settings.mode !== 'scroll') return;
+    if (restore.end && (!textBounds.current.bottom || !textBounds.current.viewport)) return;
+    pendingRestore.current = null;
+    const y = restore.end ? Math.max(0, textBounds.current.bottom - textBounds.current.viewport) : restore.y;
+    scrollPosition.current = y;
+    scrollRef.current?.scrollTo({ y, animated: false });
+  };
+  const onReaderContentSizeChange = (_width: number, height: number) => {
+    const layout = pendingLayout.current;
+    if (layout?.number === chapterNumber) {
+      pendingLayout.current = null;
+      recordReaderDuration('ready-to-layout', layout.started);
+    }
+    const position = modeRestore.current;
+    if (position?.number === chapterNumber && settings.mode === 'scroll') {
+      const applyPosition = (measuredHeight: number) => {
+        if (modeRestore.current !== position || measuredHeight <= 0) return;
+        modeRestore.current = null;
+        const y = Math.max(0, measuredHeight - textBounds.current.viewport) * position.percent / 100;
+        scrollPosition.current = y;
+        scrollRef.current?.scrollTo({ y, animated: false });
+      };
+      // An old page's queued size event can arrive after the mode changes. Read
+      // the current committed content view instead of restoring from that event.
+      requestAnimationFrame(() => {
+        if (modeRestore.current !== position) return;
+        if (Platform.OS === 'web') {
+          const inner = scrollRef.current?.getInnerViewNode() as { scrollHeight?: number } | null;
+          applyPosition(inner?.scrollHeight ?? height);
+        } else {
+          const inner = (scrollRef.current as (ScrollView & { getInnerViewRef?: () => View | null }) | null)?.getInnerViewRef?.();
+          if (inner?.measure) inner.measure((_x, _y, _width, measuredHeight) => applyPosition(measuredHeight));
+          else applyPosition(height);
+        }
+      });
+    }
+    restoreReaderPosition();
   };
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -267,38 +420,78 @@ export default function ReaderScreen() {
     }
   };
 
-  const goReaderPage = (nextIndex: number) => {
+  const goReaderPage = (nextIndex: number, animate = true) => {
     const clamped = Math.min(Math.max(0, nextIndex), Math.max(0, pagedContent.length - 1));
+    if (clamped === pageIndex || loading || navigationPending.current) return;
+    if (animate && readerFocused && AppState.currentState === 'active' && pageMotion.current) {
+      pageMotion.current(clamped > pageIndex ? 'next' : 'previous', () => goReaderPage(clamped, false));
+      return;
+    }
     setPageIndex(clamped);
-    const percent = pagedContent.length ? Math.round(((clamped + 1) / pagedContent.length) * 100) : 100;
+    const percent = pagedContent.length > 1 ? Math.round(clamped / (pagedContent.length - 1) * 100) : 100;
     setReadingProgress(percent);
     scrollPosition.current = clamped;
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
   };
 
-  const pagePanResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => (
-      settings.mode === 'page'
-      && Math.abs(gesture.dx) > 18
-      && Math.abs(gesture.dx) > Math.abs(gesture.dy)
-    ),
-    onPanResponderRelease: (_, gesture) => {
-      if (gesture.dx <= -45 && pageIndex < pagedContent.length - 1) goReaderPage(pageIndex + 1);
-      if (gesture.dx >= 45 && pageIndex > 0) goReaderPage(pageIndex - 1);
-    },
-  }), [pageIndex, pagedContent.length, settings.mode]);
+  const navigateReading = (direction: 'next' | 'previous', animate = true) => {
+    if (settings.mode === 'page') {
+      const index = pageIndex + (direction === 'next' ? 1 : -1);
+      if (index >= 0 && index < pagedContent.length) { goReaderPage(index, animate); return; }
+    }
+    const number = direction === 'next' ? nextNumber : previousNumber;
+    if (number !== undefined) goChapter(number, false, animate);
+  };
+  const chapterGestures = useReaderGestures({
+    enabled: Platform.OS === 'web' && readerFocused && !loading && chapterReady && !navigationPending.current && !lockedContent && !sheet && !giftOpen && !quoteToShare,
+    horizontal: settings.mode === 'page' || (settings.horizontalChapterGestures ?? true),
+    vertical: settings.mode === 'scroll' && (settings.boundaryChapterGestures ?? true),
+    sensitivity: settings.gestureSensitivity ?? 'medium',
+    chapterKey: `${book.id}:${chapterNumber}`,
+    start: () => ({ x: 0, y: 0, width: windowSize.width, height: windowSize.height,
+      topInset: insets.top, bottomInset: insets.bottom, leftInset: insets.left, rightInset: insets.right,
+      atTop: scrollPosition.current <= 2,
+      atBottom: textBounds.current.bottom > 0 && scrollPosition.current + textBounds.current.viewport >= textBounds.current.bottom - 2,
+      previous: previousNumber !== undefined || (settings.mode === 'page' && pageIndex > 0),
+      next: nextNumber !== undefined || (settings.mode === 'page' && pageIndex < pagedContent.length - 1) }),
+    navigate: (direction) => navigateReading(direction),
+  });
+  const bindReadingText = useCallback((view: View | null) => {
+    readingTextRef.current = view;
+    chapterGestures.bindWeb(view);
+  }, [chapterGestures.bindWeb]);
+
+  useLayoutEffect(() => {
+    if (previousReaderMode.current === settings.mode) return;
+    previousReaderMode.current = settings.mode;
+    modeRestore.current = null;
+    if (loading || !progressReady) return;
+    // A page index is not a pixel offset. Wait for the expanded text's actual
+    // content size before restoring its percentage in vertical mode.
+    pendingRestore.current = null;
+    if (settings.mode === 'scroll') modeRestore.current = { number: chapterNumber, percent: readingProgress };
+    else scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [settings.mode, chapterNumber, loading, progressReady, readingProgress]);
 
   useEffect(() => {
-    if (settings.mode !== 'page') return;
-    setPageIndex(0);
-    setReadingProgress(pagedContent.length ? Math.round(100 / pagedContent.length) : 100);
-    scrollPosition.current = 0;
-    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
-  }, [chapterNumber, settings.mode, settings.fontSize, settings.spacing, settings.padding, pagedContent.length]);
+    if (loading || !progressReady) return;
+    // A retained view may keep the same dimensions and emit no new onLayout event.
+    const frame = requestAnimationFrame(() => readingTextRef.current?.measure((_x, y, _width, height) => {
+      textBounds.current.bottom = y + height;
+      readingGeometry.current?.(y + height);
+      const layout = pendingLayout.current;
+      if (layout?.number === chapterNumber) {
+        pendingLayout.current = null;
+        recordReaderDuration('ready-to-layout', layout.started);
+      }
+      restoreReaderPosition();
+    }));
+    return () => cancelAnimationFrame(frame);
+  }, [loading, progressReady, chapterNumber, settings.mode]);
 
   useEffect(() => {
     if (settings.mode !== 'page' || !progressReady || !pagedContent.length) return;
-    const target = Math.min(pagedContent.length - 1, Math.max(0, Math.floor(readingProgress / 100 * pagedContent.length)));
+    const target = Math.min(pagedContent.length - 1, Math.max(0, Math.round(readingProgress / 100 * (pagedContent.length - 1))));
     setPageIndex(target);
     scrollPosition.current = target;
   }, [chapterNumber, pagedContent.length, progressReady, settings.mode]);
@@ -318,6 +511,7 @@ export default function ReaderScreen() {
     const speedMap: Record<ReaderAutoScrollSpeed, number> = { 1: 14, 2: 24, 3: 38, 4: 56 };
     const speed = speedMap[(settings.autoScrollSpeed ?? 2) as ReaderAutoScrollSpeed] ?? 24;
     const interval = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
       const next = scrollPosition.current + speed / 20;
       scrollRef.current?.scrollTo({ y: next, animated: false });
     }, 50);
@@ -342,13 +536,42 @@ export default function ReaderScreen() {
     }
   };
 
-  const openQuoteShare = (quote: string) => {
+  const openQuoteShare = useCallback((quote: string) => {
     if (!quote.trim()) return;
     setAutoScrolling(false);
     setControlsVisible(true);
     setSheet(null);
     setShareNotice('');
     setQuoteToShare(quote);
+  }, []);
+
+  const paragraphElements = useMemo(() => visibleContent.map((paragraph, index) => (
+    <Text
+      key={`paragraph-${index}`}
+      style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}
+      onLongPress={(event) => {
+        event.stopPropagation?.();
+        openQuoteShare(paragraph);
+      }}
+      suppressHighlighting
+    >
+      {paragraph}
+    </Text>
+  )),
+    [visibleContent, palette.text, settings.fontSize, lineHeight, fontFamily, openQuoteShare]);
+
+  const pagePreview = (index: number) => {
+    if (settings.mode !== 'page' || index < 0 || index >= pagedContent.length) return null;
+    return <View style={[styles.readingPage, { paddingHorizontal: settings.padding, paddingTop: insets.top + 72 }]}>
+      <View style={[styles.pageModeBadge, dark && styles.pageModeBadgeDark]}><Ionicons name="albums-outline" size={14} color={dark ? xianxia.goldSoft : xianxia.jadeDeep} /><Text style={[styles.pageModeText, dark && styles.pageModeTextDark]}>Lật trang · {index + 1}/{pagedContent.length}</Text></View>
+      {index === 0 ? <>
+        <Text style={[styles.bookKicker, { color: palette.muted }]}>{book.title.toUpperCase()}</Text>
+        <Text style={[styles.chapterNumber, { color: palette.text }]}>Chương {chapterNumber}</Text>
+        {chapterDisplayTitle ? <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapterDisplayTitle}</Text> : null}
+        {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
+      </> : null}
+      {pagedContent[index].map((text, paragraph) => <Text key={paragraph} style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}>{text}</Text>)}
+    </View>;
   };
 
   const shareCurrentQuote = async () => {
@@ -417,7 +640,7 @@ export default function ReaderScreen() {
     }
   };
 
-  if (loading) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><LoadingState label="Đang mở linh quyển…" /></View>;
+  if (loading && loadedRoute.current?.engine !== readerEngine) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><LoadingState label="Đang mở linh quyển…" /></View>;
   if (loadError) return <View style={styles.root}><XianxiaBackdrop opacity={.34} /><RetryState detail={loadError} onRetry={() => setReload((value) => value + 1)} /></View>;
 
   if (lockedContent) {
@@ -468,6 +691,12 @@ export default function ReaderScreen() {
           </>}
           <Text style={styles.paywallSafety}>{earlyAccessActive ? 'Nếu chọn đọc sớm, quyền đọc được lưu ngay trên tài khoản. Khi Tiên Cơ hết hạn, mọi độc giả sẽ đọc chương này miễn phí.' : 'Hạ Phẩm hoặc Thượng Phẩm chỉ bị trừ khi quyền đọc được cấp thành công.'}</Text>
         </View></ScrollView>
+        <View style={styles.chapterNav}>
+          <Pressable disabled={previousNumber === undefined} onPress={() => goChapter(previousNumber ?? chapterNumber)} style={[styles.navButton, previousNumber === undefined && styles.disabled]}><Text style={styles.navText}>Chương trước</Text></Pressable>
+          <Pressable onPress={() => setSheet('chapters')} style={styles.navCenter}><Text style={styles.navCenterText}>Danh sách</Text></Pressable>
+          <Pressable disabled={nextNumber === undefined} onPress={() => goChapter(nextNumber ?? chapterNumber)} style={[styles.navButton, nextNumber === undefined && styles.disabled]}><Text style={styles.navText}>Chương sau</Text></Pressable>
+        </View>
+        <ChapterSheet visible={sheet === 'chapters'} onClose={() => setSheet(null)} chapters={filteredChapters} query={chapterSearch} onQuery={setChapterSearch} onSelect={goChapter} current={chapterNumber} />
       </View>
     );
   }
@@ -479,9 +708,23 @@ export default function ReaderScreen() {
       {!dark ? <XianxiaBackdrop opacity={settings.theme === 'paper' ? .16 : .07} /> : null}
       {sync.error ? <Text style={{ color: '#A12B48', padding: 8 }}>{sync.error}</Text> : null}
       <StatusBar style={dark ? 'light' : 'dark'} />
-      <ScrollView
+      <ReaderMotion
+        contentKey={`${book.id}:${chapterNumber}:${pageIndex}:${settings.mode}`}
+        enabled={readerFocused && !loading && chapterReady && !lockedContent && !sheet && !giftOpen && !quoteToShare}
+        horizontal={settings.mode === 'page' || (settings.horizontalChapterGestures ?? true)}
+        vertical={settings.mode === 'scroll' && (settings.boundaryChapterGestures ?? true)}
+        effect={settings.mode === 'page' ? (settings.pageEffect ?? 'book') : settings.pageEffect === 'none' ? 'none' : 'slide'} sensitivity={settings.gestureSensitivity ?? 'medium'} paper={palette.bg} ink={palette.text}
+        previous={previousNumber !== undefined || (settings.mode === 'page' && pageIndex > 0)}
+        next={nextNumber !== undefined || (settings.mode === 'page' && pageIndex < pagedContent.length - 1)}
+        onTurn={(direction) => navigateReading(direction, false)} motionRef={pageMotion} geometryRef={readingGeometry}
+        previousPreview={pagePreview(pageIndex - 1)} nextPreview={pagePreview(pageIndex + 1)}
+        testID="reader-scroll-view"
         ref={scrollRef}
+        accessibilityElementsHidden={loading}
+        importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'}
+        onLayout={(event) => { textBounds.current.viewport = event.nativeEvent.layout.height; restoreReaderPosition(); }}
         onScroll={onScroll}
+        onContentSizeChange={onReaderContentSizeChange}
         onScrollBeginDrag={() => {
           if (autoScrolling) {
             setAutoScrolling(false);
@@ -489,13 +732,21 @@ export default function ReaderScreen() {
           }
         }}
         scrollEventThrottle={120}
-        scrollEnabled={settings.mode !== 'page'}
-        {...(settings.mode === 'page' ? pagePanResponder.panHandlers : {})}
+        scrollEnabled={!loading}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.readingPage, { paddingHorizontal: settings.padding, paddingTop: insets.top + 72, paddingBottom: insets.bottom + 105 }]}
         style={{ backgroundColor: dark ? palette.bg : settings.theme === 'paper' ? 'rgba(244,235,216,.88)' : 'rgba(255,255,255,.94)' }}
       >
-        <Pressable onPress={() => setControlsVisible((value) => !value)}>
+        <View ref={bindReadingText} testID="reader-gesture-content" {...chapterGestures.handlers}
+          onLayout={(event) => { textBounds.current.bottom = event.nativeEvent.layout.y + event.nativeEvent.layout.height; readingGeometry.current?.(textBounds.current.bottom); restoreReaderPosition(); }}>
+        <ReaderPressable onPress={(event) => {
+          if (settings.mode === 'page') {
+            const x = event.nativeEvent.pageX;
+            if (x < Math.max(44, settings.padding + 24)) { navigateReading('previous'); return; }
+            if (x > windowSize.width - Math.max(44, settings.padding + 24)) { navigateReading('next'); return; }
+          }
+          setControlsVisible((value) => !value);
+        }}>
           {settings.mode === 'page' ? <View style={[styles.pageModeBadge, dark && styles.pageModeBadgeDark]}><Ionicons name="albums-outline" size={14} color={dark ? xianxia.goldSoft : xianxia.jadeDeep} /><Text style={[styles.pageModeText, dark && styles.pageModeTextDark]}>Lật trang · {pageIndex + 1}/{pagedContent.length}</Text></View> : null}
           {settings.mode !== 'page' || pageIndex === 0 ? <>
             <Text style={[styles.bookKicker, { color: palette.muted }]}>{book.title.toUpperCase()}</Text>
@@ -503,41 +754,41 @@ export default function ReaderScreen() {
             {chapterDisplayTitle ? <Text style={[styles.chapterTitle, { color: palette.text }]}>{chapterDisplayTitle}</Text> : null}
             {dark ? <View style={[styles.rule, { backgroundColor: palette.muted }]} /> : <ArtDivider />}
           </> : null}
-          {visibleContent.map((paragraph, index) => (
-            <Text
-              key={`${chapterNumber}-${pageIndex}-${index}`}
-              style={[styles.paragraph, { color: palette.text, fontSize: settings.fontSize, lineHeight, fontFamily }]}
-              onLongPress={(event) => {
-                event.stopPropagation?.();
-                openQuoteShare(paragraph);
-              }}
-              suppressHighlighting
-            >
-              {paragraph}
-            </Text>
-          ))}
+          {paragraphElements}
+        </ReaderPressable>
+        </View>
+        <ReaderPressable onPress={() => setControlsVisible((value) => !value)}>
           {settings.mode === 'page' ? <View style={[styles.pagePager, { borderColor: dark ? '#4C494B' : xianxia.line }]}>
-            <Pressable disabled={pageIndex === 0} onPress={() => goReaderPage(pageIndex - 1)} style={[styles.pageButton, pageIndex === 0 && styles.disabled]}><Ionicons name="chevron-back" size={17} color={palette.text} /><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang trước</Text></Pressable>
+            <ReaderPressable disabled={pageIndex === 0 && previousNumber === undefined} onPress={() => navigateReading('previous')} style={[styles.pageButton, pageIndex === 0 && previousNumber === undefined && styles.disabled]}><Ionicons name="chevron-back" size={17} color={palette.text} /><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang trước</Text></ReaderPressable>
             <Text style={[styles.pageCount, { color: palette.muted }]}>{pageIndex + 1} / {pagedContent.length}</Text>
-            <Pressable disabled={pageIndex >= pagedContent.length - 1} onPress={() => goReaderPage(pageIndex + 1)} style={[styles.pageButton, styles.pageButtonRight, pageIndex >= pagedContent.length - 1 && styles.disabled]}><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang sau</Text><Ionicons name="chevron-forward" size={17} color={palette.text} /></Pressable>
+            <ReaderPressable disabled={pageIndex >= pagedContent.length - 1 && nextNumber === undefined} onPress={() => navigateReading('next')} style={[styles.pageButton, styles.pageButtonRight, pageIndex >= pagedContent.length - 1 && nextNumber === undefined && styles.disabled]}><Text style={[styles.pageButtonText, { color: palette.text }]}>Trang sau</Text><Ionicons name="chevron-forward" size={17} color={palette.text} /></ReaderPressable>
           </View> : null}
           {settings.mode !== 'page' || pageIndex === pagedContent.length - 1 ? <Text style={[styles.endMark, { color: palette.muted }]}>— Hết chương {chapterNumber} —</Text> : null}
-        </Pressable>
+        </ReaderPressable>
 
         <AdBanner dark={dark} />
 
         <View style={[styles.chapterNav, { borderColor: dark ? '#4C494B' : '#D9CCC4' }]}>
-          <Pressable disabled={previousNumber === undefined} onPress={() => goChapter(previousNumber ?? chapterNumber)} style={[styles.navButton, previousNumber === undefined && styles.disabled]}><Ionicons name="chevron-back" size={16} color={palette.text} /><Text style={[styles.navText, { color: palette.text }]}>Chương trước</Text></Pressable>
-          <Pressable onPress={() => setSheet('chapters')} style={styles.navCenter}><Ionicons name="list" size={19} color="#9C3153" /><Text style={styles.navCenterText}>Danh sách</Text></Pressable>
-          <Pressable disabled={nextNumber === undefined} onPress={() => goChapter(nextNumber ?? chapterNumber)} style={[styles.navButton, styles.navRight, nextNumber === undefined && styles.disabled]}><Text style={[styles.navText, { color: palette.text }]}>Chương sau</Text><Ionicons name="chevron-forward" size={16} color={palette.text} /></Pressable>
+          <ReaderPressable disabled={previousNumber === undefined} onPress={() => goChapter(previousNumber ?? chapterNumber)} style={[styles.navButton, previousNumber === undefined && styles.disabled]}><Ionicons name="chevron-back" size={16} color={palette.text} /><Text style={[styles.navText, { color: palette.text }]}>Chương trước</Text></ReaderPressable>
+          <ReaderPressable onPress={() => setSheet('chapters')} style={styles.navCenter}><Ionicons name="list" size={19} color="#9C3153" /><Text style={styles.navCenterText}>Danh sách</Text></ReaderPressable>
+          <ReaderPressable disabled={nextNumber === undefined} onPress={() => goChapter(nextNumber ?? chapterNumber)} style={[styles.navButton, styles.navRight, nextNumber === undefined && styles.disabled]}><Text style={[styles.navText, { color: palette.text }]}>Chương sau</Text><Ionicons name="chevron-forward" size={16} color={palette.text} /></ReaderPressable>
         </View>
         <View style={styles.discussion}>
+          {nextNumber === undefined ? <Text accessibilityLiveRegion="polite" style={{ color: palette.muted, textAlign: 'center', paddingVertical: 12 }}>Đây là chương cuối đã xuất bản.</Text> : null}
           {offlineReading ? <View style={styles.offlineDiscussion}>
             <Ionicons name="cloud-offline-outline" size={20} color="#8F1D3F" />
             <Text style={styles.offlineDiscussionText}>Bình luận sẽ tải lại khi có mạng. Nội dung chương này đang được đọc từ bản lưu trên thiết bị.</Text>
           </View> : <Comments bookId={book.id} chapterId={chapter.id} />}
         </View>
-      </ScrollView>
+      </ReaderMotion>
+
+      {chapterGestures.feedback ? <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 76, alignSelf: 'center',
+        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: palette.bar, borderWidth: 1,
+        borderColor: chapterGestures.feedback.armed ? xianxia.jadeDeep : palette.muted }}>
+        <Text accessibilityLiveRegion="polite" style={{ color: palette.text, fontSize: 12 }}>
+          {chapterGestures.feedback.armed ? 'Thả để chuyển chương' : chapterGestures.feedback.direction === 'next' ? 'Kéo để sang chương tiếp' : 'Kéo để về chương trước'}
+        </Text>
+      </View> : null}
 
       {autoScrolling ? <Pressable
         accessibilityRole="button"
@@ -601,19 +852,21 @@ export default function ReaderScreen() {
         autoScrolling={autoScrolling}
         onToggleAutoScroll={toggleAutoScroll}
       />
-      <AudioSheet
+      {audioInitialized || sheet === 'audio' ? <AudioSheet
         visible={sheet === 'audio'}
         onClose={() => setSheet(null)}
         chapterKey={`${book.id}:${chapterNumber}`}
         chapterTitle={chapterDisplayTitle ? `Chương ${chapterNumber} · ${chapterDisplayTitle}` : `Chương ${chapterNumber}`}
-        chapterText={content.join('\n\n')}
+        chapterText={loading || !chapterReady ? '' : audioText}
         initialProgress={readingProgress}
         onProgress={setReadingProgress}
-        onPrevious={() => goChapter(previousNumber ?? chapterNumber)}
-        onNext={() => goChapter(nextNumber ?? chapterNumber)}
+        resumeRequested={resumeAudio.current}
+        onResumeConsumed={consumeAudioResume}
+        onPrevious={(resume) => goChapter(previousNumber ?? chapterNumber, resume)}
+        onNext={(resume) => goChapter(nextNumber ?? chapterNumber, resume)}
         canPrevious={previousNumber !== undefined}
         canNext={nextNumber !== undefined}
-      />
+      /> : null}
       <MoreSheet
         visible={sheet === 'more'}
         onClose={() => setSheet(null)}
@@ -638,6 +891,7 @@ export default function ReaderScreen() {
         userId={user.id}
         onOpenWallet={() => { setGiftOpen(false); router.push('/wallet/store'); }}
       /> : null}
+      {loading ? <View testID="reader-navigation-loading" style={[StyleSheet.absoluteFillObject, { backgroundColor: palette.bg, zIndex: 100, elevation: 24 }]}><LoadingState label="Đang chuyển chương…" /></View> : null}
     </View>
   );
 }
@@ -679,6 +933,24 @@ function SettingsSheet({
     <View style={sheetStyles.paddingRow}><Pressable onPress={() => update('padding', Math.max(14, settings.padding - 4))}><Ionicons name="remove-circle-outline" size={28} color="#8F1D3F" /></Pressable><View style={sheetStyles.paddingDemo}><View style={{ width: `${Math.max(35, 92 - settings.padding)}%`, height: 3, backgroundColor: '#8F1D3F' }} /><View style={{ width: `${Math.max(28, 80 - settings.padding)}%`, height: 3, backgroundColor: '#CDBDC2' }} /></View><Pressable onPress={() => update('padding', Math.min(42, settings.padding + 4))}><Ionicons name="add-circle-outline" size={28} color="#8F1D3F" /></Pressable></View>
     <SettingLabel title="Chế độ đọc" />
     <Segment options={[['scroll', 'Cuộn dọc'], ['page', 'Lật trang']]} value={settings.mode} onChange={(value) => update('mode', value as ReaderMode)} />
+    <SettingLabel title="Hiệu ứng chuyển trang" />
+    <Segment options={[['book', 'Lật sách 3D'], ['slide', 'Trượt mượt'], ['none', 'Không hiệu ứng']]} value={settings.pageEffect ?? 'book'} onChange={(value) => update('pageEffect', value as ReaderSettings['pageEffect'])} />
+    <Text style={sheetStyles.readerOptionBody}>Thiết bị cấu hình thấp tự giảm 3D thành trượt để giữ độ mượt.</Text>
+
+    <View style={sheetStyles.readerOptionRow}>
+      <View style={{ flex: 1 }}><Text style={sheetStyles.readerOptionTitle}>Vuốt ngang chuyển chương</Text>
+        <Text style={sheetStyles.readerOptionBody}>Cuộn dọc: vuốt trái sang chương sau, vuốt phải về chương trước. Lật trang: luôn vuốt từng trang, hết trang mới chuyển chương.</Text></View>
+      <Switch accessibilityLabel="Vuốt ngang chuyển chương" value={settings.horizontalChapterGestures ?? true} onValueChange={(value) => update('horizontalChapterGestures', value)} trackColor={{ false: '#D7CFC1', true: '#79988B' }} />
+    </View>
+    <View style={sheetStyles.readerOptionRow}>
+      <View style={{ flex: 1 }}><Text style={sheetStyles.readerOptionTitle}>Kéo vượt đầu/cuối chuyển chương</Text>
+        <Text style={sheetStyles.readerOptionBody}>Trong chế độ cuộn, bắt đầu kéo khi đã ở đầu hoặc cuối nội dung, rồi thả để chuyển.</Text></View>
+      <Switch accessibilityLabel="Kéo vượt đầu/cuối chuyển chương" value={settings.boundaryChapterGestures ?? true} onValueChange={(value) => update('boundaryChapterGestures', value)} trackColor={{ false: '#D7CFC1', true: '#79988B' }} />
+    </View>
+    <SettingLabel title="Độ nhạy cử chỉ" />
+    <Segment options={[['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']]} value={settings.gestureSensitivity ?? 'medium'} onChange={(value) => update('gestureSensitivity', value as NonNullable<ReaderSettings['gestureSensitivity']>)} />
+    <SettingLabel title="Khi về chương trước" />
+    <Segment options={[['restore', 'Vị trí đã đọc'], ['end', 'Cuối chương']]} value={settings.previousChapterLanding ?? 'restore'} onChange={(value) => update('previousChapterLanding', value as NonNullable<ReaderSettings['previousChapterLanding']>)} />
 
     <View style={[sheetStyles.readerOptionRow, settings.mode !== 'scroll' && sheetStyles.readerOptionDisabled]}>
       <View style={{ flex: 1 }}>
@@ -703,7 +975,7 @@ function SettingsSheet({
 function SettingLabel({ title, value }: { title: string; value?: string }) { return <View style={sheetStyles.labelRow}><Text style={sheetStyles.label}>{title}</Text>{value ? <Text style={sheetStyles.labelValue}>{value}</Text> : null}</View>; }
 
 function Segment({ options, value, onChange }: { options: readonly (readonly [string, string])[]; value: string; onChange: (value: string) => void }) {
-  return <View style={sheetStyles.segment}>{options.map(([id, label]) => <Pressable key={id} onPress={() => onChange(id)} style={[sheetStyles.segmentItem, value === id && sheetStyles.segmentActive]}><Text style={[sheetStyles.segmentText, value === id && sheetStyles.segmentTextActive]}>{label}</Text></Pressable>)}</View>;
+  return <View style={sheetStyles.segment}>{options.map(([id, label]) => <Pressable key={id} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: value === id }} aria-checked={value === id} onPress={() => onChange(id)} style={[sheetStyles.segmentItem, value === id && sheetStyles.segmentActive]}><Text style={[sheetStyles.segmentText, value === id && sheetStyles.segmentTextActive]}>{label}</Text></Pressable>)}</View>;
 }
 
 function AudioSheet({
@@ -718,6 +990,8 @@ function AudioSheet({
   onNext,
   canPrevious,
   canNext,
+  resumeRequested,
+  onResumeConsumed,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -726,12 +1000,13 @@ function AudioSheet({
   chapterText: string;
   initialProgress: number;
   onProgress: (percent: number) => void;
-  onPrevious: () => void;
-  onNext: () => void;
+  onPrevious: (resume: boolean) => void;
+  onNext: (resume: boolean) => void;
   canPrevious: boolean;
   canNext: boolean;
+  resumeRequested: boolean;
+  onResumeConsumed: () => void;
 }) {
-  const autoStartNext = useRef(false);
   const playbackEndOptions = useRef<{ sleepTimer: SleepTimer; autoNext: boolean }>({ sleepTimer: 'Tắt', autoNext: true });
   const [trackWidth, setTrackWidth] = useState(1);
   const player = useTtsPlayer({
@@ -742,26 +1017,23 @@ function AudioSheet({
     onEnded: () => {
       if (playbackEndOptions.current.sleepTimer === 'Hết chương') return;
       if (playbackEndOptions.current.autoNext && canNext) {
-        autoStartNext.current = true;
-        onNext();
+        onNext(true);
       }
     },
   });
   playbackEndOptions.current = { sleepTimer: player.sleepTimer, autoNext: player.autoNext };
 
   useEffect(() => {
-    if (!autoStartNext.current) return;
-    autoStartNext.current = false;
-    const timeout = setTimeout(() => player.playFromStart(), 180);
+    if (!resumeRequested || player.preparing || !player.hasSpeech) return;
+    const timeout = setTimeout(() => { onResumeConsumed(); player.playFromStart(); }, 180);
     return () => clearTimeout(timeout);
-  }, [chapterKey]);
+  }, [chapterKey, resumeRequested, player.preparing, player.hasSpeech, player.playFromStart, onResumeConsumed]);
 
   const switchChapter = (direction: 'previous' | 'next') => {
     const resume = player.playing;
     void player.stop(false);
-    autoStartNext.current = resume;
-    if (direction === 'previous') onPrevious();
-    else onNext();
+    if (direction === 'previous') onPrevious(resume);
+    else onNext(resume);
   };
 
   return <BottomSheet visible={visible} title="Nghe chương" onClose={onClose} scroll>
@@ -773,7 +1045,10 @@ function AudioSheet({
     </View>
     <Text style={audioStyles.title}>{chapterTitle}</Text>
     <Text style={audioStyles.sub}>TTS hệ thống · {player.voiceName}</Text>
-    {player.voiceCount === 0 ? <Text style={audioStyles.voiceHint}>Chưa phát hiện gói giọng tiếng Việt trên thiết bị. CHƯƠNG sẽ yêu cầu hệ điều hành dùng giọng vi-VN mặc định và tuyệt đối không chọn giọng tiếng Anh thay thế.</Text> : !player.hasDistinctGenderVoices ? <Text style={audioStyles.voiceHint}>Thiết bị đã có giọng tiếng Việt nhưng chưa cung cấp đủ hai giọng Nam/Nữ riêng biệt. CHƯƠNG vẫn giữ tiếng Việt và tạo khác biệt Nam/Nữ bằng cao độ; cài thêm voice pack tiếng Việt để có hai giọng tự nhiên riêng biệt.</Text> : <Text style={audioStyles.voiceHint}>Đã phát hiện hai giọng tiếng Việt khác nhau cho lựa chọn Nam/Nữ.</Text>}
+    {player.voiceCount === 0 ? <View>
+      <Text style={audioStyles.voiceHint}>{player.voicesLoading ? 'Đang tìm giọng tiếng Việt trên thiết bị…' : 'Chưa tìm thấy giọng tiếng Việt. Hãy cài gói tiếng Việt trong cài đặt Text-to-Speech của thiết bị, rồi tìm lại.'}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Tìm lại giọng tiếng Việt" disabled={player.voicesLoading} onPress={player.refreshVoices} style={{ paddingVertical: 10 }}><Text style={audioStyles.voiceHint}>Tìm lại giọng tiếng Việt</Text></Pressable>
+    </View> : !player.hasDistinctGenderVoices ? <Text style={audioStyles.voiceHint}>Thiết bị đã có giọng tiếng Việt nhưng chưa cung cấp đủ hai giọng Nam/Nữ riêng biệt. CHƯƠNG vẫn giữ tiếng Việt và tạo khác biệt Nam/Nữ bằng cao độ; cài thêm voice pack tiếng Việt để có hai giọng tự nhiên riêng biệt.</Text> : <Text style={audioStyles.voiceHint}>Đã phát hiện hai giọng tiếng Việt khác nhau cho lựa chọn Nam/Nữ.</Text>}
     {player.error ? <Text style={audioStyles.error}>{player.error}</Text> : null}
     {player.sleepExpired ? <Text style={audioStyles.sleepNotice}>Hẹn giờ ngủ đã dừng giọng đọc.</Text> : null}
 

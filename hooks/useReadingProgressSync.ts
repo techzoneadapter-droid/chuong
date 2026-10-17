@@ -8,15 +8,21 @@ import { messageForError } from '../services/errors';
 type Snapshot = { progress: Omit<ReadingProgress, 'updatedAt'>; userId?: string };
 
 // Periodic dirty flush avoids debounce starvation while scrolling. Writes are serialized.
-export function useReadingProgressSync(progress: Snapshot['progress'], userId: string | undefined, ready: boolean) {
+export function useReadingProgressSync(progress: Snapshot['progress'], userId: string | undefined, ready: boolean, getScrollPosition?: () => number) {
   const latest = useRef<Snapshot | null>(null);
   const saved = useRef('');
   const queue = useRef(Promise.resolve());
   const [error, setError] = useState('');
+  const scrollGetter = useRef(getScrollPosition);
+  scrollGetter.current = getScrollPosition;
   latest.current = ready ? { progress, userId } : null;
   const flush = useCallback(() => {
-    const snapshot = latest.current;
-    if (!snapshot) return queue.current;
+    const current = latest.current;
+    if (!current) return queue.current;
+    // Capture live pixels before queuing; rounded percent can remain unchanged during scrolling.
+    const snapshot = scrollGetter.current
+      ? { ...current, progress: { ...current.progress, scrollPosition: scrollGetter.current() } }
+      : current;
     const key = JSON.stringify(snapshot);
     if (key === saved.current) return queue.current;
     saved.current = key;

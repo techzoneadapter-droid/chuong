@@ -2750,6 +2750,8 @@ export type Database = {
         Args: { p_quest_key: string }
         Returns: Json
       }
+      begin_rewarded_ad_session: { Args: never; Returns: string }
+      confirm_verified_admob_reward: { Args: { p_ticket: string; p_user_id: string; p_transaction_id: string; p_ad_unit: string; p_reward_amount: number; p_timestamp_ms: number }; Returns: boolean }
       claim_rewarded_ad_bonus: { Args: never; Returns: Json }
       get_book_gift_summary: {
         Args: { p_book_id: string }

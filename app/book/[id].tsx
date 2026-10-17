@@ -17,7 +17,7 @@ import { AssetBookCover, ButtonArt, VipArt } from '../../components/Artwork';
 import { xianxia } from '../../constants/xianxia';
 import { getBook as getDemoBook } from '../../data/books';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBookById, getBooks } from '../../services/books';
+import { getBookById, getRelatedBooks } from '../../services/books';
 import { BookGiftSummary, getBookGiftSummary } from '../../services/gifts';
 import { getChaptersByBook } from '../../services/chapters';
 import { getFollowState, getLibrary, getReadingProgress, removeFromLibrary, setFollowState, setLibraryStatus } from '../../services/library';
@@ -60,24 +60,29 @@ export default function BookDetailScreen() {
     let active = true;
     const load = async () => {
       setLoadError(''); setLoading(true);
+      setProgress(null); setCatalog([]); setInLibrary(false); setFollowing(false); setFollowingBook(false);
+      setDownloadedChapterCount(0); setDownloadedBytes(0); setGiftSummary({ totalGifts: 0, totalCoins: 0 });
       try {
         const result = await getBookById(id);
         if (!active) return; if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
-        const chapters = await getChaptersByBook(result.data.id);
-        if (!active) return;
-        const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length || result.data.totalChapters, latestChapter: chapters.data.at(-1)?.number ?? result.data.latestChapter };
+        const hydrated = result.data;
         setBook(hydrated);
-        const [library, savedProgress, authorFollow, bookFollow, catalogResult, offlineRecords, gifts] = await Promise.all([
-          getLibrary(user?.id), getReadingProgress(hydrated.id, user?.id),
-          hydrated.authorId || result.mode === 'demo' ? getFollowState('author', hydrated.authorId ?? hydrated.author, user?.id) : false,
-          getFollowState('book', hydrated.id, user?.id), getBooks(), getOfflineBookRecords(hydrated.id),
-          isSupabaseConfigured ? getBookGiftSummary(hydrated.id).catch(() => ({ totalGifts: 0, totalCoins: 0 })) : Promise.resolve({ totalGifts: 0, totalCoins: 0 })
-        ]);
-        if (!active) return;
-        setInLibrary(library.some((entry) => entry.bookId === hydrated.id)); setProgress(savedProgress); setFollowing(authorFollow); setFollowingBook(bookFollow); setCatalog(catalogResult.data);
-        setDownloadedChapterCount(offlineRecords.length);
-        setDownloadedBytes(offlineRecords.reduce((sum, item) => sum + item.bytes, 0));
-        setGiftSummary(gifts);
+        setLoading(false);
+        void getChaptersByBook(hydrated.id).then((chapters) => {
+          if (active) setBook((current) => ({ ...current, chapters: chapters.data,
+            totalChapters: chapters.data.length || hydrated.totalChapters,
+            latestChapter: chapters.data.at(-1)?.number ?? hydrated.latestChapter }));
+        }).catch(() => undefined);
+        void getLibrary(user?.id).then((library) => { if (active) setInLibrary(library.some((entry) => entry.bookId === hydrated.id)); }).catch(() => undefined);
+        void getReadingProgress(hydrated.id, user?.id).then((saved) => { if (active) setProgress(saved); }).catch(() => undefined);
+        if (hydrated.authorId || result.mode === 'demo') void getFollowState('author', hydrated.authorId ?? hydrated.author, user?.id)
+          .then((value) => { if (active) setFollowing(value); }).catch(() => undefined);
+        void getFollowState('book', hydrated.id, user?.id).then((value) => { if (active) setFollowingBook(value); }).catch(() => undefined);
+        void getRelatedBooks(hydrated).then((items) => { if (active) setCatalog(items); }).catch(() => undefined);
+        void getOfflineBookRecords(hydrated.id).then((records) => {
+          if (active) { setDownloadedChapterCount(records.length); setDownloadedBytes(records.reduce((sum, item) => sum + item.bytes, 0)); }
+        }).catch(() => undefined);
+        if (isSupabaseConfigured) void getBookGiftSummary(hydrated.id).then((gifts) => { if (active) setGiftSummary(gifts); }).catch(() => undefined);
       } catch (error) { if (active) setLoadError(error instanceof Error ? error.message : 'Không thể tải dữ liệu mới.'); }
       finally { if (active) setLoading(false); }
     };

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, Image, Pressable, useWindowDimensions, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthorGiftSheet } from '../../components/AuthorGiftSheet';
 import { BookCard } from '../../components/BookCard';
@@ -16,9 +16,13 @@ import { Book } from '../../types';
 export default function CreatorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const columns = Math.max(1, Math.floor((Math.min(width, 960) - 36 + 12) / 158));
   const { user, loading: authLoading } = useAuth();
   const [author, setAuthor] = useState<PublicAuthorHub | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
+  const bookRows = useMemo(() => Array.from({ length: Math.ceil(books.length / columns) },
+    (_, index) => books.slice(index * columns, (index + 1) * columns)), [books, columns]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [pageError, setPageError] = useState('');
@@ -76,7 +80,14 @@ export default function CreatorScreen() {
       <Pressable accessibilityRole="button" accessibilityLabel="Quay lại" style={styles.back} onPress={() => router.back()}><Ionicons name="arrow-back" size={22} color={xianxia.ink} /></Pressable>
       <Text style={styles.heading}>Trang tác giả</Text>
     </View>
-    {loading ? <LoadingState label="Đang tải trang tác giả…" /> : error ? <RetryState detail={error} onRetry={() => { void load(); }} /> : !author ? <View style={styles.page}><Text style={styles.heading}>Không tìm thấy tác giả</Text><Text style={styles.copy}>Trang tác giả hiện không khả dụng.</Text></View> : <ScrollView contentContainerStyle={styles.page}>
+    {loading ? <LoadingState label="Đang tải trang tác giả…" /> : error ? <RetryState detail={error} onRetry={() => { void load(); }} /> : !author ? <View style={styles.page}><Text style={styles.heading}>Không tìm thấy tác giả</Text><Text style={styles.copy}>Trang tác giả hiện không khả dụng.</Text></View> : <FlatList
+      data={bookRows} keyExtractor={(row) => row[0].id}
+      contentContainerStyle={[styles.page, { gap: 0 }]}
+      initialNumToRender={3} maxToRenderPerBatch={3} windowSize={5} removeClippedSubviews={false}
+      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      renderItem={({ item: row }) => <View style={styles.grid}>{row.map(book => <View key={book.id} style={styles.book}><BookCard book={book} /></View>)}</View>}
+      ListHeaderComponent={<View style={{ gap: 18, paddingBottom: 18 }}>
+
       <View style={styles.profile}>
         {author.avatar_url ? <Image source={{ uri: author.avatar_url }} accessibilityLabel={`Ảnh ${author.pen_name}`} style={styles.avatar} /> : <View style={styles.avatar}><Text style={styles.initial}>{author.pen_name.slice(0, 1)}</Text></View>}
         <Text style={styles.name}>{author.pen_name}</Text>
@@ -89,9 +100,12 @@ export default function CreatorScreen() {
       </View>
       <Text style={styles.heading}>Truyện của tác giả</Text>
       {pageError ? <Text accessibilityRole="alert" style={styles.error}>{pageError}</Text> : null}
-      {!books.length ? <Text style={styles.copy}>Tác giả chưa có truyện công khai.</Text> : <View style={styles.grid}>{books.map(book => <View key={book.id} style={styles.book}><BookCard book={book} /></View>)}</View>}
+      </View>}
+      ListEmptyComponent={<Text style={styles.copy}>Tác giả chưa có truyện công khai.</Text>}
+      ListFooterComponent={<View style={{ marginTop: 18 }}>
       {hasMore ? <Pressable accessibilityRole="button" disabled={paging} style={styles.secondary} onPress={() => { void nextPage(); }}><Text style={styles.verified}>{paging ? 'Đang tải…' : pageError ? 'Thử tải lại' : 'Xem thêm truyện'}</Text></Pressable> : books.length ? <Text style={styles.copy}>Đã hiển thị tất cả truyện công khai.</Text> : null}
-    </ScrollView>}
+      </View>}
+    />}
     {user && author && !author.viewer_is_author && author.gift_book_id ? <AuthorGiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} bookId={author.gift_book_id} bookTitle={author.gift_book_title ?? ''} authorName={author.pen_name} userId={user.id} onOpenWallet={() => { setGiftOpen(false); router.push('/wallet/store'); }} /> : null}
   </SafeAreaView>;
 }
