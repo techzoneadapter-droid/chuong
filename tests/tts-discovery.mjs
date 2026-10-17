@@ -1,0 +1,17 @@
+﻿import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+let attempts=0;
+let mode='delayed';
+const exports={};
+const vietnamese={identifier:'vi-test',name:'Vietnamese',language:'vi-VN'};
+const foreign={identifier:'en-test',name:'English',language:'en-US'};
+vm.runInNewContext(ts.transpileModule(readFileSync('services/tts.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,performance,setTimeout:resolve=>{resolve();},require:name=>{assert.equal(name,'expo-speech');return {getAvailableVoicesAsync:async()=>{attempts++;if(mode==='error')throw Error('Engine unavailable');return mode==='none'||attempts<5?[foreign]:[foreign,vietnamese];}};}});
+assert.equal((await exports.getVietnameseTtsVoices())[0].identifier,'vi-test');
+assert.equal(attempts,5,'Native engine initialization can exceed the first four voice queries');
+mode='none';attempts=0;
+assert.equal((await exports.getVietnameseTtsVoices()).length,0);assert.equal(attempts,6,'Missing voice retries are bounded');
+mode='error';attempts=0;
+assert.equal((await exports.getVietnameseTtsVoices()).length,0);assert.equal(attempts,6);
+console.log('PASS: delayed Vietnamese engine discovery, bounded retries, native errors and no foreign voice fallback');

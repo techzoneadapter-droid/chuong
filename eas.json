@@ -16,6 +16,15 @@
         "buildType": "apk"
       }
     },
+    "closedTesting": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_ADMOB_LIVE": "false"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "distribution": "store"

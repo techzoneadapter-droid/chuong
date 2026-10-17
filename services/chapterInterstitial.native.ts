@@ -74,8 +74,9 @@ export function onFinishedChapterAdvance() {
   lastShownAt = Date.now();
   // This is intentionally fire-and-forget; reading always continues even if
   // the OS, network or ads SDK refuses to display the ad.
-  void ad.show().catch(() => {
+  const failed = () => {
     resetInstance();
     if (allowed) preload();
-  });
+  };
+  try { void ad.show().catch(failed); } catch { failed(); }
 }

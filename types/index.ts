@@ -159,6 +159,10 @@ export interface ReaderSettings {
   mode: ReaderMode;
   autoScrollSpeed: ReaderAutoScrollSpeed;
   keepAwake: boolean;
+  horizontalChapterGestures?: boolean;
+  boundaryChapterGestures?: boolean;
+  gestureSensitivity?: 'low' | 'medium' | 'high';
+  previousChapterLanding?: 'restore' | 'end';
 }
 
 export interface CommentItem {

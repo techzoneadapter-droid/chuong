@@ -52,12 +52,13 @@ declare ticket public.admob_reward_sessions%rowtype;
         event_date date;
         inserted boolean := false;
 begin
-  if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+  if coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role',
+              current_setting('request.jwt.claim.role',true)) is distinct from 'service_role' then
     raise exception 'SERVICE_ROLE_REQUIRED' using errcode='42501';
   end if;
-  if p_reward_amount<>5
-    or p_ad_unit not in('2277387891','ca-app-pub-2610920886028786/2277387891')
-    or p_transaction_id !~ '^[A-Fa-f0-9]{10,100}$'
+  if p_reward_amount is distinct from 5
+    or p_ad_unit is null or p_ad_unit not in('2277387891','ca-app-pub-2610920886028786/2277387891')
+    or p_transaction_id is null or p_transaction_id !~ '^[A-Fa-f0-9]{10,100}$'
     or p_timestamp_ms is null or p_timestamp_ms<=0 then
     raise exception 'INVALID_ADMOB_REWARD';
   end if;

@@ -15,7 +15,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Cho phép CHƯƠNG chọn ảnh bìa và ảnh đại diện."
+          "photosPermission": "Cho phép CHƯƠNG chọn ảnh bìa và ảnh đại diện.",
+          "microphonePermission": false
         }
       ],
       [

@@ -11,13 +11,13 @@ This rollout is intentionally OFF by default in release builds until user consen
 - Rewarded: `ca-app-pub-2610920886028786/2277387891`, 5 Hạ Phẩm.
 - Android package: `vn.chuong.app`.
 
-In EAS `production`, `app.config.js` uses the real Android App ID. Preview builds use Google's official test app ID. Banner/interstitial/rewarded display in development with official test IDs. In a released build **nothing monetizes by default** until `EXPO_PUBLIC_ADMOB_LIVE=true` is set in the EAS build environment and a new release is built. Public ID override environment variables are supported as before.
+In EAS `production`, `app.config.js` uses the real Android App ID only when `EXPO_PUBLIC_ADMOB_LIVE=true`. Preview builds use Google's official test app ID. Banner/interstitial/rewarded display in development with official test IDs. In a released build **nothing monetizes by default** until `EXPO_PUBLIC_ADMOB_LIVE=true` is set in the EAS build environment and a new release is built. Public ID override environment variables are supported as before.
 
 ## Placements and constraints
 
-- Banner only renders after consent/SDK readiness; suppressed for VIP.
+- Banner only renders after SDK readiness; suppressed for VIP. Live builds require UMP consent. Development builds use only official sample units and do not depend on a publisher UMP message configured for the sample App ID.
 - Interstitial only considers forward navigation when the previous chapter is >=90% read, online and unlocked. It is preloaded without blocking reading; at most 1 per 4 eligible advances and not more frequently than once per 10 minutes. No ad on failed loading.
-- Rewarded requires explicit interaction, UMP consent, authenticated user, short-lived server ticket, and **Google's signed SSV callback**. The client never credits a wallet, including when the SDK raises `EARNED_REWARD`. VIP has no ads.
+- Rewarded requires explicit interaction, UMP consent for live builds, authenticated user, short-lived server ticket, and **Google's signed SSV callback**. The client never credits a wallet, including when the SDK raises `EARNED_REWARD`. VIP has no ads.
 
 ## Important production rollout (do not skip)
 

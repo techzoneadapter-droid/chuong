@@ -27,13 +27,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profileRequest = useRef(0);
   const sessionUserId = useRef<string | null>(null);
   const user = session?.user ?? null;
+  const currentUser = useRef(user);
+  currentUser.current = user;
 
   const refreshProfile = useCallback(async () => {
     const request = ++profileRequest.current;
-    if (!user) { setProfile(null); return; }
-    try { const next = await ensureProfile(user); if (request === profileRequest.current) { setProfile(next); setError(''); } }
+    const profileUser = currentUser.current;
+    if (!profileUser) { setProfile(null); return; }
+    try { const next = await ensureProfile(profileUser); if (request === profileRequest.current) { setProfile(next); setError(''); } }
     catch (cause) { if (request === profileRequest.current) { setProfile(null); setError(messageForError(cause, 'Không thể tải hồ sơ.')); } }
-  }, [user]);
+  }, [user?.id, user?.updated_at]);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }

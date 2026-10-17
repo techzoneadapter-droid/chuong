@@ -36,8 +36,11 @@ assert.match(ticket,/^[a-f0-9-]{36}$/);
 assert.equal((await row("select (public.get_daily_cultivation()->'quests'->4->>'reward')::int as points")).points,5);
 assert.equal((await row('select public.begin_rewarded_ad_session() as id')).id,ticket);
 await auth('service_role');
+// Modern PostgREST exposes the complete JWT in request.jwt.claims.
+await db.query("select set_config('request.jwt.claim.role','',false),set_config('request.jwt.claims',$1,false)", [JSON.stringify({ role: 'service_role' })]);
 const now=Date.now();
 const args=["'"+ticket+"'","'"+userId+"'","'abcdef0123456789'","'2277387891'",'5',String(now)].join(',');
+await assert.rejects(db.exec('select public.confirm_verified_admob_reward('+args.replace(',5,', ',null,')+')'));
 assert.equal((await row('select public.confirm_verified_admob_reward('+args+') as ok')).ok,true);
 assert.equal((await row('select public.confirm_verified_admob_reward('+args+') as ok')).ok,true);
 assert.equal(Number((await row("select balance_coins as b from public.wallet_accounts where user_id='"+userId+"'")).b),5);
@@ -45,6 +48,7 @@ assert.equal(Number((await row("select count(*) as n from public.daily_cultivati
 const badAmount=["'"+ticket+"'","'"+userId+"'","'abcdef9876543210'","'2277387891'",'10',String(now)].join(',');
 await assert.rejects(db.exec('select public.confirm_verified_admob_reward('+badAmount+')'));
 await auth('authenticated');
+await db.query("select set_config('request.jwt.claims',$1,false)", [JSON.stringify({ role: 'authenticated' })]);
 await assert.rejects(db.exec('select public.begin_rewarded_ad_session()'));
 await db.close();
 console.log('PASS: five-stone credit only via service-role verified callback; direct claims denied; retries idempotent');

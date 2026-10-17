@@ -30,8 +30,10 @@ export async function showDailyRewardedAd(userId: string, ticket: string): Promi
   if (!rewardedAdsAvailable()) return 'unavailable';
 
   // Only load after Google's UMP consent gate allows requests.
-  const consent = await AdsConsent.getConsentInfo().catch(() => null);
-  if (!consent?.canRequestAds) return 'unavailable';
+  if (!__DEV__) {
+    const consent = await AdsConsent.getConsentInfo().catch(() => null);
+    if (!consent?.canRequestAds) return 'unavailable';
+  }
   if (!initialized) {
     await mobileAds().initialize();
     initialized = true;
@@ -60,11 +62,12 @@ export async function showDailyRewardedAd(userId: string, ticket: string): Promi
     };
 
     const unsubscribeLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      // The timeout covers loading only. A valid video may last over 20 seconds.
+      clearTimeout(timer);
       void rewarded.show().catch(() => finish('unavailable'));
     });
     const unsubscribeEarned = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
       earned = true;
-      finish('earned');
     });
     const unsubscribeClosed = rewarded.addAdEventListener(AdEventType.CLOSED, () => {
       finish(earned ? 'earned' : 'closed');

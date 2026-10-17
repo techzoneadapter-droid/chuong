@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArtDivider, ButtonArt } from '../../components/Artwork';
 import { XianxiaBackdrop } from '../../components/XianxiaBackdrop';
@@ -75,6 +75,16 @@ export default function ReadingSettingsScreen() {
 
         <Label title="Chế độ đọc" />
         <Segment options={[['scroll', 'Cuộn dọc'], ['page', 'Lật trang']]} value={settings.mode} onChange={(value) => update('mode', value as ReaderMode)} />
+
+        <Label title="Vuốt ngang chuyển chương" />
+        <Switch accessibilityLabel="Vuốt ngang chuyển chương" value={Boolean(settings.horizontalChapterGestures)} onValueChange={(value) => update('horizontalChapterGestures', value)} trackColor={{ false: '#D7CFC1', true: '#79988B' }} />
+        <Label title="Kéo vượt đầu/cuối chuyển chương" />
+        <Switch accessibilityLabel="Kéo vượt đầu/cuối chuyển chương" value={Boolean(settings.boundaryChapterGestures)} onValueChange={(value) => update('boundaryChapterGestures', value)} trackColor={{ false: '#D7CFC1', true: '#79988B' }} />
+        <Label title="Độ nhạy cử chỉ" />
+        <Segment options={[['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']]} value={settings.gestureSensitivity ?? 'medium'} onChange={(value) => update('gestureSensitivity', value as NonNullable<ReaderSettings['gestureSensitivity']>)} />
+        <Label title="Khi về chương trước" />
+        <Segment options={[['restore', 'Vị trí đã đọc'], ['end', 'Cuối chương']]} value={settings.previousChapterLanding ?? 'restore'} onChange={(value) => update('previousChapterLanding', value as NonNullable<ReaderSettings['previousChapterLanding']>)} />
+        <Text style={styles.noteText}>Mặc định tắt cử chỉ chuyển chương. Khi bật vuốt ngang ở chế độ lật trang, dùng các nút để lật từng trang.</Text>
       </View>
 
       <View style={styles.note}><Ionicons name="checkmark-circle-outline" size={19} color={xianxia.jadeDeep} /><Text style={styles.noteText}>Thay đổi được lưu tự động. Reader sẽ dùng đúng thiết lập này ngay lần mở tiếp theo và bạn vẫn có thể chỉnh nhanh khi đang đọc.</Text></View>

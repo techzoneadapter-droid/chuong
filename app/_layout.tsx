@@ -1,3 +1,4 @@
+import { PerformanceDiagnostics } from '../components/PerformanceDiagnostics';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
@@ -68,14 +69,14 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
+      <PerformanceDiagnostics><AuthProvider>
         <PushNotificationBridge />
         <OfflineSyncBridge />
         <AdsBridge />
         <DataCleanupBridge />
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />
-      </AuthProvider>
+      </AuthProvider></PerformanceDiagnostics>
     </SafeAreaProvider>
   );
 }

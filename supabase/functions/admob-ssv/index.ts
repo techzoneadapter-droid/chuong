@@ -71,11 +71,16 @@ async function googleKeys() {
 async function verifySignedCallback(url: string) {
   // Do not reorder, decode or reconstruct the Google-signed content.
   const query = url.split("?").slice(1).join("?");
+  if (query.length > 8192) return null;
+  const parameters = new URLSearchParams(query);
+  for (const name of parameters.keys()) {
+    if (parameters.getAll(name).length !== 1) return null;
+  }
   const parts = query.match(/^(.+)&signature=([^&]+)&key_id=(\d+)$/);
   if (!parts) return null;
   const [, content, encodedSignature, keyId] = parts;
   const key = (await googleKeys()).find(k => String(k.keyId) === keyId);
-  if (!key) throw Error("unknown_google_key");
+  if (!key) { cached = null; throw Error("unknown_google_key"); }
   const imported = await crypto.subtle.importKey(
     "spki", spki(key.pem), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"],
   );

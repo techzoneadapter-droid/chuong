@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { createSingleFlight } from '../lib/asyncWork';
 
 export const STANDARD_OFFLINE_QUOTA_BYTES = 100 * 1024 * 1024;
 export const PREMIUM_OFFLINE_QUOTA_BYTES = 2 * 1024 * 1024 * 1024;
@@ -25,7 +26,8 @@ function statusFor(premium: boolean, source: MembershipStatus['source']): Member
   return {
     plan: premium ? 'premium' : 'standard',
     isPremium: premium,
-    showAds: !premium,
+    // If an authenticated account cannot be verified, avoid showing ads to a VIP.
+    showAds: !premium && source !== 'fallback',
     offlineQuotaBytes: premium ? PREMIUM_OFFLINE_QUOTA_BYTES : STANDARD_OFFLINE_QUOTA_BYTES,
     aiTranslation: premium,
     source,
@@ -55,7 +57,12 @@ async function writeCache(userId: string, premium: boolean) {
   }
 }
 
-export async function getMembershipStatus(userId?: string | null): Promise<MembershipStatus> {
+const pendingMembership = createSingleFlight();
+export function getMembershipStatus(userId?: string | null): Promise<MembershipStatus> {
+  return pendingMembership(userId ?? 'guest', () => fetchMembershipStatus(userId));
+}
+
+async function fetchMembershipStatus(userId?: string | null): Promise<MembershipStatus> {
   if (!userId) return statusFor(false, 'guest');
 
   const cached = await readCache(userId);

@@ -396,6 +396,39 @@ async function mock(page: Page, authenticated = false) {
   return writes;
 }
 
+test('home becomes usable while ranking requests are still pending', async ({ page }) => {
+  await mock(page);
+  let release!: () => void;
+  const blocked = new Promise<void>(resolve => { release = resolve; });
+  let waiting = 0;
+  await page.route('**/rpc/get_public_book_rankings', async route => {
+    waiting++;
+    await blocked;
+    await route.fulfill({ json: [] });
+  });
+  try {
+    await page.goto('/');
+    await expect(page.getByText(book.title, { exact: true }).first()).toBeVisible();
+    await expect.poll(() => waiting).toBeGreaterThan(0);
+    await expect(page.getByText('Đang mở sơn môn…', { exact: true })).toHaveCount(0);
+  } finally { release(); }
+});
+
+test('book detail becomes usable while gift totals are still pending', async ({ page }) => {
+  await mock(page);
+  let release!: () => void;
+  const blocked = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/rpc/get_book_gift_summary', async route => {
+    await blocked;
+    await route.fulfill({ json: [] });
+  });
+  try {
+    await page.goto(`/book/${bookId}`);
+    await expect(page.getByText(book.title, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Mở linh quyển', { exact: true })).toBeVisible();
+  } finally { release(); }
+});
+
 test('backend reader displays backend content, navigates sparse chapter numbers, and never substitutes demo on missing books', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

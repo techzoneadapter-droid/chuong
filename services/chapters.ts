@@ -4,6 +4,7 @@ import { requireSupabase, supabase } from '../lib/supabase';
 import { Chapter, ChapterInput, ServiceResult } from '../types';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
+import { getConnectivityState } from './connectivity';
 import {
   getOfflineBookRecords,
   getOfflineBookSnapshot,
@@ -109,7 +110,8 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
   }
 }
 
-export async function getChapter(bookId: string, chapterNumber: number): Promise<ServiceResult<Chapter | null>> {
+export async function getChapter(bookId: string, chapterNumber: number, signal?: AbortSignal): Promise<ServiceResult<Chapter | null>> {
+  if (signal?.aborted) throw new Error('Reader request cancelled');
   if (!supabase) {
     const offline = await getOfflineChapter(bookId, chapterNumber).catch((error) => {
       if (error instanceof OfflineLicenseExpiredError) throw error;
@@ -118,11 +120,19 @@ export async function getChapter(bookId: string, chapterNumber: number): Promise
     return offline ? { data: offline, mode: 'offline' } : { data: demoChapter(bookId, chapterNumber), mode: 'demo' };
   }
 
+  if (!(await getConnectivityState()).connected) {
+    // Explicit offline state: validate the stored license/checksum without waiting for RPC retries.
+    const offline = await getOfflineChapter(bookId, chapterNumber);
+    if (offline) return { data: offline, mode: 'offline' };
+    throw toServiceError(new Error('Không có kết nối mạng.'), 'Không thể tải nội dung chương.');
+  }
+
   try {
-    const { data, error } = await supabase.rpc('get_chapter_for_reading', {
+    const query = supabase.rpc('get_chapter_for_reading', {
       p_book_id: bookId,
       p_chapter_number: chapterNumber,
     });
+    const { data, error } = await (signal ? query.abortSignal(signal) : query);
     if (error) throw error;
     const row = data?.[0];
     if (!row) return { data: null, mode: 'supabase' };
@@ -138,6 +148,7 @@ export async function getChapter(bookId: string, chapterNumber: number): Promise
     await refreshOfflineChapterIfDownloaded(chapter).catch(() => false);
     return { data: chapter, mode: 'supabase' };
   } catch (error) {
+    if (signal?.aborted) throw error;
     if (error instanceof ContentLockedError || error instanceof OfflineLicenseExpiredError) throw error;
 
     try {

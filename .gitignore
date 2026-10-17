@@ -16,3 +16,6 @@ expo-env.d.ts
 .cache/
 test-results/
 playwright-report/
+
+# Machine-specific terminal paths
+/.vscode/settings.json

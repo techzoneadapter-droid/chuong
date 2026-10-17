@@ -23,8 +23,12 @@ export function AdsBridge() {
       const initializeIfAllowed = async () => {
         if (!active || initialized.current) return;
         try {
-          const info = await AdsConsent.getConsentInfo();
-          if (!info.canRequestAds) return;
+          // Google's sample App ID has no publisher UMP message configured.
+          // Development builds exclusively use Google's sample ad units.
+          if (!__DEV__) {
+            const info = await AdsConsent.getConsentInfo();
+            if (!info.canRequestAds) return;
+          }
           await mobileAds().initialize();
           if (!active) return;
           initialized.current = true;
@@ -36,7 +40,7 @@ export function AdsBridge() {
       };
 
       try {
-        await AdsConsent.gatherConsent();
+        if (!__DEV__) await AdsConsent.gatherConsent();
       } catch {
         // UMP can use prior-session state if gathering temporarily fails.
       }
