@@ -1,4 +1,6 @@
 import { SpiritPricePreview } from '../../../components/SpiritPricePreview';
+import { FreePreviewField } from '../../../components/FreePreviewField';
+import { validateFreePreviewCount } from '../../../lib/freeChapterPreview';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -17,12 +19,13 @@ export default function CreateBookScreen() {
   const router = useRouter(); const { user, configured, loading: authLoading } = useAuth(); const [author, setAuthor] = useState<Author | null>(null);
   const [title, setTitle] = useState(''); const [description, setDescription] = useState(''); const [genre, setGenre] = useState(''); const [tags, setTags] = useState(''); const [language, setLanguage] = useState('vi'); const [sourceType, setSourceType] = useState<SourceType>('original'); const [cover, setCover] = useState<{ uri: string; mimeType?: string } | null>(null); const [isVip, setIsVip] = useState(false); const [priceCoins, setPriceCoins] = useState(0); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
   const [agreed, setAgreed] = useState(false); const createdBookId = useRef<string | null>(null);
+  const [freePreview, setFreePreview] = useState('0');
   useEffect(() => { if (!configured || authLoading) return; if (!user) { router.replace('/auth/login'); return; } getAuthorForUser(user.id).then((value) => { if (!value) router.replace('/author/onboarding'); else setAuthor(value); }).catch((cause) => setError(messageForError(cause))); }, [router, user, configured, authLoading]);
   const pickCover = async () => { try { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [2, 3], quality: .85 }); if (!result.canceled) { const asset = result.assets[0]; if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) return setError('Ảnh bìa cần nhỏ hơn 5 MB.'); setCover({ uri: asset.uri, mimeType: asset.mimeType }); setError(''); } } catch { setError('Trình chọn ảnh không khả dụng trên thiết bị này. Bạn vẫn có thể tạo truyện và thêm bìa sau.'); } };
   const submit = async () => {
     if (!author || !user) return; if (!agreed) return setError('Bạn cần xác nhận quyền sử dụng nội dung.'); if (title.trim().length < 2) return setError('Tên truyện cần có ít nhất 2 ký tự.'); if (description.trim().length < 20) return setError('Mô tả cần có ít nhất 20 ký tự.'); if (!genre.trim()) return setError('Vui lòng nhập thể loại.'); if (isVip && (!Number.isInteger(priceCoins) || priceCoins <= 0)) return setError('Truyện VIP cần giá Hạ Phẩm Linh Thạch lớn hơn 0.');
     setLoading(true); setError('');
-    try { if (!createdBookId.current) { const book = await createBook(author.id, { title, penName: author.penName, description, genre, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean), language: language.trim() || 'vi', status: 'draft', coverUrl: null, sourceType, isVip, priceCoins: isVip ? priceCoins : 0 }); createdBookId.current = book.id; }
+    try { if (!createdBookId.current) { const book = await createBook(author.id, { title, penName: author.penName, description, genre, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean), language: language.trim() || 'vi', status: 'draft', coverUrl: null, sourceType, isVip, priceCoins: isVip ? priceCoins : 0, freePreviewChapters: validateFreePreviewCount(freePreview) }); createdBookId.current = book.id; }
       if (cover) await replaceBookCover(user.id, createdBookId.current, cover.uri, cover.mimeType);
       router.replace({ pathname: '/author/books/[bookId]/chapters', params: { bookId: createdBookId.current } }); }
     catch (cause) { setError(messageForError(cause, 'Không thể tạo truyện.')); }
@@ -50,6 +53,7 @@ export default function CreateBookScreen() {
       <Text style={styles.vipHint}>Bạn vẫn có thể đặt VIP riêng từng chương trong màn soạn chương.</Text>
     </View>
     <Text style={styles.label}>Trạng thái: Bản nháp</Text>
+    <FreePreviewField value={freePreview} onChange={setFreePreview} disabled={loading} />
     <Text style={styles.label}>Nguồn nội dung</Text><View style={styles.sourceList}>{sources.map((item) => <Pressable key={item.value} onPress={() => setSourceType(item.value)} style={styles.source}><Ionicons name={sourceType === item.value ? 'radio-button-on' : 'radio-button-off'} size={20} color="#8F1D3F" /><Text style={styles.sourceText}>{item.label}</Text></Pressable>)}</View>
     <FormMessage>Chỉ đăng nội dung do bạn sáng tác hoặc đã được chủ sở hữu cho phép. CHƯƠNG không hỗ trợ sao chép nội dung trái phép.</FormMessage>
     <Pressable onPress={() => setAgreed((value) => !value)} style={styles.source}><Ionicons name={agreed ? 'checkbox' : 'square-outline'} size={22} color="#8F1D3F" /><Text style={styles.sourceText}>Tôi cam kết chỉ đăng nội dung mà tôi có quyền sử dụng.</Text></Pressable>

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -10,7 +11,7 @@ interface Props {
   compact?: boolean;
 }
 
-export function BookCard({ book, compact = false }: Props) {
+export const BookCard = memo(function BookCard({ book, compact = false }: Props) {
   const router = useRouter();
   const badge = book.status === 'Đang ra' ? 'TÂN CHƯƠNG' : book.status === 'Đã hoàn thành' ? 'HOÀN' : 'ĐỀ CỬ';
   return (
@@ -38,7 +39,7 @@ export function BookCard({ book, compact = false }: Props) {
       <View style={styles.genreRow}><Text numberOfLines={1} style={styles.genre}>{book.genre}</Text><Text style={styles.dot}>·</Text><Text style={styles.rating}>★ {Number(book.rating || 0).toFixed(1)}</Text></View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { width: 146, marginRight: 14, padding: 5, paddingBottom: 9, borderRadius: 11, backgroundColor: 'rgba(255,253,247,.97)', borderWidth: 1, borderColor: '#D6C9B5', shadowColor: '#2B342E', shadowOpacity: .08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },

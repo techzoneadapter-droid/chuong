@@ -1,57 +1,62 @@
-{
-  "expo": {
-    "name": "CHƯƠNG",
-    "slug": "chuong",
-    "icon": "./assets/xianxia/icon.png",
-    "scheme": "chuong",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "plugins": [
-      "expo-router",
-      "expo-notifications",
-      "expo-iap",
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Cho phép CHƯƠNG chọn ảnh bìa và ảnh đại diện."
-        }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
-          "userTrackingUsageDescription": "CHƯƠNG sử dụng thông tin quảng cáo để phân phối và đo lường quảng cáo phù hợp."
-        }
-      ]
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "vn.chuong.app",
-      "buildNumber": "1"
-    },
-    "android": {
-      "package": "vn.chuong.app",
-      "versionCode": 1,
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/xianxia/icon.png",
-        "backgroundColor": "#FFF8EA"
-      }
-    },
-    "web": {
-      "favicon": "./assets/xianxia/icon.png",
-      "bundler": "metro"
-    },
-    "experiments": {
-      "typedRoutes": true
-    },
-    "backgroundColor": "#FFF8EA",
-    "splash": {
-      "image": "./assets/xianxia/logo-horizontal.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFF8EA"
-    }
-  }
+﻿{
+    "expo":  {
+                 "name":  "CHÆ¯Æ NG",
+                 "slug":  "chuong",
+                 "icon":  "./assets/xianxia/icon.png",
+                 "scheme":  "chuong",
+                 "version":  "1.0.0",
+                 "orientation":  "portrait",
+                 "userInterfaceStyle":  "automatic",
+                 "newArchEnabled":  true,
+                 "plugins":  [
+                                 "expo-router",
+                                 "expo-notifications",
+                                 "expo-iap",
+                                 [
+                                     "expo-image-picker",
+                                     {
+                                         "photosPermission":  "Cho phÃ©p CHÆ¯Æ NG chá»n áº£nh bÃ¬a vÃ  áº£nh Ä‘áº¡i diá»‡n."
+                                     }
+                                 ],
+                                 [
+                                     "react-native-google-mobile-ads",
+                                     {
+                                         "androidAppId":  "ca-app-pub-3940256099942544~3347511713",
+                                         "iosAppId":  "ca-app-pub-3940256099942544~1458002511",
+                                         "userTrackingUsageDescription":  "CHÆ¯Æ NG sá»­ dá»¥ng thÃ´ng tin quáº£ng cÃ¡o Ä‘á»ƒ phÃ¢n phá»‘i vÃ  Ä‘o lÆ°á»ng quáº£ng cÃ¡o phÃ¹ há»£p."
+                                     }
+                                 ]
+                             ],
+                 "ios":  {
+                             "supportsTablet":  true,
+                             "bundleIdentifier":  "vn.chuong.app",
+                             "buildNumber":  "1"
+                         },
+                 "android":  {
+                                 "package":  "vn.chuong.app",
+                                 "versionCode":  1,
+                                 "adaptiveIcon":  {
+                                                      "foregroundImage":  "./assets/xianxia/icon.png",
+                                                      "backgroundColor":  "#FFF8EA"
+                                                  }
+                             },
+                 "web":  {
+                             "favicon":  "./assets/xianxia/icon.png",
+                             "bundler":  "metro"
+                         },
+                 "experiments":  {
+                                     "typedRoutes":  true
+                                 },
+                 "backgroundColor":  "#FFF8EA",
+                 "splash":  {
+                                "image":  "./assets/xianxia/logo-horizontal.png",
+                                "resizeMode":  "contain",
+                                "backgroundColor":  "#FFF8EA"
+                            },
+                 "extra":  {
+                               "eas":  {
+                                           "projectId":  "e32bd9ff-b581-499c-8f39-eb786810d3cb"
+                                       }
+                           }
+             }
 }

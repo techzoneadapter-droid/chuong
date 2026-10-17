@@ -63,7 +63,7 @@ export default function BookDetailScreen() {
       try {
         const result = await getBookById(id);
         if (!active) return; if (!result.data) throw new Error('Không tìm thấy truyện công khai.');
-        const chapters = await getChaptersByBook(result.data.id);
+        const chapters = await getChaptersByBook(result.data.id, result.data);
         if (!active) return;
         const hydrated = { ...result.data, chapters: chapters.data, totalChapters: chapters.data.length || result.data.totalChapters, latestChapter: chapters.data.at(-1)?.number ?? result.data.latestChapter };
         setBook(hydrated);
@@ -186,6 +186,7 @@ export default function BookDetailScreen() {
         </View>
 
         <View style={styles.tags}>{book.tags.map((tag) => <Text style={styles.tag} key={tag}>{tag}</Text>)}</View>
+        {book.freePreviewChapters ? <Text style={styles.description}>Đọc thử miễn phí chương 1–{book.freePreviewChapters}. Từ chương {book.freePreviewChapters + 1} áp dụng chính sách VIP hiện có.</Text> : null}
         <Text numberOfLines={expanded ? undefined : 3} style={styles.description}>{book.description}</Text>
         <Pressable onPress={() => setExpanded((value) => !value)}><Text style={styles.more}>{expanded ? 'Thu gọn' : 'Xem thêm'}</Text></Pressable>
 

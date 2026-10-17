@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePersistentState } from './usePersistentState';
+import { recordReaderDuration } from '../lib/readerPerformance';
 import {
-  buildTtsSegments,
+  buildTtsSegmentsAsync,
   chooseTtsVoice,
   DEFAULT_TTS_PREFERENCES,
   describeTtsVoice,
@@ -15,6 +16,7 @@ import {
   TtsPreferences,
   TtsVoice,
   TtsVoiceInfo,
+  TtsSegment,
   wordsForSeconds,
 } from '../services/tts';
 
@@ -26,6 +28,8 @@ type Options = {
   onEnded?: () => void;
 };
 
+const EMPTY_SEGMENTS: TtsSegment[] = [];
+
 export function useTtsPlayer({
   chapterKey,
   text,
@@ -34,7 +38,9 @@ export function useTtsPlayer({
   onEnded,
 }: Options) {
   const [preferences, setPreferences] = usePersistentState<TtsPreferences>('reader:tts', DEFAULT_TTS_PREFERENCES);
-  const segments = useMemo(() => buildTtsSegments(text), [text]);
+  const [prepared, setPrepared] = useState<{ text: string; key: string; segments: TtsSegment[] } | null>(null);
+  const preparing = Boolean(text) && (prepared?.text !== text || prepared.key !== chapterKey);
+  const segments = prepared?.text === text && prepared.key === chapterKey ? prepared.segments : EMPTY_SEGMENTS;
   const totalWords = segments[segments.length - 1]?.endWord ?? 0;
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -43,10 +49,20 @@ export function useTtsPlayer({
   const [voices, setVoices] = useState<TtsVoiceInfo[]>([]);
   const [sleepExpired, setSleepExpired] = useState(false);
   const runId = useRef(0);
+  const restartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sleepTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEndedRef = useRef(onEnded);
   const onProgressRef = useRef(onProgress);
   const preferencesRef = useRef(preferences);
+
+  useEffect(() => {
+    let active = true;
+    const started = performance.now();
+    void buildTtsSegmentsAsync(text, 32, () => active).then(segments => {
+      if (active) { recordReaderDuration('tts-prepare', started); setPrepared({ text, key: chapterKey, segments }); }
+    }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Không thể chuẩn bị giọng đọc.'); });
+    return () => { active = false; };
+  }, [text, chapterKey]);
 
   useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
@@ -63,13 +79,19 @@ export function useTtsPlayer({
     sleepTimeout.current = null;
   }, []);
 
+  const clearRestartTimeout = useCallback(() => {
+    if (restartTimeout.current !== null) clearTimeout(restartTimeout.current);
+    restartTimeout.current = null;
+  }, []);
+
   const stop = useCallback(async (keepPosition = true) => {
     runId.current += 1;
+    clearRestartTimeout();
     clearSleepTimeout();
     await stopTts();
     setPlaying(false);
     setPaused(keepPosition);
-  }, [clearSleepTimeout]);
+  }, [clearSleepTimeout, clearRestartTimeout]);
 
   const scheduleSleep = useCallback((timer: SleepTimer) => {
     clearSleepTimeout();
@@ -92,6 +114,7 @@ export function useTtsPlayer({
     runId.current += 1;
     const token = runId.current;
     await stopTts();
+    if (token !== runId.current) return;
     const prefs = preferencesRef.current;
     const distinctGenderVoices = hasDistinctGenderVoices(voices);
     const voiceId = chooseTtsVoice(voices, prefs.voice);
@@ -132,6 +155,15 @@ export function useTtsPlayer({
     }
   }, [clearSleepTimeout, scheduleSleep, segments, totalWords, voices]);
 
+  const scheduleRestart = useCallback((index: number, delay: number) => {
+    clearRestartTimeout();
+    const token = runId.current;
+    restartTimeout.current = setTimeout(() => {
+      restartTimeout.current = null;
+      if (token === runId.current) void runFrom(index);
+    }, delay);
+  }, [clearRestartTimeout, runFrom]);
+
   const play = useCallback(() => {
     if (!segments.length) return;
     void runFrom(segmentIndex);
@@ -161,8 +193,8 @@ export function useTtsPlayer({
     setPaused(true);
     const percent = Math.round((segments[targetIndex].startWord / totalWords) * 100);
     onProgressRef.current?.(percent);
-    if (resume) setTimeout(() => { void runFrom(targetIndex); }, 40);
-  }, [clearSleepTimeout, playing, preferences.speed, runFrom, segmentIndex, segments, totalWords]);
+    if (resume) scheduleRestart(targetIndex, 40);
+  }, [clearSleepTimeout, playing, preferences.speed, runFrom, scheduleRestart, segmentIndex, segments, totalWords]);
 
   const seekToPercent = useCallback((percent: number) => {
     if (!segments.length || !totalWords) return;
@@ -177,8 +209,8 @@ export function useTtsPlayer({
     setPlaying(false);
     setPaused(true);
     onProgressRef.current?.(Math.round((segments[targetIndex].startWord / totalWords) * 100));
-    if (resume) setTimeout(() => { void runFrom(targetIndex); }, 40);
-  }, [clearSleepTimeout, playing, runFrom, segments, totalWords]);
+    if (resume) scheduleRestart(targetIndex, 40);
+  }, [clearSleepTimeout, playing, runFrom, scheduleRestart, segments, totalWords]);
 
   const setSpeed = useCallback((speed: number) => {
     const resume = playing;
@@ -188,9 +220,9 @@ export function useTtsPlayer({
       runId.current += 1;
       void stopTts();
       setPlaying(false);
-      setTimeout(() => { void runFrom(segmentIndex); }, 60);
+      scheduleRestart(segmentIndex, 60);
     }
-  }, [playing, runFrom, segmentIndex, setPreferences]);
+  }, [playing, runFrom, scheduleRestart, segmentIndex, setPreferences]);
 
   const setVoice = useCallback((voice: TtsVoice) => {
     const resume = playing;
@@ -200,9 +232,9 @@ export function useTtsPlayer({
       runId.current += 1;
       void stopTts();
       setPlaying(false);
-      setTimeout(() => { void runFrom(segmentIndex); }, 60);
+      scheduleRestart(segmentIndex, 60);
     }
-  }, [playing, runFrom, segmentIndex, setPreferences]);
+  }, [playing, runFrom, scheduleRestart, segmentIndex, setPreferences]);
 
   const setSleepTimer = useCallback((sleepTimerValue: SleepTimer) => {
     preferencesRef.current = { ...preferencesRef.current, sleepTimer: sleepTimerValue };
@@ -231,6 +263,7 @@ export function useTtsPlayer({
 
   useEffect(() => {
     runId.current += 1;
+    clearRestartTimeout();
     clearSleepTimeout();
     void stopTts();
     setPlaying(false);
@@ -240,15 +273,17 @@ export function useTtsPlayer({
     const targetWord = totalWords * Math.min(100, Math.max(0, initialProgressPercent)) / 100;
     const targetIndex = segments.findIndex((item) => targetWord >= item.startWord && targetWord < item.endWord);
     setSegmentIndex(targetIndex >= 0 ? targetIndex : initialProgressPercent >= 100 ? Math.max(0, segments.length - 1) : 0);
-  }, [chapterKey, clearSleepTimeout, segments, totalWords]);
+  }, [chapterKey, clearSleepTimeout, clearRestartTimeout, segments, totalWords]);
 
   useEffect(() => () => {
     runId.current += 1;
+    clearRestartTimeout();
     clearSleepTimeout();
     void stopTts();
-  }, [clearSleepTimeout]);
+  }, [clearSleepTimeout, clearRestartTimeout]);
 
   return {
+    preparing,
     playing,
     paused,
     error,

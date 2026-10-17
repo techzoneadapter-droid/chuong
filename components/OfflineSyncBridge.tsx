@@ -10,8 +10,12 @@ export function OfflineSyncBridge() {
   useEffect(() => {
     if (!user?.id) return;
 
+    let flushing = false;
+    let active = true;
     const flush = () => {
-      void flushOfflineSyncQueue(user.id);
+      if (!active || flushing || AppState.currentState !== 'active') return;
+      flushing = true;
+      void flushOfflineSyncQueue(user.id).catch(() => undefined).finally(() => { flushing = false; });
     };
 
     flush();
@@ -27,6 +31,7 @@ export function OfflineSyncBridge() {
     const timer = setInterval(flush, 30_000);
 
     return () => {
+      active = false;
       clearInterval(timer);
       networkSubscription.remove();
       appStateSubscription.remove();

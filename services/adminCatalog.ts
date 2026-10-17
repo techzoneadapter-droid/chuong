@@ -4,6 +4,7 @@ import { Database } from '../types/database';
 import { mapBook } from './books';
 import { mapChapter } from './chapters';
 import { toServiceError } from './errors';
+import { validateFreePreviewCount } from '../lib/freeChapterPreview';
 
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
 type BookRow = Database['public']['Tables']['books']['Row'];
@@ -26,6 +27,7 @@ export type AdminCatalogBookInput = {
   sourceType: SourceType;
   isVip?: boolean;
   priceCoins?: number;
+  freePreviewChapters?: number;
 };
 
 export type AdminChapterImport = {
@@ -35,6 +37,7 @@ export type AdminChapterImport = {
 };
 
 export type AdminCatalogBookMetadataInput = {
+  freePreviewChapters?: number;
   title: string;
   creditedAuthorName?: string | null;
   description: string;
@@ -146,6 +149,7 @@ export async function createAdminCatalogBook(input: AdminCatalogBookInput) {
       tags: input.tags,
       is_vip: isVip,
       price_coins: priceCoins,
+      free_preview_chapters: validateFreePreviewCount(input.freePreviewChapters ?? 0),
     })
     .select('*')
     .single();
@@ -173,6 +177,7 @@ export async function updateAdminCatalogBookMetadata(bookId: string, input: Admi
     .from('books')
     .update({
       title: input.title.trim(),
+      ...(input.freePreviewChapters !== undefined ? { free_preview_chapters: validateFreePreviewCount(input.freePreviewChapters) } : {}),
       credited_author_name: input.creditedAuthorName?.trim() || null,
       description: input.description.trim(),
       tags: input.tags,
@@ -202,12 +207,8 @@ export async function updateAdminCatalogBookMetadata(bookId: string, input: Admi
 
 export async function setAdminCatalogChapterStatus(bookId: string, chapterId: string, status: 'draft' | 'published') {
   const { client } = await requireAdmin();
-  const { data: chapter, error: readError } = await client
-    .from('chapters')
-    .select('id,title,content')
-    .eq('id', chapterId)
-    .eq('book_id', bookId)
-    .maybeSingle();
+  const { data, error: readError } = await client.rpc('get_admin_chapters_for_editing', { p_book_id: bookId, p_chapter_id: chapterId });
+  const chapter = data?.[0];
   if (readError) throw toServiceError(readError, 'Không thể tải chương.');
   if (!chapter) throw new Error('Không tìm thấy chương.');
   if (status === 'published' && String(chapter.content || '').trim().length < 50) {
@@ -227,13 +228,9 @@ export async function setAdminCatalogChapterStatus(bookId: string, chapterId: st
 
 export async function getAdminCatalogChapters(bookId: string): Promise<Chapter[]> {
   const { client } = await requireAdmin();
-  const { data, error } = await client
-    .from('chapters')
-    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
-    .eq('book_id', bookId)
-    .order('chapter_number');
+  const { data, error } = await client.rpc('get_admin_chapters_for_editing', { p_book_id: bookId });
   if (error) throw toServiceError(error, 'Không thể tải danh sách chương.');
-  return (data ?? []).map(mapChapter);
+  return (data ?? []).map(row => mapChapter(row));
 }
 
 export type AdminCatalogChapterInput = {
@@ -250,14 +247,9 @@ export type AdminCatalogChapterInput = {
 
 export async function getAdminCatalogChapter(bookId: string, chapterId: string): Promise<Chapter | null> {
   const { client } = await requireAdmin();
-  const { data, error } = await client
-    .from('chapters')
-    .select('id,book_id,chapter_number,title,content,status,is_vip,price_coins,early_access_until,scheduled_publish_at,published_at,updated_at')
-    .eq('book_id', bookId)
-    .eq('id', chapterId)
-    .maybeSingle();
+  const { data, error } = await client.rpc('get_admin_chapters_for_editing', { p_book_id: bookId, p_chapter_id: chapterId });
   if (error) throw toServiceError(error, 'Không thể tải chương.');
-  return data ? mapChapter(data) : null;
+  return data?.[0] ? mapChapter(data[0]) : null;
 }
 
 export async function saveAdminCatalogChapter(input: AdminCatalogChapterInput) {

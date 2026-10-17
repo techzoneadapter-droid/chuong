@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
-const readJson = (path) => JSON.parse(readFileSync(new URL(path, root), 'utf8'));
+const rootPath = fileURLToPath(root);
+const readJson = (path) => JSON.parse(readFileSync(new URL(path, root), 'utf8').replace(/^\uFEFF/, ''));
 const appJson = readJson('app.json');
 const packageJson = readJson('package.json');
 const easJson = readJson('eas.json');
@@ -32,7 +34,7 @@ check(Boolean(packageJson.dependencies?.['expo-router']), 'Expo Router dependenc
 check(Boolean(packageJson.dependencies?.['expo-notifications']), 'Push notification dependency exists');
 check(Boolean(packageJson.dependencies?.['expo-iap']), 'Store billing dependency exists');
 check(packageJson.dependencies?.['expo-speech'] === '~14.0.8', 'Expo Speech matches SDK 54 compatible version');
-check(packageJson.dependencies?.['react-native-google-mobile-ads'] === '16.5.0', 'Google Mobile Ads is pinned to the Expo SDK 54 / RN 0.81 compatible v16 line');
+check(packageJson.dependencies?.['react-native-google-mobile-ads'] === '16.3.4', 'Google Mobile Ads preserves the current Development Build compatible 16.3.4 pin');
 check(existsSync(new URL('app.config.js', root)), 'Dynamic Expo config exists for AdMob App IDs');
 check(Boolean(easJson.build?.preview), 'EAS preview build profile exists');
 check(Boolean(easJson.build?.production), 'EAS production build profile exists');
@@ -212,7 +214,7 @@ check(studioShellSource.includes('Đăng xuất Studio'), 'Content Studio has st
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
-    const rel = relative(new URL('.', root).pathname, path).replaceAll('\\', '/');
+    const rel = relative(rootPath, path).replaceAll('\\', '/');
     if (
       name === 'node_modules' ||
       name === '.git' ||
@@ -231,7 +233,7 @@ function walk(dir, files = []) {
   return files;
 }
 
-const sourceFiles = walk(new URL('.', root).pathname);
+const sourceFiles = walk(rootPath);
 const forbidden = [
   { pattern: /sb_secret_[A-Za-z0-9_-]+/g, label: 'Supabase secret key' },
   { pattern: /SUPABASE_SERVICE_ROLE_KEY/g, label: 'Supabase service-role env key' },
@@ -240,7 +242,7 @@ const forbidden = [
 for (const file of sourceFiles) {
   const text = readFileSync(file, 'utf8');
   for (const rule of forbidden) {
-    check(!rule.pattern.test(text), `No ${rule.label} in client source: ${relative(new URL('.', root).pathname, file)}`);
+    check(!rule.pattern.test(text), `No ${rule.label} in client source: ${relative(rootPath, file)}`);
     rule.pattern.lastIndex = 0;
   }
 }

@@ -10,7 +10,11 @@ export const defaultReaderSettings: ReaderSettings = {
   padding: 22,
   mode: 'scroll',
   autoScrollSpeed: 2,
-  keepAwake: false
+  keepAwake: false,
+  horizontalChapterGestures: false,
+  boundaryChapterGestures: false,
+  gestureSensitivity: 'medium',
+  previousChapterLanding: 'restore'
 };
 
 const memory = new Map<string, string>();

@@ -1,9 +1,11 @@
 import { getBook as getDemoBook } from '../data/books';
 import { getChapterContent } from '../data/readerContent';
 import { requireSupabase, supabase } from '../lib/supabase';
-import { Chapter, ChapterInput, ServiceResult } from '../types';
+import { Book, Chapter, ChapterInput, ServiceResult } from '../types';
+import { isFreePreviewChapter } from '../lib/freeChapterPreview';
 import { Database } from '../types/database';
 import { toServiceError } from './errors';
+import { getConnectivityState } from './connectivity';
 import {
   getOfflineBookRecords,
   getOfflineBookSnapshot,
@@ -33,7 +35,16 @@ export class ContentLockedError extends Error {
   }
 }
 
-export const mapChapter = (row: ChapterShape): Chapter => {
+export type ChapterBookPolicy = Pick<Book, 'isVip' | 'price' | 'freePreviewChapters'>;
+export function chapterForBook(chapter: Chapter, book?: ChapterBookPolicy): Chapter {
+  if (!book) return chapter;
+  const preview = isFreePreviewChapter(chapter.number, book.freePreviewChapters);
+  const bookLocked = book.isVip && book.price > 0;
+  return { ...chapter, isFreePreview: preview,
+    access: preview ? 'free' : bookLocked ? 'vip' : chapter.access,
+    requiresOfflineLicense: Boolean(preview || bookLocked || chapter.configuredVip || chapter.access === 'vip') };
+}
+export const mapChapter = (row: ChapterShape, book?: ChapterBookPolicy): Chapter => {
   const earlyAccessUntil = row.early_access_until ?? null;
   const earlyAccessActive = Boolean(
     earlyAccessUntil && new Date(earlyAccessUntil).getTime() > Date.now()
@@ -41,7 +52,7 @@ export const mapChapter = (row: ChapterShape): Chapter => {
   const effectiveVip = Boolean(
     row.is_vip && row.price_coins > 0 && (!earlyAccessUntil || earlyAccessActive)
   );
-  return {
+  return chapterForBook({
     id: row.id,
     bookId: row.book_id,
     number: row.chapter_number,
@@ -59,7 +70,7 @@ export const mapChapter = (row: ChapterShape): Chapter => {
     updatedAt: row.updated_at,
     isRead: false,
     isDownloaded: false
-  };
+  }, book);
 };
 
 function demoChapter(bookId: string, chapterNumber: number): Chapter | null {
@@ -67,7 +78,7 @@ function demoChapter(bookId: string, chapterNumber: number): Chapter | null {
   return chapter ? { ...chapter, bookId, content: getChapterContent(chapterNumber).join('\n\n'), status: 'published' } : null;
 }
 
-export async function getChaptersByBook(bookId: string): Promise<ServiceResult<Chapter[]>> {
+export async function getChaptersByBook(bookId: string, book?: ChapterBookPolicy): Promise<ServiceResult<Chapter[]>> {
   if (!supabase) {
     const records = await getOfflineBookRecords(bookId).catch(() => []);
     const downloaded = new Set(records.map((item) => item.chapterNumber));
@@ -90,7 +101,7 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
         .order('chapter_number')
         .range(offset, offset + 499);
       if (error) throw error;
-      chapters.push(...(data ?? []).map(mapChapter));
+      chapters.push(...(data ?? []).map(row => mapChapter(row, book)));
       if (!data || data.length < 500) break;
     }
     const records = await getOfflineBookRecords(bookId).catch(() => []);
@@ -109,13 +120,20 @@ export async function getChaptersByBook(bookId: string): Promise<ServiceResult<C
   }
 }
 
-export async function getChapter(bookId: string, chapterNumber: number): Promise<ServiceResult<Chapter | null>> {
+export async function getChapter(bookId: string, chapterNumber: number, book?: ChapterBookPolicy): Promise<ServiceResult<Chapter | null>> {
   if (!supabase) {
     const offline = await getOfflineChapter(bookId, chapterNumber).catch((error) => {
       if (error instanceof OfflineLicenseExpiredError) throw error;
       return null;
     });
     return offline ? { data: offline, mode: 'offline' } : { data: demoChapter(bookId, chapterNumber), mode: 'demo' };
+  }
+
+  if (!(await getConnectivityState()).connected) {
+    // Explicit offline state: validate the stored license/checksum without waiting for RPC retries.
+    const offline = await getOfflineChapter(bookId, chapterNumber);
+    if (offline) return { data: offline, mode: 'offline' };
+    throw toServiceError(new Error('Không có kết nối mạng.'), 'Không thể tải nội dung chương.');
   }
 
   try {
@@ -134,7 +152,7 @@ export async function getChapter(bookId: string, chapterNumber: number): Promise
       throw new ContentLockedError(row.lock_kind, row.lock_price_coins ?? row.price_coins ?? 0, row.id);
     }
 
-    const chapter = mapChapter(row);
+    const chapter = mapChapter(row, book);
     await refreshOfflineChapterIfDownloaded(chapter).catch(() => false);
     return { data: chapter, mode: 'supabase' };
   } catch (error) {

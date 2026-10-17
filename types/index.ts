@@ -16,6 +16,8 @@ export interface Chapter {
   relativeDate: string;
   access: ChapterAccess;
   configuredVip?: boolean;
+  isFreePreview?: boolean;
+  requiresOfflineLicense?: boolean;
   priceCoins?: number;
   earlyAccessUntil?: string | null;
   status?: ChapterStatus;
@@ -58,6 +60,7 @@ export interface Book {
   publishedChapters?: number;
   draftChapters?: number;
   isVip: boolean;
+  freePreviewChapters?: number;
   price: number;
   progress: number;
   chapters: Chapter[];
@@ -127,6 +130,7 @@ export interface AuthorBookInput {
   sourceType: SourceType;
   isVip?: boolean;
   priceCoins?: number;
+  freePreviewChapters?: number;
 }
 
 export interface ChapterInput {
@@ -159,6 +163,10 @@ export interface ReaderSettings {
   mode: ReaderMode;
   autoScrollSpeed: ReaderAutoScrollSpeed;
   keepAwake: boolean;
+  horizontalChapterGestures?: boolean;
+  boundaryChapterGestures?: boolean;
+  gestureSensitivity?: 'low' | 'medium' | 'high';
+  previousChapterLanding?: 'restore' | 'end';
 }
 
 export interface CommentItem {

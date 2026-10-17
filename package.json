@@ -18,7 +18,8 @@
     "test:release": "node tests/release.mjs",
     "verify": "npm run typecheck && npm run test:ui-copy && npm run test:admin-web && npm run test:release && npm run test:db && npm run test:economy && npm run build",
     "test:ui-copy": "node tests/ui-copy.mjs",
-    "test:admin-web": "node --check admin-web/app.js && node --check admin-web/bulk-import.js && node --check admin-web/catalog-admin.js",
+    "test:admin-web": "node --check admin-web/app.js && node --check admin-web/bulk-import.js && node --check admin-web/catalog-admin.js && node --check admin-web/free-preview.js",
+    "test:free-preview": "node tests/free-preview-policy.mjs && node tests/free-preview-db.mjs",
     "test:economy": "node tests/economy.mjs"
   },
   "dependencies": {
@@ -27,11 +28,13 @@
     "@supabase/supabase-js": "^2.117.2",
     "expo": "~54.0.20",
     "expo-constants": "~18.0.14",
+    "expo-dev-client": "~6.0.21",
     "expo-device": "~8.0.10",
     "expo-file-system": "~19.0.24",
     "expo-font": "~14.0.12",
     "expo-iap": "5.8.2",
     "expo-image-picker": "~17.0.11",
+    "expo-keep-awake": "~15.0.8",
     "expo-network": "~8.0.8",
     "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.13",
@@ -40,12 +43,11 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-google-mobile-ads": "16.5.0",
+    "react-native-google-mobile-ads": "16.3.4",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "^0.21.0",
-    "expo-keep-awake": "~15.0.8"
+    "react-native-web": "^0.21.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

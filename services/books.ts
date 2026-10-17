@@ -6,6 +6,7 @@ import { deleteOwnBookCover } from './storage';
 import { toServiceError } from './errors';
 import { getOfflineBookSnapshot, listOfflineBooks } from './offlineDownloads';
 import { normalizeBookSummary } from './contentText';
+import { normalizeFreePreviewCount, validateFreePreviewCount } from '../lib/freeChapterPreview';
 
 type BookRow = Database['public']['Tables']['books']['Row'];
 type AuthorRow = Database['public']['Tables']['authors']['Row'];
@@ -46,6 +47,7 @@ export function mapBook(row: BookRow, author?: AuthorRow, genres: string[] = [])
     totalChapters: row.total_chapters,
     latestChapter: row.total_chapters,
     isVip: row.is_vip,
+    freePreviewChapters: normalizeFreePreviewCount(row.free_preview_chapters),
     price: row.price_coins,
     progress: 0,
     chapters: []
@@ -62,29 +64,33 @@ async function hydrateBooks(rows: BookRow[]): Promise<Book[]> {
   ]);
   if (authorError) throw authorError;
   if (genreError) throw genreError;
-  return rows.map((row) => mapBook(
-    row,
-    authors?.find((author) => author.id === row.author_id),
-    genres?.filter((genre) => genre.book_id === row.id).map((genre) => genre.genre) ?? []
-  ));
+  const authorsById = new Map((authors ?? []).map((author) => [author.id, author]));
+  const genresByBook = new Map<string, string[]>();
+  for (const genre of genres ?? []) {
+    const values = genresByBook.get(genre.book_id) ?? [];
+    values.push(genre.genre);
+    genresByBook.set(genre.book_id, values);
+  }
+  return rows.map((row) => mapBook(row, authorsById.get(row.author_id), genresByBook.get(row.id) ?? []));
 }
 
-export async function getBooks(): Promise<ServiceResult<Book[]>> {
-  if (!supabase) return { data: demoBooks, mode: 'demo' };
+export async function getBooks(limit?: number): Promise<ServiceResult<Book[]>> {
+  const take = limit === undefined ? undefined : Math.max(1, Math.min(500, Math.floor(limit)));
+  if (!supabase) return { data: take === undefined ? demoBooks : demoBooks.slice(0, take), mode: 'demo' };
   try {
     const books: Book[] = [];
     for (let offset = 0; ; offset += 500) {
-      const { data, error } = await supabase.from('books').select('*').eq('visibility', 'public').neq('status', 'draft').order('updated_at', { ascending: false }).order('id').range(offset, offset + 499);
+      const { data, error } = await supabase.from('books').select('*').eq('visibility', 'public').neq('status', 'draft').order('updated_at', { ascending: false }).order('id').range(offset, offset + (take ?? 500) - 1);
       if (error) throw error;
       books.push(...await hydrateBooks(data ?? []));
-      if (!data || data.length < 500) break;
+      if (take !== undefined || !data || data.length < 500) break;
     }
     return { data: books, mode: 'supabase' };
   } catch (error) {
     const summaries = await listOfflineBooks().catch(() => []);
     if (summaries.length) {
-      const snapshots = await Promise.all(summaries.map((item) => getOfflineBookSnapshot(item.bookId)));
-      return { data: snapshots.filter((book): book is Book => Boolean(book)), mode: 'offline' };
+      const snapshots = await Promise.all(summaries.slice(0, take).map((item) => getOfflineBookSnapshot(item.bookId)));
+      return { data: snapshots.filter((book): book is Book => Boolean(book)).slice(0, take), mode: 'offline' };
     }
     throw toServiceError(error, 'Không thể tải danh sách truyện.');
   }
@@ -169,7 +175,7 @@ export async function createBook(authorId: string, input: AuthorBookInput): Prom
     const { data, error } = await client.from('books').insert({
       author_id: authorId, title: input.title.trim(), slug, description: input.description.trim(), cover_url: input.coverUrl,
       language: input.language, source_type: input.sourceType, status: 'draft', visibility: 'private', tags: input.tags, credited_author_name: input.creditedAuthorName?.trim() || null,
-      is_vip: isVip, price_coins: priceCoins
+      is_vip: isVip, price_coins: priceCoins, free_preview_chapters: validateFreePreviewCount(input.freePreviewChapters ?? 0)
     }).select('*').single();
     if (error) throw error;
     if (input.genre.trim()) {
@@ -200,7 +206,8 @@ export async function getPopularBooks(): Promise<ServiceResult<Book[]>> {
   const result = await getBooks();
   return { ...result, data: [...result.data].sort((a, b) => (b.viewsCount ?? 0) - (a.viewsCount ?? 0)) };
 }
-export async function updateBook(id: string, updates: Partial<Pick<BookRow, 'title' | 'description' | 'cover_url' | 'language' | 'source_type' | 'status' | 'visibility' | 'tags' | 'is_vip' | 'price_coins'>>) {
+export async function updateBook(id: string, updates: Partial<Pick<BookRow, 'title' | 'description' | 'cover_url' | 'language' | 'source_type' | 'status' | 'visibility' | 'tags' | 'is_vip' | 'price_coins' | 'free_preview_chapters'>>) {
+  if (updates.free_preview_chapters !== undefined) validateFreePreviewCount(updates.free_preview_chapters);
   const { data, error } = await requireSupabase().from('books').update(updates).eq('id', id).select('*').single();
   if (error) throw toServiceError(error, 'Không thể cập nhật truyện.');
   return (await hydrateBooks([data]))[0];

@@ -2,7 +2,10 @@ import { WholeBookPricing } from '../../../components/WholeBookPricing';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FreePreviewField } from '../../../components/FreePreviewField';
+import { validateFreePreviewCount } from '../../../lib/freeChapterPreview';
+import { chapterForBook } from '../../../services/chapters';
 import { AssetBookCover } from '../../../components/Artwork';
 import { LoadingState, RetryState } from '../../../components/States';
 import { StudioShell } from '../../../components/StudioShell';
@@ -46,6 +49,7 @@ export default function StudioBookManager() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [title, setTitle] = useState('');
+  const [freePreview, setFreePreview] = useState('0');
   const [creditedAuthorName, setCreditedAuthorName] = useState('');
   const [description, setDescription] = useState('');
   const [genre, setGenre] = useState('');
@@ -67,9 +71,10 @@ export default function StudioBookManager() {
         getAdminCatalogChapters(bookId),
       ]);
       setBook(nextBook);
-      setChapters(nextChapters);
+      setChapters(nextChapters.map(chapter => chapterForBook(chapter, nextBook ?? undefined)));
       if (nextBook) {
         setTitle(nextBook.title);
+        setFreePreview(String(nextBook.freePreviewChapters ?? 0));
         setCreditedAuthorName(nextBook.creditedAuthorName || '');
         setDescription(nextBook.description || '');
         setGenre(nextBook.genre || '');
@@ -120,7 +125,14 @@ export default function StudioBookManager() {
     setError('');
     setMessage('');
     try {
+      const count = validateFreePreviewCount(freePreview);
+      if (count < (book.freePreviewChapters ?? 0)) {
+        const warning = 'Giảm số chương đọc thử sẽ đưa một số chương về chính sách VIP. Quyền đã mua vẫn được giữ. Tiếp tục lưu?';
+        const accepted = Platform.OS === 'web' ? window.confirm(warning) : await new Promise<boolean>(resolve => Alert.alert('Giảm chương đọc thử', warning, [{ text: 'Hủy', onPress: () => resolve(false) }, { text: 'Lưu', onPress: () => resolve(true) }], { cancelable: true, onDismiss: () => resolve(false) }));
+        if (!accepted) return;
+      }
       await updateAdminCatalogBookMetadata(book.id, {
+        freePreviewChapters: count,
         title,
         creditedAuthorName: creditedAuthorName.trim() || null,
         description,
@@ -293,6 +305,7 @@ export default function StudioBookManager() {
     <View style={styles.columns}>
       <View style={styles.left}>
         <Panel title="Thông tin truyện" subtitle="Lưu tại đây sẽ cập nhật dữ liệu dùng chung cho web và app mobile.">
+          <FreePreviewField value={freePreview} onChange={setFreePreview} previous={book.freePreviewChapters ?? 0} disabled={busy} />
           <View style={styles.formGrid}>
             <Field label="Tên truyện" value={title} onChangeText={setTitle} />
             <Field label="Tác giả hiển thị" value={creditedAuthorName} onChangeText={setCreditedAuthorName} />
