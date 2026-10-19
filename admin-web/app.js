@@ -162,20 +162,30 @@ function parseChapterNumber(token) {
 function splitChapters(raw) {
   const text=normalizeText(raw);
   if(!text)return[];
-  const re=/^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)\s*(?:số\s*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?:\s*\/\s*\d{1,6})?|第\s*([0-9零〇一二两三四五六七八九十百千万]{1,16})\s*[章节回卷部篇])(?:[ \t]*[:.\-–—]\s*|\s+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
-  const matches=[...text.matchAll(re)];
-  if(!matches.length)return[{chapterNumber:1,title:'Chương 1',content:text}];
-  const out=[];
-  for(let i=0;i<matches.length;i++){
-    const m=matches[i],next=matches[i+1];
-    const number=parseChapterNumber(m[1]||m[2]);
-    if(!number)continue;
-    const tail=(m[3]||'').replace(/[*_#]+\s*$/g,'').trim();
-    const start=(m.index||0)+m[0].length,end=next?.index??text.length;
-    const content=normalizeText(text.slice(start,end));
-    if(content)out.push({chapterNumber:number,title:tail||('Chương '+number),content});
+  // Match a heading on ONE physical line. Whitespace must not swallow prose below.
+  // The number boundary rejects ordinary prose such as "Hồi chuông" or "Phan Mậu".
+  const re=/^[ \t]*(?:>{1,3}[ \t]*)?(?:#{1,6}[ \t]*)?(?:[*_]{1,3}[ \t]*)?(?:(?:chương|chuong|chapter|chap|hồi|hoi|phần|phan|part|tiết|tiet|quyển|quyen|volume)[ \t]*(?:số[ \t]*)?([0-9]{1,6}|[ivxlcdm]{1,12})(?:[ \t]*\/[ \t]*\d{1,6})?|第[ \t]*([0-9零〇一二两三四五六七八九十百千万]{1,16})[ \t]*[章节回卷部篇])(?=$|[ \t:：.\-–—])(?:[ \t]*[:：.\-–—][ \t]*|[ \t]+)?([^\n]*?)(?:[ \t]*[*_#]{1,6})?[ \t]*$/gim;
+  const headers=[];
+  for(const match of text.matchAll(re)){
+    const chapterNumber=parseChapterNumber(match[1]||match[2]);
+    if(!Number.isSafeInteger(chapterNumber)||chapterNumber<1)continue;
+    const title=(match[3]||'').replace(/[*_#]+[ \t]*$/g,'').trim();
+    const start=match.index||0,end=start+match[0].length;
+    const previous=headers[headers.length-1];
+    // Duplicate plain/Markdown headings without prose between are ONE chapter.
+    // If text separates equal numbers, keep both so the duplicate audit catches it.
+    if(previous&&previous.chapterNumber===chapterNumber&&!text.slice(previous.end,start).trim()){
+      headers[headers.length-1]={chapterNumber,title:title||previous.title,start:previous.start,end};
+    }else{
+      headers.push({chapterNumber,title,start,end});
+    }
   }
-  return out.sort((a,b)=>a.chapterNumber-b.chapterNumber);
+  if(!headers.length)return[{chapterNumber:1,title:'Chương 1',content:text}];
+  return headers.map((header,index)=>({
+    chapterNumber:header.chapterNumber,
+    title:header.title||('Chương '+header.chapterNumber),
+    content:normalizeText(text.slice(header.end,headers[index+1]?.start??text.length))
+  }));
 }
 function countWords(value) {
   const text=normalizeText(value);
